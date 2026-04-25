@@ -162,6 +162,16 @@ final class SpoolController extends AbstractController
                         $event->getProjectLabel(),
                         $u
                     );
+                } elseif (SpoolEventType::LaidSection === $type && null !== $event->getVisibleM()) {
+                    $meter->applyVisibleChainEvent(
+                        $spool,
+                        SpoolEventType::LaidSection,
+                        $event->getVisibleM(),
+                        $event->getOccurredAt(),
+                        $event->getProjectLabel(),
+                        $event->getNote(),
+                        $u
+                    );
                 } else {
                     if (SpoolEventType::Transfer === $type && (null === $event->getNote() || '' === trim($event->getNote() ?? ''))) {
                         $this->addFlash('error', 'U předání uveďte komu / kam (pole „Poznámka“).');

@@ -32,6 +32,22 @@ final class SpoolMeterService
         return $n;
     }
 
+    /**
+     * Počet záznamů o spotřebě m v řetězci: odběr dle metru + úsek (štítek) s m.
+     * Pro kontrolu směru první všechny kroky, nejen „odběr dle metru“.
+     */
+    public function countVisibleChainEvents(Spool $spool): int
+    {
+        $n = 0;
+        foreach ($spool->getEvents() as $ev) {
+            if (self::isVisibleMeterChainEventType($ev->getType())) {
+                ++$n;
+            }
+        }
+
+        return $n;
+    }
+
     /** Odběr dle metru a úsek dle štítku (laid_section) — obojí s četbou m na místě. */
     public static function isVisibleMeterChainEventType(SpoolEventType $t): bool
     {
@@ -45,22 +61,51 @@ final class SpoolMeterService
         ?string $projectLabel,
         ?User $user,
     ): SpoolEvent {
+        return $this->applyVisibleChainEvent(
+            $spool,
+            SpoolEventType::MeterReading,
+            $newVisibleM,
+            $occurredAt,
+            $projectLabel,
+            null,
+            $user
+        );
+    }
+
+    /**
+     * Jeden krok v řetězci: před tím míň viditelné m na cívce, víc spotřebováno fyzicky.
+     * Předchozí m = last_visible_m (nebo initial při stavu startu), odběr = |mₙ − mₙ₋₁|,
+     * zůstatek := zůstatek − odběr, last_visible_m := mₙ.
+     */
+    public function applyVisibleChainEvent(
+        Spool $spool,
+        SpoolEventType $type,
+        int $newVisibleM,
+        ?\DateTimeImmutable $occurredAt,
+        ?string $projectLabel,
+        ?string $note,
+        ?User $user,
+    ): SpoolEvent {
+        if (!self::isVisibleMeterChainEventType($type)) {
+            throw new \InvalidArgumentException('Očekáván odběr dle metru nebo úsek dle štítku s m.');
+        }
         $occurredAt ??= new \DateTimeImmutable();
-        $prevM = $spool->getLastVisibleM() ?? $spool->getInitialVisibleM();
-        $used = abs($newVisibleM - $prevM);
-        $nMeterBefore = $this->countMeterReadings($spool);
-        if (0 === $nMeterBefore && 0 === $used) {
+        $m0 = $spool->getInitialVisibleM();
+        $prevM = $spool->getLastVisibleM() ?? $m0;
+        $used = \abs($newVisibleM - $prevM);
+        $nPrev = $this->countVisibleChainEvents($spool);
+        if (0 === $nPrev && 0 === $used) {
             throw new RuntimeException('Oproti předchozímu čtení není žádná změna; zadejte novou hodnotu po odběru kabelu.');
         }
 
         $rem = $spool->getCurrentRemainingM() ?? $spool->getTotalLengthM();
         if ($used > $rem) {
-            throw new RuntimeException(sprintf('Odběr %d m přesahuje zůstatek %d m.', $used, $rem));
+            throw new RuntimeException(\sprintf('Odběr %d m přesahuje zůstatek %d m.', $used, $rem));
         }
 
-        if (0 === $nMeterBefore && null === $spool->getMeterSign() && 0 !== $newVisibleM - $spool->getInitialVisibleM()) {
-            $spool->setMeterSign($newVisibleM > $spool->getInitialVisibleM() ? 1 : -1);
-        } elseif ($nMeterBefore > 0 && null !== $spool->getMeterSign() && 0 !== $newVisibleM - $prevM) {
+        if (0 === $nPrev && null === $spool->getMeterSign() && 0 !== $newVisibleM - $m0) {
+            $spool->setMeterSign($newVisibleM > $m0 ? 1 : -1);
+        } elseif ($nPrev > 0 && null !== $spool->getMeterSign() && 0 !== $newVisibleM - $prevM) {
             $stepSign = $newVisibleM > $prevM ? 1 : ($newVisibleM < $prevM ? -1 : 0);
             if (0 !== $stepSign && $stepSign !== $spool->getMeterSign()) {
                 throw new RuntimeException('Směr čísla na metru se neshoduje s evidovaným pro tuto cívku; zkontrolujte zadání.');
@@ -72,11 +117,12 @@ final class SpoolMeterService
 
         $event = new SpoolEvent();
         $event->setSpool($spool);
-        $event->setType(SpoolEventType::MeterReading);
+        $event->setType($type);
         $event->setOccurredAt($occurredAt);
         $event->setVisibleM($newVisibleM);
         $event->setUsedMeters($used);
         $event->setProjectLabel($projectLabel);
+        $event->setNote($note);
         $event->setCreatedBy($user);
         $spool->addEvent($event);
         $this->em->persist($event);
@@ -123,6 +169,65 @@ final class SpoolMeterService
     {
         $spool->setCurrentRemainingM($spool->getTotalLengthM());
         $spool->setLastVisibleM($spool->getInitialVisibleM());
+    }
+
+    /**
+     * Odvodí směr metru z řetězce záznamů s čtením m (kroky oproti předchozímu m; stálost směru
+     * jako v {@see self::remainingForTableDisplay}).
+     *
+     * @return array{status: 'no_chain'|'no_nonzero_step'|'mixed_steps'|'conflicts_stored'|'unchanged'|'inferred', sign: int|null, inferred: int|null}
+     */
+    public function analyzeInferredMeterSignFromChain(Spool $spool): array
+    {
+        $m0 = $spool->getInitialVisibleM();
+        $evs = $spool->getEvents()->toArray();
+        \usort(
+            $evs,
+            static function (SpoolEvent $a, SpoolEvent $b): int {
+                $t = $a->getOccurredAt() <=> $b->getOccurredAt();
+
+                return 0 === $t ? ($a->getId() ?? 0) <=> ($b->getId() ?? 0) : $t;
+            }
+        );
+        $readings = \array_values(\array_filter(
+            $evs,
+            static fn (SpoolEvent $e): bool => self::isVisibleMeterChainEventType($e->getType())
+        ));
+        if ([] === $readings) {
+            return ['status' => 'no_chain', 'sign' => $spool->getMeterSign(), 'inferred' => null];
+        }
+        $prev = $m0;
+        $inferred = null;
+        foreach ($readings as $e) {
+            $newM = $e->getVisibleM();
+            if (null === $newM) {
+                continue;
+            }
+            $used = \abs($newM - $prev);
+            $step = $newM > $prev ? 1 : ($newM < $prev ? -1 : 0);
+            if ($used > 0) {
+                if (0 !== $step) {
+                    if (null === $inferred) {
+                        $inferred = $step;
+                    } elseif ($step !== $inferred) {
+                        return ['status' => 'mixed_steps', 'sign' => $spool->getMeterSign(), 'inferred' => $inferred];
+                    }
+                }
+            }
+            $prev = $newM;
+        }
+        if (null === $inferred) {
+            return ['status' => 'no_nonzero_step', 'sign' => $spool->getMeterSign(), 'inferred' => null];
+        }
+        $stored = $spool->getMeterSign();
+        if (null !== $stored && $stored !== $inferred) {
+            return ['status' => 'conflicts_stored', 'sign' => $stored, 'inferred' => $inferred];
+        }
+        if (null !== $stored && $stored === $inferred) {
+            return ['status' => 'unchanged', 'sign' => $stored, 'inferred' => $inferred];
+        }
+
+        return ['status' => 'inferred', 'sign' => $inferred, 'inferred' => $inferred];
     }
 
     /**
@@ -282,7 +387,7 @@ final class SpoolMeterService
         foreach ($readings as $e) {
             $newM = $e->getVisibleM();
             if (null === $newM) {
-                $warnings[] = 'Událost #'.($e->getId() ?? '?').' (odběr dle metru) nemá m (visible_m) — v řetězci přeskočena.';
+                $warnings[] = 'Událost #'.($e->getId() ?? '?').' (řetězec m) nemá visible_m — v řetězci přeskočena.';
                 continue;
             }
             $used = \abs($newM - $prev);
@@ -303,7 +408,7 @@ final class SpoolMeterService
                 $stepSign = $newM > $prev ? 1 : ($newM < $prev ? -1 : 0);
                 if (0 !== $stepSign && $stepSign !== $meterSign) {
                     $warnings[] = 'Událost #'.($e->getId() ?? '?').
-                        ' (odběr dle metru): krok nerespektuje ustanovený směr metru; odběr (m) je stále započten.';
+                        ' (řetězec m): krok nerespektuje ustanovený směr metru; odběr (m) je stále započten.';
                 }
             }
 

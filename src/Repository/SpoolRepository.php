@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Spool;
+use App\Enum\SpoolEventType;
 use App\Enum\SpoolStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -160,5 +161,43 @@ class SpoolRepository extends ServiceEntityRepository
             ->addOrderBy('e.id', 'ASC');
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Cívky s aspoň jedním záznamem, který vstupuje do řetězce m (odběr dle metru nebo úsek/štítek).
+     *
+     * @return list<int>
+     */
+    public function findIdsWithMeterReadingEvents(): array
+    {
+        /** @var list<int|string> $raw */
+        $raw = $this->createQueryBuilder('s')
+            ->select('s.id')
+            ->distinct()
+            ->join('s.events', 'e')
+            ->where('e.type = :m OR e.type = :u')
+            ->setParameter('m', SpoolEventType::MeterReading)
+            ->setParameter('u', SpoolEventType::LaidSection)
+            ->orderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return \array_values(\array_map(static fn (mixed $v): int => (int) $v, $raw));
+    }
+
+    /**
+     * Cívka se všemi událostmi (pro přepočet / backfill).
+     */
+    public function findOneWithEventsById(int $id): ?Spool
+    {
+        return $this->createQueryBuilder('s')
+            ->leftJoin('s.events', 'e')
+            ->addSelect('e')
+            ->where('s.id = :id')
+            ->setParameter('id', $id)
+            ->orderBy('e.occurredAt', 'ASC')
+            ->addOrderBy('e.id', 'ASC')
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

@@ -153,7 +153,22 @@ final class ImportSpoolsFromXlsxCommand extends Command
                 $pocPs = 0;
             }
             $res = $this->intOrDefault($sheet, $r, $colIndex['rezervovano_m'], 0);
-            $total = max(1, $stavM, $pocPs);
+            // total_length_m = fyzická délka kabelu na cívce (m). Stav_m je zůstatek; poc_vidl_m_ps je číslo
+            // na metru u kabelu (jiná škála) — nikdy ho nemíchat do total (max(stav, poč.m) dá třeba 8400 místo 2094).
+            $lengthFromStav = \max(1, $stavM);
+            if (null === $spool) {
+                $total = $lengthFromStav;
+            } else {
+                $oldTotal = $spool->getTotalLengthM();
+                $oldIni = $spool->getInitialVisibleM();
+                // Dřívější chyba: total = max(stav, poc_m) — total se shodoval s číslem na metru (stejné jako initial_visible_m).
+                if ($oldTotal === $oldIni && $oldIni > 0 && $lengthFromStav < $oldTotal
+                    && $oldTotal > 2 * $lengthFromStav) {
+                    $total = $lengthFromStav;
+                } else {
+                    $total = \max($oldTotal, $lengthFromStav);
+                }
+            }
             $note = $this->optionalStr($sheet, $r, $colIndex['note']);
             $fiber = $this->intOrDefault($sheet, $r, $colIndex['pocet_vlaken'], 1);
             $diam = $this->normalizeDecimal($this->strCell($sheet, $r, $colIndex['prumer_mm']));
@@ -166,7 +181,7 @@ final class ImportSpoolsFromXlsxCommand extends Command
             $spool->setTotalLengthM($total);
             $spool->setInitialVisibleM($pocPs);
             $spool->setCurrentRemainingM($stavM);
-            $spool->setLastVisibleM(null);
+            $spool->setLastVisibleM($pocPs);
             $spool->setMeterSign(null);
             $spool->setFiberCount($fiber);
             if ('' === $diam) {
