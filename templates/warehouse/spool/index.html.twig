@@ -3,16 +3,16 @@
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Práce s optikou</h1>
-    <p class="lede" style="max-width: 40rem;">Zadejte <strong>číslo saře</strong>, klepněte na <strong>Hledat</strong> — zobrazí se řádky z evidence. U jedné shody můžete doplnit <strong>aktuální metr (m)</strong> a podívat se na odhad odběru (jen orientačně v prohlížeči). Pole <strong>Objekt / zakázka</strong> doplňte podle místa; odkazy do dalších částí skladu jsou v zápatí.</p>
+    <p class="lede" style="max-width: 40rem;">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po krátké pauze se hledá samo (AJAX). U jedné shody můžete doplnit <strong>aktuální metr (m)</strong>. Odkazy do jiných částí skladu jsou v zápatí.</p>
 
-    <form method="get" action="{{ path('warehouse_spool_index') }}" style="max-width: 40rem; margin-bottom: 1.25rem;">
+    <form id="work-search-form" method="get" action="{{ path('warehouse_spool_index') }}" style="max-width: 40rem; margin-bottom: 1.25rem;">
         <p style="margin: 0 0 .75rem;">
             <label for="work-q" style="display: block; font-weight: 600;">Číslo saře</label>
             <span style="display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;">
                 <input type="text" name="q" id="work-q" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="např. 450-1470" style="min-width: 16rem; flex: 1;">
                 <button type="submit" style="white-space: nowrap;">Hledat</button>
             </span>
-            <span style="display: block; font-size: .86em; color: #555; margin-top: .3rem;">Vyhledávání probíhá na serveru (žádné „hledání za chodu“). V poli <code>reel_number</code> hledáme podřetězec a shodu v číslicích (včetně záznamů s pomlčkou).</span>
+            <span style="display: block; font-size: .86em; color: #555; margin-top: .3rem;">Hledá se v <code>reel_number</code> (podřetězec + shoda v číslicích). Bez JavaScriptu se použije odeslání formuláře a přenačte se stránka.</span>
         </p>
         <p style="margin: 0 0 .75rem;">
             <label for="work-meter" style="display: block; font-weight: 600;">Běžný stav (aktuální metráž, m)</label>
@@ -25,6 +25,9 @@
         </p>
     </form>
 
+    <p id="work-ajax-hint" style="color: #666; font-size: .9em; min-height: 1.2em;" aria-live="polite"></p>
+
+    <div id="work-results">
     {% if searchPerformed %}
         {% if spools is empty %}
             <p style="color: #333;"><strong>Žádná shoda</strong> pro dotaz «{{ searchQuery|e }}».</p>
@@ -82,6 +85,7 @@
             {% endif %}
         {% endif %}
     {% endif %}
+    </div>
 
     <footer id="work-page-footer" class="work-page-footer" style="margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ddd; max-width: 40rem; font-size: .92rem; color: #444;">
         <p style="margin: 0 0 .5rem;">Pole <strong>Objekt / zakázka</strong> doplňte podle místa práce.</p>
@@ -93,26 +97,44 @@
 {% endblock %}
 {% block javascripts %}
     {{ parent() }}
-    {% if oneSpoolJson %}
     <script>
 (function () {
-  var el = document.getElementById('work-spool-json');
+  var form = document.getElementById('work-search-form');
+  var qIn = document.getElementById('work-q');
+  var hint = document.getElementById('work-ajax-hint');
+  var results = document.getElementById('work-results');
   var meterIn = document.getElementById('work-meter');
   var calcBox = document.getElementById('work-meter-calc');
-  if (!el || !meterIn || !calcBox) return;
-  var s;
-  try { s = JSON.parse(el.textContent); } catch (e) { return; }
-  function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function prevM() {
-    if (s.lastVisibleM != null) return s.lastVisibleM;
-    if (s.initialVisibleM != null) return s.initialVisibleM;
-    return null;
+  var lookupUrl = {{ path('warehouse_spool_lookup')|json_encode|raw }};
+  var spoolShowBase = {{ path('warehouse_spool_show', {id: 0})|json_encode|raw }};
+  var t = null, seq = 0;
+  var debounceMs = 380;
+  var meterState = { s: null, bound: false };
+
+  function spoolShowUrl(id) { return spoolShowBase.replace(/\/[0-9]+$/, '/' + id); }
+  function esc(t) { if (t == null) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function eventLabel(v) {
+    if (v === 'meter_reading') return 'odběr dle metru';
+    if (v === 'transfer') return 'předání';
+    if (v === 'writeoff') return 'vyřazení';
+    if (v === 'inventory') return 'inventura';
+    if (v === 'correction') return 'oprava';
+    if (v === 'laid_section') return 'úsek (štítek)';
+    return esc(v);
   }
-  function update() {
+  function bindMeter() {
+    if (meterState.bound) return;
+    meterState.bound = true;
+    if (meterIn) { meterIn.addEventListener('input', updateMeter); meterIn.addEventListener('change', updateMeter); }
+  }
+  function updateMeter() {
+    if (!calcBox || !meterIn) return;
+    var s = meterState.s;
+    if (!s) { calcBox.style.display = 'none'; return; }
+    var p = s.lastVisibleM != null ? s.lastVisibleM : s.initialVisibleM;
+    var rem = s.currentRemainingM != null ? s.currentRemainingM : s.totalLengthM;
     var raw = (meterIn.value || '').trim();
     var n = raw === '' ? null : parseInt(raw, 10);
-    var p = prevM();
-    var rem = s.currentRemainingM != null ? s.currentRemainingM : s.totalLengthM;
     if (n === null || n !== n) {
       calcBox.style.display = 'block';
       calcBox.innerHTML = '<strong>Evidence:</strong> m₀ = ' + esc(s.initialVisibleM) + (p != null ? ', poslední m = ' + esc(p) : '') + (rem != null ? ', zůstatek nyní ' + esc(rem) + ' m' : '') + '.';
@@ -126,10 +148,116 @@
     calcBox.style.display = 'block';
     calcBox.innerHTML = w;
   }
-  meterIn.addEventListener('input', update);
-  meterIn.addEventListener('change', update);
-  update();
+  function setMeterSpool(s) {
+    meterState.s = s;
+    if (s && meterIn) { meterIn.value = ''; }
+    if (!s) { if (calcBox) { calcBox.style.display = 'none'; calcBox.innerHTML = ''; } return; }
+    bindMeter();
+    updateMeter();
+  }
+  function renderFromApi(data) {
+    if (!results) return;
+    if (!data || data.ok === false) {
+      results.innerHTML = '<p style="color:#a00">Chyba: ' + esc((data && data.message) || 'neznámá') + '</p>';
+      setMeterSpool(null);
+      return;
+    }
+    var list = data.spools || [];
+    if (list.length === 0) {
+      results.innerHTML = '<p><strong>Žádná shoda</strong> pro «' + esc(data.query) + '».</p>';
+      setMeterSpool(null);
+      return;
+    }
+    var rows = list.map(function (p) {
+      var ctc = (p.cableTypeCode != null && p.cableTypeCode !== '') ? esc(p.cableTypeCode) : '—';
+      return '<tr><td>' + esc(p.reelNumber) + '</td><td>' + ctc + '</td><td>' + esc(p.totalLengthM) + '</td><td>' + (p.currentRemainingM != null ? esc(p.currentRemainingM) : '—') + '</td><td>' + esc(p.statusLabel) + '</td><td><a href="' + spoolShowUrl(p.id) + '">Karta</a></td></tr>';
+    }).join('');
+    var h = '<h2 style="font-size:1.1rem;margin:1rem 0 .5rem">Výsledek (' + list.length + ')</h2><table><thead><tr><th>Číslo saře</th><th>Typ</th><th>L (m)</th><th>Zbývá (m)</th><th>Stav</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+    if (list.length === 1) {
+      var p0 = list[0];
+      h += '<h2 style="font-size:1.1rem;margin:1.25rem 0 .5rem">Poslední záznamy (náhled)</h2>';
+      var le = (p0.lastEvents || []).slice().sort(function (a, b) {
+        return (a.occurredAt || '').localeCompare(b.occurredAt || '');
+      });
+      if (le.length) {
+        h += '<table><thead><tr><th>Kdy</th><th>Typ</th><th>m (čtení)</th><th>Odběr (m)</th><th>Zakázka</th></tr></thead><tbody>';
+        le.forEach(function (e) {
+          var d = (e.occurredAt || '').replace('T', ' ').slice(0, 16);
+          h += '<tr><td>' + esc(d) + '</td><td>' + esc(e.typeLabel || eventLabel(e.type)) + '</td><td>' + (e.visibleM != null ? esc(e.visibleM) : '—') + '</td><td>' + (e.usedMeters != null ? esc(e.usedMeters) : '—') + '</td><td>' + esc(e.projectLabel || '—') + '</td></tr>';
+        });
+        h += '</tbody></table>';
+      } else {
+        h += '<p>Žádné události v deníku.</p>';
+      }
+      h += '<p style="margin-top:.75rem"><a href="' + spoolShowUrl(p0.id) + '">Otevřít kartu cívky (trvalý zápis) →</a></p>';
+      setMeterSpool(p0);
+    } else {
+      setMeterSpool(null);
+    }
+    results.innerHTML = h;
+  }
+  function runFetch(q, force) {
+    q = (q || '').trim();
+    if (q.length < 1) { if (hint) hint.textContent = ''; if (results) results.innerHTML = ''; setMeterSpool(null); return; }
+    var my = ++seq;
+    if (hint) hint.textContent = 'Načítám…';
+    var u = new URL(lookupUrl, window.location.origin);
+    u.searchParams.set('q', q);
+    fetch(u.toString(), { credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) {
+        var ct = (r.headers.get('content-type') || '');
+        if (ct.indexOf('application/json') === -1) { return r.text().then(function () { throw new Error('not json'); }); }
+        return r.json();
+      })
+      .then(function (data) {
+        if (my !== seq) return;
+        if (data && data.ok === false) {
+          if (hint) hint.textContent = (data.message) ? ('Chyba: ' + data.message) : 'Chyba hledání.';
+          renderFromApi(data);
+          return;
+        }
+        if (hint) {
+          if (!data || data.count === 0) hint.textContent = 'Žádná shoda — podle zadaného saře.';
+          else if (data.count === 1) hint.textContent = 'Jedna shoda — můžete doplnit metr výše.';
+          else hint.textContent = 'Nalezeno ' + data.count + ' cívek.';
+        }
+        if (window.history && window.history.replaceState) {
+          var url = new URL(window.location.href);
+          url.searchParams.set('q', q);
+          window.history.replaceState(null, '', url.toString());
+        }
+        renderFromApi(data);
+      })
+      .catch(function (e) {
+        if (my !== seq) return;
+        if (hint) hint.textContent = 'Chyba spojení — použije se odeslání stránky.';
+        if (form) form.submit();
+      });
+  }
+  function onQueryChange() {
+    var q = (qIn && qIn.value) ? qIn.value.trim() : '';
+    if (q.length < 1) { if (hint) hint.textContent = ''; clearTimeout(t); if (results) results.innerHTML = ''; setMeterSpool(null); return; }
+    clearTimeout(t);
+    t = setTimeout(function () {
+      var qNow = (qIn && qIn.value) ? String(qIn.value).trim() : '';
+      if (qNow.length < 1) { if (hint) hint.textContent = ''; if (results) results.innerHTML = ''; setMeterSpool(null); return; }
+      runFetch(qNow, false);
+    }, debounceMs);
+  }
+  if (form && qIn) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      runFetch(qIn.value, true);
+    });
+    qIn.addEventListener('input', onQueryChange);
+    qIn.addEventListener('paste', function () { setTimeout(onQueryChange, 0); });
+  }
+  var boot = document.getElementById('work-spool-json');
+  if (boot && boot.textContent) {
+    try {
+      setMeterSpool(JSON.parse(boot.textContent));
+    } catch (err) {}
+  }
 })();
     </script>
-    {% endif %}
 {% endblock %}
