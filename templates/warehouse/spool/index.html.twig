@@ -1,5 +1,18 @@
 {% extends 'base.html.twig' %}
 {% block title %}Práce s optikou — cívky{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .work-input-sare {
+            min-width: 32rem;
+            max-width: 100%;
+            flex: 1 1 20rem;
+            font-size: 1.45rem;
+            line-height: 1.3;
+            padding: 0.6rem 1rem;
+        }
+    </style>
+{% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Práce s optikou</h1>
@@ -9,8 +22,9 @@
         <p style="margin: 0 0 .75rem;">
             <label for="work-q" style="display: block; font-weight: 600;">Číslo saře</label>
             <span style="display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;">
-                <input type="text" name="q" id="work-q" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="např. 450-1470" style="min-width: 16rem; flex: 1;">
+                <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="např. 450-1470">
                 <button type="submit" style="white-space: nowrap;">Hledat</button>
+                <button type="button" id="work-scan-btn" disabled style="white-space: nowrap;" title="Sken (čárový kód) — zatím nepřipojeno">Sken</button>
             </span>
             <span style="display: block; font-size: .86em; color: #555; margin-top: .3rem;">Hledá se v <code>reel_number</code> (podřetězec + shoda v číslicích). Bez JavaScriptu se použije odeslání formuláře a přenačte se stránka.</span>
         </p>
