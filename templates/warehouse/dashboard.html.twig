@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+{% block title %}Čísla skladu — Optický sklad{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Čísla skladu</h1>
+    <p>Počet typů v katalogu: <strong>{{ cableTypeCount }}</strong></p>
+    <p>Počet zaevidovaných cívek: <strong>{{ spoolCount }}</strong></p>
+    <p style="margin-top: 1.25rem;">
+        <a href="{{ path('warehouse_spool_index') }}">Práce s optikou</a> ·
+        <a href="{{ path('warehouse_receipt_index') }}">Příjem kabelu</a> ·
+        <a href="{{ path('warehouse_browse_index') }}">Přehled skladu (filtry)</a>
+    </p>
+{% endblock %}

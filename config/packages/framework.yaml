@@ -1,0 +1,24 @@
+# see https://symfony.com/doc/current/reference/configuration/framework.html
+framework:
+    secret: '%env(APP_SECRET)%'
+
+    # Note that the session will be started ONLY if you read or write from it.
+    session:
+        enabled: true
+        handler_id: null
+        # ~30 дней: реже вводить пароль на мобильных (вместе с remember_me)
+        cookie_lifetime: 2592000
+        gc_maxlifetime: 2592000
+        cookie_samesite: lax
+        name: OP_SKLAD_SESS
+        cookie_httponly: true
+        cookie_secure: auto
+
+    #esi: true
+    #fragments: true
+
+when@test:
+    framework:
+        test: true
+        session:
+            storage_factory_id: session.storage.factory.mock_file

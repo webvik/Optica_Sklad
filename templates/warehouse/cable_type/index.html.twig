@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+{% block title %}Typy kabelů{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Typy kabelů</h1>
+    <p><a href="{{ path('warehouse_cable_type_new') }}">Nový záznam</a></p>
+    <table>
+        <thead>
+            <tr>
+                <th>Kód</th>
+                <th>Název</th>
+                <th>Řada</th>
+                <th>Vláken</th>
+                <th>Aktivní</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for c in items %}
+            <tr>
+                <td>{{ c.code }}</td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.family }}</td>
+                <td>{{ c.fiberCount }}</td>
+                <td>{% if c.isActive %}ano{% else %}ne{% endif %}</td>
+                <td><a href="{{ path('warehouse_cable_type_edit', {id: c.id}) }}">Upravit</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="6">Zatím prázdné — <a href="{{ path('warehouse_cable_type_new') }}">přidat typ</a></td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

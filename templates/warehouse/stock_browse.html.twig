@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+{% block title %}Přehled skladu — Optický sklad{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Přehled skladu</h1>
+    <p class="lede">Přehled cívek podle typu a stavu; vhodné pro <strong>kontrolu zásob</strong> a přípravu <strong>inventury</strong> (samostatný inventurní režim můžeme doplnit).</p>
+
+    <form method="get" action="{{ path('warehouse_browse_index') }}" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
+        <p style="margin: 0;">
+            <label for="f-ct">Typ kabelu</label><br>
+            <select id="f-ct" name="cableTypeId">
+                <option value="">— všechny —</option>
+                {% for ct in cableTypeChoices %}
+                    <option value="{{ ct.id }}"{% if filterCableTypeId == ct.id %} selected{% endif %}>{{ ct.code }} — {{ ct.name }}</option>
+                {% endfor %}
+            </select>
+        </p>
+        <p style="margin: 0;">
+            <label for="f-st">Stav cívky</label><br>
+            <select id="f-st" name="status">
+                <option value="">— všechny —</option>
+                <option value="in_stock"{% if filterStatus and filterStatus.value == 'in_stock' %} selected{% endif %}>na skladě</option>
+                <option value="transferred"{% if filterStatus and filterStatus.value == 'transferred' %} selected{% endif %}>předáno</option>
+                <option value="written_off"{% if filterStatus and filterStatus.value == 'written_off' %} selected{% endif %}>vyřazeno</option>
+            </select>
+        </p>
+        <p style="margin: 0;">
+            <button type="submit">Filtrovat</button>
+        </p>
+    </form>
+
+    {% include 'warehouse/_spool_table.html.twig' with { spools: spools } only %}
+
+    <p><a href="{{ path('warehouse_dashboard') }}">Číselný přehled (dashboard)</a> ·
+       <a href="{{ path('warehouse_spool_index') }}">Běžná práce s cívkami</a></p>
+{% endblock %}

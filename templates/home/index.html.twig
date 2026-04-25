@@ -1,0 +1,15 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Optický sklad{% endblock %}
+
+{% block body %}
+    <h1>Optický sklad</h1>
+
+    {% if app.user %}
+        {% include '_app_menu_cz.html.twig' %}
+        <p>Jste přihlášen(a) jako <strong>{{ app.user.displayName }}</strong> (uživatel: <code>{{ app.user.userIdentifier }}</code>).</p>
+    {% else %}
+        <h2>Přihlášení</h2>
+        {% include '_login_form.html.twig' with { last_username: last_username|default(''), error: error|default(null) } only %}
+    {% endif %}
+{% endblock %}

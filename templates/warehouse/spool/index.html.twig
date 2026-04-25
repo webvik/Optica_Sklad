@@ -1,0 +1,135 @@
+{% extends 'base.html.twig' %}
+{% block title %}Práce s optikou — cívky{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Práce s optikou</h1>
+    <p class="lede" style="max-width: 40rem;">Zadejte <strong>číslo saře</strong>, klepněte na <strong>Hledat</strong> — zobrazí se řádky z evidence. U jedné shody můžete doplnit <strong>aktuální metr (m)</strong> a podívat se na odhad odběru (jen orientačně v prohlížeči). Pole <strong>Objekt / zakázka</strong> doplňte podle místa; odkazy do dalších částí skladu jsou v zápatí.</p>
+
+    <form method="get" action="{{ path('warehouse_spool_index') }}" style="max-width: 40rem; margin-bottom: 1.25rem;">
+        <p style="margin: 0 0 .75rem;">
+            <label for="work-q" style="display: block; font-weight: 600;">Číslo saře</label>
+            <span style="display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;">
+                <input type="text" name="q" id="work-q" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="např. 450-1470" style="min-width: 16rem; flex: 1;">
+                <button type="submit" style="white-space: nowrap;">Hledat</button>
+            </span>
+            <span style="display: block; font-size: .86em; color: #555; margin-top: .3rem;">Vyhledávání probíhá na serveru (žádné „hledání za chodu“). V poli <code>reel_number</code> hledáme podřetězec a shodu v číslicích (včetně záznamů s pomlčkou).</span>
+        </p>
+        <p style="margin: 0 0 .75rem;">
+            <label for="work-meter" style="display: block; font-weight: 600;">Běžný stav (aktuální metráž, m)</label>
+            <input type="number" name="visible_m" id="work-meter" inputmode="numeric" step="1" min="0" placeholder="po nalezení jedné cívky" style="min-width: 10rem; max-width: 100%;">
+        </p>
+        <p style="margin: 0 0 .75rem; display: none; padding: .5rem .75rem; background: #f5f5f5; border-radius: 4px; font-size: .92rem;" id="work-meter-calc" aria-live="polite"></p>
+        <p style="margin: 0;">
+            <label for="work-project" style="display: block; font-weight: 600;">Objekt / zakázka</label>
+            <input type="text" name="project" id="work-project" autocomplete="off" style="min-width: 20rem; width: 100%;" placeholder="volitelné">
+        </p>
+    </form>
+
+    {% if searchPerformed %}
+        {% if spools is empty %}
+            <p style="color: #333;"><strong>Žádná shoda</strong> pro dotaz «{{ searchQuery|e }}».</p>
+        {% else %}
+            <h2 style="font-size: 1.1rem; margin: 1rem 0 .5rem;">Výsledek ({{ spools|length }})</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Číslo saře</th>
+                        <th>Typ</th>
+                        <th>L (m)</th>
+                        <th>Zbývá (m)</th>
+                        <th>Stav</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in spools %}
+                    <tr>
+                        <td>{{ s.reelNumber }}</td>
+                        <td>{{ s.cableType ? s.cableType.code : '—' }}</td>
+                        <td>{{ s.totalLengthM }}</td>
+                        <td>{{ s.currentRemainingM ?? '—' }}</td>
+                        <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}</td>
+                        <td><a href="{{ path('warehouse_spool_show', {id: s.id}) }}">Karta</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+
+            {% if spools|length == 1 %}
+                {% set sp = spools[0] %}
+                <h2 style="font-size: 1.1rem; margin: 1.25rem 0 .5rem;">Poslední záznamy (náhled)</h2>
+                {% if sp.events|length %}
+                    <table>
+                        <thead>
+                            <tr><th>Kdy</th><th>Typ</th><th>m (čtení)</th><th>Odběr (m)</th><th>Zakázka</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for e in sp.events|slice(-5, 5) %}
+                            <tr>
+                                <td>{{ e.occurredAt|date('Y-m-d H:i') }}</td>
+                                <td>{% if e.type.value == 'meter_reading' %}odběr dle metru{% elseif e.type.value == 'transfer' %}předání{% elseif e.type.value == 'writeoff' %}vyřazení{% elseif e.type.value == 'inventory' %}inventura{% elseif e.type.value == 'correction' %}oprava{% elseif e.type.value == 'laid_section' %}úsek (štítek){% else %}{{ e.type.value }}{% endif %}</td>
+                                <td>{{ e.visibleM ?? '—' }}</td>
+                                <td>{{ e.usedMeters ?? '—' }}</td>
+                                <td>{{ e.projectLabel|default('—') }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>Žádné události v deníku.</p>
+                {% endif %}
+                <p style="margin-top: .75rem;"><a href="{{ path('warehouse_spool_show', {id: sp.id}) }}">Otevřít kartu cívky (trvalý zápis) →</a></p>
+            {% endif %}
+        {% endif %}
+    {% endif %}
+
+    <footer id="work-page-footer" class="work-page-footer" style="margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ddd; max-width: 40rem; font-size: .92rem; color: #444;">
+        <p style="margin: 0 0 .5rem;">Pole <strong>Objekt / zakázka</strong> doplňte podle místa práce.</p>
+        <p style="margin: 0;">Nové cívky → <a href="{{ path('warehouse_receipt_index') }}">Příjem kabelu</a>. <a href="{{ path('warehouse_spool_list') }}">Úplný seznam</a> · <a href="{{ path('warehouse_browse_index') }}">Přehled s filtry</a>.</p>
+    </footer>
+    {% if oneSpoolJson %}
+    <script type="application/json" id="work-spool-json">{{ oneSpoolJson|raw }}</script>
+    {% endif %}
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% if oneSpoolJson %}
+    <script>
+(function () {
+  var el = document.getElementById('work-spool-json');
+  var meterIn = document.getElementById('work-meter');
+  var calcBox = document.getElementById('work-meter-calc');
+  if (!el || !meterIn || !calcBox) return;
+  var s;
+  try { s = JSON.parse(el.textContent); } catch (e) { return; }
+  function esc(t) { return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function prevM() {
+    if (s.lastVisibleM != null) return s.lastVisibleM;
+    if (s.initialVisibleM != null) return s.initialVisibleM;
+    return null;
+  }
+  function update() {
+    var raw = (meterIn.value || '').trim();
+    var n = raw === '' ? null : parseInt(raw, 10);
+    var p = prevM();
+    var rem = s.currentRemainingM != null ? s.currentRemainingM : s.totalLengthM;
+    if (n === null || n !== n) {
+      calcBox.style.display = 'block';
+      calcBox.innerHTML = '<strong>Evidence:</strong> m₀ = ' + esc(s.initialVisibleM) + (p != null ? ', poslední m = ' + esc(p) : '') + (rem != null ? ', zůstatek nyní ' + esc(rem) + ' m' : '') + '.';
+      return;
+    }
+    if (p == null) { calcBox.style.display = 'block'; calcBox.textContent = 'Chybí referenční m v evidenci.'; return; }
+    var used = Math.abs(n - p);
+    var after = rem != null ? (rem - used) : null;
+    var w = 'Předchozí m = ' + p + ' → odběr ≈ ' + used + ' m' + (after != null ? ' → zůstatek ≈ ' + after + ' m' : '') + '.';
+    if (rem != null && used > rem) w += ' <span style="color:#a00">Odběr přesahuje zůstatek.</span>';
+    calcBox.style.display = 'block';
+    calcBox.innerHTML = w;
+  }
+  meterIn.addEventListener('input', update);
+  meterIn.addEventListener('change', update);
+  update();
+})();
+    </script>
+    {% endif %}
+{% endblock %}

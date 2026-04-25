@@ -1,0 +1,17 @@
+{% if error is defined and error %}
+    <p style="color: #c00;">{{ error.message }}</p>
+{% endif %}
+
+<form method="post" action="{{ path('app_home') }}">
+    <p>
+        <label for="username">Přihlašovací jméno (jméno.příjmení)</label><br>
+        <input id="username" type="text" name="username" value="{{ last_username|default('') }}" required autocomplete="username" autocapitalize="none" spellcheck="false" autofocus placeholder="jan.novak" inputmode="text">
+    </p>
+    <p>
+        <label for="password">Heslo</label><br>
+        <input id="password" type="password" name="password" required autocomplete="current-password">
+    </p>
+    <p style="color: #666; font-size: .9em;">Sezení a funkce „zapamatovat“ jsou navrženy na delší dobu; heslo může pamatovat i prohlížeč (Keychain, uložené přihlášení).</p>
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+    <button type="submit">Přihlásit se</button>
+</form>

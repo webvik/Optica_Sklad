@@ -1,0 +1,13 @@
+{# Řádek: Domů vlevo, odhlášení vpravo; pod tím tři hlavní cesty. Popisy na stránkách sekcí. #}
+<nav class="app-menu" aria-label="Hlavní nabídka" style="margin-bottom: 0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; margin-bottom: .75rem;">
+        <a href="{{ path('app_home') }}">Domů</a>
+        <a href="{{ path('app_logout') }}">Odhlásit se</a>
+    </div>
+    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center;">
+        <li><a href="{{ path('warehouse_spool_index') }}">Práce s optikou</a></li>
+        <li><a href="{{ path('warehouse_receipt_index') }}">Příjem kabelu</a></li>
+        <li><a href="{{ path('warehouse_browse_index') }}">Přehled skladu</a></li>
+    </ul>
+</nav>
+<hr style="border: 0; border-top: 1px solid #ccc; margin: 0 0 1rem;">

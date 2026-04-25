@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+{% block title %}Příjem kabelu — Optický sklad{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Příjem kabelu</h1>
+    <p class="lede">Zadání <strong>typu kabelu do katalogu</strong> a <strong>nové cívky do evidence</strong> (před první prací s metrem).</p>
+    <ul>
+        <li><a href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a> — dříve v aplikaci neexistující značka / konstrukce.</li>
+        <li><a href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a> — fyzicky přijatá špulka s délkou L, m₀ a vazbou na typ.</li>
+    </ul>
+    <p><a href="{{ path('warehouse_cable_type_index') }}">Seznam a úprava typů v katalogu</a> — doplňování parametrů u již vytvořených kódů.</p>
+    <p><a href="{{ path('warehouse_browse_index') }}">Přehled skladu (filtry)</a></p>
+{% endblock %}

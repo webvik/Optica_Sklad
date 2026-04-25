@@ -1,0 +1,8 @@
+{% extends 'base.html.twig' %}
+{% block title %}Seznam cívek — Práce s optikou{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Seznam cívek</h1>
+    <p><a href="{{ path('warehouse_spool_index') }}">← Zpět k práci s optikou (zadání saře)</a></p>
+    {% include 'warehouse/_spool_table.html.twig' with { spools: spools } only %}
+{% endblock %}
