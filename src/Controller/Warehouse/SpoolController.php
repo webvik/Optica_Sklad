@@ -22,7 +22,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class SpoolController extends AbstractController
 {
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(Request $request, SpoolRepository $repo): Response
+    public function index(Request $request, SpoolRepository $repo, SpoolMeterService $meter): Response
     {
         $q = \trim((string) $request->query->get('q', ''));
         $spools = [];
@@ -33,10 +33,14 @@ final class SpoolController extends AbstractController
                 $this->addFlash('error', 'Chyba vyhledávání: '.$e->getMessage());
             }
         }
-        $oneSpoolJson = null;
-        if (1 === \count($spools)) {
-            $oneSpoolJson = \json_encode(
-                $this->serializeSpoolLookup($spools[0]),
+        $spoolRemaining = [];
+        $spoolsLookupJson = null;
+        if ($spools !== []) {
+            foreach ($spools as $s) {
+                $spoolRemaining[$s->getId()] = $meter->remainingForTableDisplay($s);
+            }
+            $spoolsLookupJson = \json_encode(
+                \array_map(fn (Spool $s) => $this->serializeSpoolLookup($s, $meter), $spools),
                 \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE
             );
         }
@@ -45,7 +49,8 @@ final class SpoolController extends AbstractController
             'searchQuery' => $q,
             'searchPerformed' => '' !== $q,
             'spools' => $spools,
-            'oneSpoolJson' => $oneSpoolJson,
+            'spoolRemaining' => $spoolRemaining,
+            'spoolsLookupJson' => $spoolsLookupJson,
         ]);
     }
 
@@ -60,7 +65,7 @@ final class SpoolController extends AbstractController
 
     /** Náhled cívek podle čísla saře (AJAX). */
     #[Route('/lookup', name: 'lookup', methods: ['GET'])]
-    public function lookup(Request $request, SpoolRepository $repo): JsonResponse
+    public function lookup(Request $request, SpoolRepository $repo, SpoolMeterService $meter): JsonResponse
     {
         $q = (string) $request->query->get('q', '');
         $qTrim = trim($q);
@@ -85,7 +90,7 @@ final class SpoolController extends AbstractController
                 500
             );
         }
-        $payload = array_map(fn (Spool $s) => $this->serializeSpoolLookup($s), $spools);
+        $payload = array_map(fn (Spool $s) => $this->serializeSpoolLookup($s, $meter), $spools);
 
         return $this->json([
             'ok' => true,
@@ -195,8 +200,9 @@ final class SpoolController extends AbstractController
         ]);
     }
 
-    private function serializeSpoolLookup(Spool $s): array
+    private function serializeSpoolLookup(Spool $s, SpoolMeterService $meter): array
     {
+        $rem = $meter->remainingForTableDisplay($s);
         $evs = $s->getEvents()->toArray();
         usort($evs, static function (SpoolEvent $a, SpoolEvent $b): int {
             $t = $a->getOccurredAt() <=> $b->getOccurredAt();
@@ -224,9 +230,12 @@ final class SpoolController extends AbstractController
             'cableTypeCode' => $s->getCableType()?->getCode(),
             'cableTypeName' => $s->getCableType()?->getName(),
             'totalLengthM' => $s->getTotalLengthM(),
-            'currentRemainingM' => $s->getCurrentRemainingM(),
+            'currentRemainingM' => $rem['remaining'],
             'initialVisibleM' => $s->getInitialVisibleM(),
             'lastVisibleM' => $s->getLastVisibleM(),
+            'remainingDirectionOk' => $rem['directionOk'],
+            'remainingWarning' => $rem['warning'],
+            'meterNumberingLabel' => $rem['directionLabel'],
             'status' => $s->getStatus()->value,
             'statusLabel' => $this->spoolStatusLabel($s->getStatus()),
             'family' => $s->getFamily(),
