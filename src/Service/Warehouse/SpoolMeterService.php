@@ -32,6 +32,12 @@ final class SpoolMeterService
         return $n;
     }
 
+    /** Odběr dle metru a úsek dle štítku (laid_section) — obojí s četbou m na místě. */
+    public static function isVisibleMeterChainEventType(SpoolEventType $t): bool
+    {
+        return SpoolEventType::MeterReading === $t || SpoolEventType::LaidSection === $t;
+    }
+
     public function applyMeterReading(
         Spool $spool,
         int $newVisibleM,
@@ -117,5 +123,213 @@ final class SpoolMeterService
     {
         $spool->setCurrentRemainingM($spool->getTotalLengthM());
         $spool->setLastVisibleM($spool->getInitialVisibleM());
+    }
+
+    /**
+     * Zobrazení zůstatku: hodnota vychází z current_remaining_m (a last_visible_m v workflow),
+     * tedy z údajů u cívky po uložení odběrů, ne z přepočtu v paměti.
+     * Doplňují se jen kontroly: směr čísel na metru (rostoucí/klesající), shoda s meterSign,
+     * kontrola: celková délka (total_length_m) = zůstatek + součet odběrů z řetězce čtení m.
+     *
+     * @return array{
+     *     remaining: int,
+     *     directionOk: bool,
+     *     directionLabel: string|null,
+     *     warning: string|null
+     * }
+     */
+    public function remainingForTableDisplay(Spool $spool): array
+    {
+        $total = $spool->getTotalLengthM();
+        /** Zůstatek v evidenci (current_remaining_m); bez záznamu o odběru = celá délka kabelu (total_length_m) */
+        $remaining = $spool->getCurrentRemainingM() ?? $total;
+        $m0 = $spool->getInitialVisibleM();
+        $evs = $spool->getEvents()->toArray();
+        \usort(
+            $evs,
+            static function (SpoolEvent $a, SpoolEvent $b): int {
+                $t = $a->getOccurredAt() <=> $b->getOccurredAt();
+
+                return 0 === $t ? ($a->getId() ?? 0) <=> ($b->getId() ?? 0) : $t;
+            }
+        );
+        $readings = \array_values(\array_filter(
+            $evs,
+            static fn (SpoolEvent $e): bool => self::isVisibleMeterChainEventType($e->getType())
+        ));
+
+        if ([] === $readings) {
+            $storedSign = $spool->getMeterSign();
+            $label = null === $storedSign ? null : (1 === $storedSign ? 'rostoucí' : 'klesající');
+
+            return [
+                'remaining' => $remaining,
+                'directionOk' => true,
+                'directionLabel' => $label,
+                'warning' => $remaining < 0 ? 'Záporný zůstatek v evidenci; zkontrolujte cívku.' : null,
+            ];
+        }
+
+        $prev = $m0;
+        $inferred = null;
+        $dirOk = true;
+        $warnings = [];
+        $sumOdběrZŘetězce = 0;
+
+        foreach ($readings as $e) {
+            $newM = $e->getVisibleM();
+            if (null === $newM) {
+                continue;
+            }
+            $used = \abs($newM - $prev);
+            $sumOdběrZŘetězce += $used;
+            $step = $newM > $prev ? 1 : ($newM < $prev ? -1 : 0);
+            if ($used > 0) {
+                if (0 !== $step) {
+                    if (null === $inferred) {
+                        $inferred = $step;
+                    } elseif ($step !== $inferred) {
+                        $dirOk = false;
+                        $warnings[] = 'Mezi záznamy s metrem není stálý směr (rostoucí nebo klesající) — zkontrolujte deník (odběr dle metru nebo úsek/štítek).';
+                    }
+                }
+            }
+            $prev = $newM;
+        }
+
+        $storedSign = $spool->getMeterSign();
+        if (null !== $storedSign && null !== $inferred && $storedSign !== $inferred) {
+            $dirOk = false;
+            $warnings[] = 'Směr v deníku neodpovídá evidovanému směru (meter sign) u cívky.';
+        }
+
+        if (null === $storedSign && null !== $inferred) {
+            $directionLabel = 1 === $inferred ? 'rostoucí' : 'klesající';
+        } else {
+            $directionLabel = null === $storedSign ? null : (1 === $storedSign ? 'rostoucí' : 'klesající');
+        }
+
+        if ($readings !== [] && null === $spool->getCurrentRemainingM()) {
+            $warnings[] = 'V deníku jsou záznamy s metrem, ale u cívky chybí zůstatek (current_remaining_m) — doplňte podle evidence.';
+        }
+        if ($readings !== [] && $spool->getCurrentRemainingM() !== null) {
+            $bal = $spool->getCurrentRemainingM() + $sumOdběrZŘetězce;
+            if ($bal !== $total) {
+                $warnings[] = \sprintf('Součet zůstatku a odběrů dle čtení m v deníku (%d + %d) se neshoduje s celkovou délkou v evidenci (%d m). Očekává se: délka = zůstatek + součet kroků |Δm| u odběrů a úseků.', $spool->getCurrentRemainingM(), $sumOdběrZŘetězce, $total);
+            }
+        }
+
+        if ($remaining < 0) {
+            $dirOk = false;
+            $warnings[] = 'Záporný zůstatek v evidenci.';
+        }
+
+        $warning = [] !== $warnings ? \implode(' ', $warnings) : null;
+        if (!$dirOk && null === $warning) {
+            $warning = 'Nekonzistence směru metru; zkontrolujte záznamy.';
+        }
+
+        return [
+            'remaining' => $remaining,
+            'directionOk' => $dirOk,
+            'directionLabel' => $directionLabel,
+            'warning' => $warning,
+        ];
+    }
+
+    /**
+     * Přepočítá u cívky zůstatek, last_visible_m, meter_sign z chainu odběrů dle metru
+     * (jako by se postupné zápisy provedly znovu). Volitelně srovná used_meters v událostech
+     * s očekávanou hodnotu |mᵢ − mᵢ₋₁|.
+     *
+     * @return array{remaining: int, lastVisible: int, meterSign: int|null, warnings: list<string>, eventUsedMetersFixed: int}
+     */
+    public function recomputeSpoolStateFromMeterEvents(Spool $spool, bool $apply, bool $syncEventUsedMeters = true): array
+    {
+        $m0 = $spool->getInitialVisibleM();
+        $total = $spool->getTotalLengthM();
+        $evs = $spool->getEvents()->toArray();
+        \usort(
+            $evs,
+            static function (SpoolEvent $a, SpoolEvent $b): int {
+                $t = $a->getOccurredAt() <=> $b->getOccurredAt();
+
+                return 0 === $t ? ($a->getId() ?? 0) <=> ($b->getId() ?? 0) : $t;
+            }
+        );
+        $readings = \array_values(\array_filter(
+            $evs,
+            static fn (SpoolEvent $e): bool => self::isVisibleMeterChainEventType($e->getType())
+        ));
+
+        if ([] === $readings) {
+            return [
+                'remaining' => $spool->getCurrentRemainingM() ?? $total,
+                'lastVisible' => $spool->getLastVisibleM() ?? $m0,
+                'meterSign' => $spool->getMeterSign(),
+                'warnings' => [],
+                'eventUsedMetersFixed' => 0,
+            ];
+        }
+
+        $rem = $total;
+        $prev = $m0;
+        $meterSign = null;
+        $nMeterBefore = 0;
+        $warnings = [];
+        $eventUsedMetersFixed = 0;
+
+        foreach ($readings as $e) {
+            $newM = $e->getVisibleM();
+            if (null === $newM) {
+                $warnings[] = 'Událost #'.($e->getId() ?? '?').' (odběr dle metru) nemá m (visible_m) — v řetězci přeskočena.';
+                continue;
+            }
+            $used = \abs($newM - $prev);
+            if ($syncEventUsedMeters) {
+                $oldUsed = $e->getUsedMeters();
+                if (null === $oldUsed || $oldUsed !== $used) {
+                    if ($apply) {
+                        $e->setUsedMeters($used);
+                        $this->em->persist($e);
+                    }
+                    ++$eventUsedMetersFixed;
+                }
+            }
+
+            if (0 === $nMeterBefore && null === $meterSign && 0 !== $newM - $m0) {
+                $meterSign = $newM > $m0 ? 1 : -1;
+            } elseif ($nMeterBefore > 0 && null !== $meterSign && 0 !== $newM - $prev) {
+                $stepSign = $newM > $prev ? 1 : ($newM < $prev ? -1 : 0);
+                if (0 !== $stepSign && $stepSign !== $meterSign) {
+                    $warnings[] = 'Událost #'.($e->getId() ?? '?').
+                        ' (odběr dle metru): krok nerespektuje ustanovený směr metru; odběr (m) je stále započten.';
+                }
+            }
+
+            $rem -= $used;
+            $prev = $newM;
+            ++$nMeterBefore;
+        }
+
+        if ($rem < 0) {
+            $warnings[] = 'Přepočítaný zůstatek je záporný: '.$rem.' m (uloží se 0 m).';
+        }
+        $toStore = \max(0, $rem);
+
+        if ($apply) {
+            $spool->setCurrentRemainingM($toStore);
+            $spool->setLastVisibleM($prev);
+            $spool->setMeterSign($meterSign);
+            $this->em->persist($spool);
+        }
+
+        return [
+            'remaining' => $toStore,
+            'lastVisible' => $prev,
+            'meterSign' => $meterSign,
+            'warnings' => $warnings,
+            'eventUsedMetersFixed' => $eventUsedMetersFixed,
+        ];
     }
 }
