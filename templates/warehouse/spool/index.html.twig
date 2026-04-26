@@ -99,14 +99,42 @@
         #work-search-form .work-search-action-btn:active {
             background: #e0e0e2;
         }
+        .work-top-area { max-width: 40rem; margin-bottom: 0.75rem; }
+        .work-top-area.is-search-collapsed .work-page-lede { display: none; }
+        .work-top-area.is-search-collapsed .work-search-form-wrap { display: none; }
+        .work-search-next-tl {
+            display: none;
+            box-sizing: border-box;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            max-width: 40rem;
+            min-height: 2.6rem;
+            padding: 0.55rem 1rem;
+            font: inherit;
+            font-size: 1.05rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            border: 1px solid #b8c4d0;
+            border-radius: 6px;
+            background: #eef2f6;
+            color: #1a1a1a;
+        }
+        .work-search-next-tl:hover { background: #e2e8f0; }
+        .work-search-next-tl .work-search-next-ico { flex-shrink: 0; }
+        .work-top-area.is-search-collapsed .work-search-next-tl { display: inline-flex; }
     </style>
 {% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Práce s optikou</h1>
-    <p class="lede" style="max-width: 40rem;">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po pauze se hledá samo. Při více shodách <strong>klikněte na řádek</strong>. <strong>PS (m)</strong> = počáteční stav metru <em>na kabelu</em>; <strong>Délka (m)</strong> = délka kabelu na cívce.<span id="work-data-lede"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}> U vybrané cívky můžete v bloku <em>Záznam pro práci</em> hned <strong>pod tabulkou</strong> zapsat odběr tlačítkem <strong>Zapsat</strong>.</span> Odkazy v zápatí.</p>
+    <div id="work-top-area" class="work-top-area{% if searchPerformed and spools|length == 1 %} is-search-collapsed{% endif %}">
+    <p class="lede work-page-lede" id="work-page-lede">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po pauze se hledá samo. Při více shodách <strong>klikněte na řádek</strong>. <strong>PS (m)</strong> = počáteční stav metru <em>na kabelu</em>; <strong>Délka (m)</strong> = délka kabelu na cívce.<span id="work-data-lede"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}> U vybrané cívky můžete v bloku <em>Záznam pro práci</em> hned <strong>pod tabulkou</strong> zapsat odběr tlačítkem <strong>Zapsat</strong>.</span> Odkazy v zápatí.</p>
 
-    <form id="work-search-form" method="get" action="{{ path('warehouse_spool_index') }}" style="max-width: 40rem; margin-bottom: 0.75rem;">
+    <div class="work-search-shell">
+    <div class="work-search-form-wrap">
+    <form id="work-search-form" method="get" action="{{ path('warehouse_spool_index') }}" style="margin: 0;">
         <p style="margin: 0;">
             <label for="work-q" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">Číslo saře</label>
             <span style="display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;">
@@ -116,6 +144,16 @@
             </span>
         </p>
     </form>
+    </div>
+    <button type="button" id="work-search-expand-btn" class="work-search-next-tl" title="Rozbalit nápovědu a hledání další cívky" aria-controls="work-top-area" aria-expanded="false">
+        <svg class="work-search-next-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <circle cx="10.5" cy="10.5" r="6.5"></circle>
+            <path d="M16 16l4.5 4.5"></path>
+        </svg>
+        <span>Hledat další cívku</span>
+    </button>
+    </div>
+    </div>
 
     <p id="work-ajax-hint" style="color: #666; font-size: .9em; min-height: 1.2em; margin: 0.35rem 0 0.6rem;" aria-live="polite"></p>
 
@@ -222,7 +260,18 @@
   var debounceMs = 380;
   var meterState = { s: null, bound: false };
   var lastSpoolsList = [];
+  var workTopArea = document.getElementById('work-top-area');
+  var expandSearchBtn = document.getElementById('work-search-expand-btn');
 
+  function setSearchFormCollapsed(c) {
+    if (workTopArea) {
+      if (c) { workTopArea.classList.add('is-search-collapsed'); }
+      else { workTopArea.classList.remove('is-search-collapsed'); }
+    }
+    if (expandSearchBtn) {
+      expandSearchBtn.setAttribute('aria-expanded', c ? 'false' : 'true');
+    }
+  }
   function spoolShowUrl(id) { return spoolShowBase.replace(/\/[0-9]+$/, '/' + id); }
   function esc(t) { if (t == null) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function setWorkDataPanel(s) {
@@ -382,11 +431,19 @@
       if (projectIn) projectIn.value = '';
     } else {
       if (calcBox) { calcBox.style.display = 'none'; calcBox.innerHTML = ''; }
+      highlightSpoolRow(null);
       syncReturnQ();
     }
+    setSearchFormCollapsed(!!s);
     if (!s) return;
     bindMeter();
     updateMeter();
+  }
+  if (expandSearchBtn) {
+    expandSearchBtn.addEventListener('click', function () {
+      setMeterSpool(null);
+      if (qIn) { qIn.focus(); try { qIn.select(); } catch (e) {} }
+    });
   }
   function rowHtml(p, selected) {
     var fam = (p.family != null && p.family !== '') ? esc(p.family) : '—';
@@ -493,6 +550,9 @@
         else setMeterSpool(null);
       }
     } catch (err) {}
+  }
+  if (workTopArea && !workTopArea.classList.contains('is-search-collapsed') && expandSearchBtn) {
+    expandSearchBtn.setAttribute('aria-expanded', 'true');
   }
   syncReturnQ();
   (function initRecordBtn() {
