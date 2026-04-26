@@ -11,10 +11,14 @@ final class CableTypeChoiceAttrHelper
 {
     public static function forCableType(CableType $c): array
     {
+        $d = $c->getDiameterMm();
+
         return [
             'data-family' => $c->getFamily(),
             'data-b64-cable-full' => base64_encode((string) ($c->getFullDescription() ?? '')),
             'data-cable-name' => $c->getName(),
+            'data-fiber-count' => (string) $c->getFiberCount(),
+            'data-diameter-mm' => (null !== $d && (string) $d !== '') ? (string) $d : '',
         ];
     }
 }

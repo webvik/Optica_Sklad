@@ -8,7 +8,7 @@
     <form method="get" action="{{ path('warehouse_browse_index') }}" class="browse-filters" style="margin-bottom: 1rem;">
         <p style="margin: 0;">
             <label for="f-ct">Typ kabelu</label><br>
-            <select id="f-ct" name="cableTypeId">
+            <select id="f-ct" name="cableTypeId" class="cable-type-list" size="8">
                 <option value="">— všechny —</option>
                 {% for ct in cableTypeChoices %}
                     <option value="{{ ct.id }}"{% if filterCableTypeId == ct.id %} selected{% endif %}>{{ ct.code }} — {{ ct.name }}</option>

@@ -1,13 +1,39 @@
 {% extends 'base.html.twig' %}
 {% block title %}Příjem kabelu — Optický sklad{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .receipt-cta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.65rem 0.75rem;
+            max-width: 44rem;
+            margin: 0.4rem 0 1.1rem;
+            align-items: stretch;
+        }
+        .receipt-cta__item { display: flex; flex-direction: column; align-items: stretch; gap: 0.2rem; min-width: 0; }
+        .receipt-cta__item a.warehouse-pill { width: 100%; text-align: center; }
+        .receipt-cta__hint { margin: 0; font-size: 0.78rem; line-height: 1.35; color: #555; padding: 0 0.1rem; }
+        .receipt-sublinks { font-size: 0.86rem; line-height: 1.5; color: #444; margin: 0.45rem 0; }
+        @media (max-width: 22rem) {
+            .receipt-cta { grid-template-columns: 1fr; }
+        }
+    </style>
+{% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Příjem kabelu</h1>
     <p class="lede">Zadání <strong>typu kabelu do katalogu</strong> a <strong>nové cívky do evidence</strong> (před první prací s metrem).</p>
-    <ul>
-        <li><a href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a> — dříve v aplikaci neexistující značka / konstrukce.</li>
-        <li><a href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a> — fyzicky přijatá špulka s délkou L, m₀ a vazbou na typ.</li>
-    </ul>
-    <p><a href="{{ path('warehouse_cable_type_index') }}">Seznam a úprava typů v katalogu</a> — doplňování parametrů u již vytvořených kódů.</p>
-    <p><a href="{{ path('warehouse_browse_index') }}">Přehled skladu (filtry)</a></p>
+    <div class="receipt-cta" role="region" aria-label="Hlavní akce">
+        <div class="receipt-cta__item">
+            <a class="warehouse-pill" href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a>
+            <p class="receipt-cta__hint">fyzicky přijatá špulka s délkou L, m₀ a vazbou na typ.</p>
+        </div>
+        <div class="receipt-cta__item">
+            <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a>
+            <p class="receipt-cta__hint">dříve v aplikaci neexistující značka / konstrukce.</p>
+        </div>
+    </div>
+    <p class="receipt-sublinks"><a href="{{ path('warehouse_cable_type_index') }}">Seznam a úprava typů v katalogu</a> — doplňování parametrů u již vytvořených kódů.</p>
+    <p class="receipt-sublinks"><a href="{{ path('warehouse_browse_index') }}">Přehled skladu (filtry)</a></p>
 {% endblock %}

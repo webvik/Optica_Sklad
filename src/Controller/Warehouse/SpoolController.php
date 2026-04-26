@@ -2,6 +2,7 @@
 
 namespace App\Controller\Warehouse;
 
+use App\Entity\CableFamily;
 use App\Entity\Spool;
 use App\Entity\SpoolEvent;
 use App\Entity\User;
@@ -165,6 +166,10 @@ final class SpoolController extends AbstractController
         $form = $this->createForm(SpoolFormType::class, $spool);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
+            if (null === $spool->getCableType()) {
+                $filterFamily = $form->get('cableFamilyFilter')->getData();
+                $spool->setFamily($filterFamily instanceof CableFamily ? $filterFamily->getCode() : '');
+            }
             $u = $this->getUser();
             if ($u instanceof User) {
                 $spool->setCreatedBy($u);
@@ -177,7 +182,7 @@ final class SpoolController extends AbstractController
             if (null === $spool->getCableType()) {
                 $msg .= ' Typ kabelu můžete kdykoli doplnit na kartě cívky (Doplnit typ kabelu).';
             }
-            $this->addFlash('success', $msg);
+            $this->addFlash('success_modal', $msg);
 
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
         }

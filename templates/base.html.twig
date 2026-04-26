@@ -23,7 +23,7 @@
                 min-height: 2.75rem; display: inline-flex; align-items: center; padding: 0.2rem 0;
             }
             .app-menu__list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
-            a.app-menu__nav-link {
+            a.app-menu__nav-link, a.warehouse-pill {
                 box-sizing: border-box; display: flex; align-items: center; justify-content: center;
                 text-align: center; text-decoration: none; color: #1a2a3a; font-weight: 500; line-height: 1.2;
                 min-height: 2.55rem; padding: 0.4rem 0.6rem; font-size: 0.92rem;
@@ -31,8 +31,8 @@
                 background: linear-gradient(180deg, #f7f9fc 0%, #ebeef4 100%);
                 -webkit-tap-highlight-color: transparent;
             }
-            a.app-menu__nav-link:hover { background: #e2e8f0; color: #0a1628; }
-            a.app-menu__nav-link:active { background: #d8e0ec; }
+            a.app-menu__nav-link:hover, a.warehouse-pill:hover { background: #e2e8f0; color: #0a1628; }
+            a.app-menu__nav-link:active, a.warehouse-pill:active { background: #d8e0ec; }
             @media (max-width: 36rem) {
                 .app-menu__list {
                     flex-direction: row; flex-wrap: nowrap; gap: 0.35rem; width: 100%;
@@ -52,7 +52,25 @@
                 .browse-filters { flex-direction: column; align-items: stretch; }
                 .browse-filters p { width: 100%; margin: 0; }
                 .browse-filters select, .browse-filters button { width: 100%; min-height: 2.75rem; font-size: 1rem; }
+                .browse-filters select.cable-type-list { min-height: unset; }
             }
+            /* Long cable-type list: listbox + scroll (native dropdown is often not scrollable on mobile) */
+            select.cable-type-list {
+                display: block;
+                width: 100%;
+                max-width: 36rem;
+                min-height: 0;
+                max-height: min(14rem, 42vh);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 0.3rem 0.45rem;
+                font-size: 0.95rem;
+                line-height: 1.3;
+                border: 1px solid #999;
+                border-radius: 4px;
+                background: #fff;
+            }
+            select.cable-type-list:focus { outline: 2px solid #6ae; outline-offset: 1px; }
             .flash-stack { position: sticky; top: 0; z-index: 1000; margin: 0; padding: 0; }
             .flashes p { margin: .5rem 0; padding: .65rem 1rem; border-radius: 4px; max-width: min(52rem, 100%); }
             .flashes .success { background: #efe; color: #060; border: 1px solid #b8d4b8; }
@@ -78,7 +96,29 @@
                 background: #c33; color: #fff; border: 0; border-radius: 6px; font-weight: 600;
             }
             .error-modal-ok:hover { background: #a22; }
-            body.error-modal-open { overflow: hidden; }
+            .success-modal-overlay {
+                position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center;
+                padding: 1rem; background: rgba(0,0,0,.4); box-sizing: border-box;
+            }
+            .success-modal-panel {
+                position: relative; max-width: 30rem; width: 100%; margin: 0; padding: 1.15rem 1.25rem 1rem;
+                background: #fff; color: #1a1a1a; border-radius: 8px; border: 1px solid #8bc48b;
+                box-shadow: 0 8px 32px rgba(0,0,0,.2);
+            }
+            .success-modal-title { font-size: 1.1rem; margin: 0 0 .65rem; color: #0a4d0a; }
+            .success-modal-text { margin: 0; line-height: 1.5; }
+            .success-modal-text + .success-modal-text { margin-top: .75rem; }
+            .success-modal-x {
+                position: absolute; top: .45rem; right: .5rem; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 4px;
+                background: transparent; color: #666; font-size: 1.4rem; line-height: 1; cursor: pointer;
+            }
+            .success-modal-x:hover { background: #f0f0f0; color: #111; }
+            .success-modal-ok {
+                display: block; width: 100%; margin-top: 1.1rem; padding: .55rem 1rem; font-size: 1rem; cursor: pointer;
+                background: #2a6a2a; color: #fff; border: 0; border-radius: 6px; font-weight: 600;
+            }
+            .success-modal-ok:hover { background: #215421; }
+            body.flash-center-open { overflow: hidden; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; }
             @media (max-width: 36rem) {
@@ -113,12 +153,25 @@
         {% if error_flash_list|length > 0 %}
         <div id="error-flash-modal" class="error-modal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="error-flash-modal-title">
             <div class="error-modal-panel">
-                <button type="button" class="error-modal-x" data-error-modal-close aria-label="Zavřít">×</button>
+                <button type="button" class="error-modal-x" data-flash-center-close aria-label="Zavřít">×</button>
                 <h2 id="error-flash-modal-title" class="error-modal-title">Nelze uložit</h2>
                 {% for message in error_flash_list %}
                 <p class="error-modal-text">{{ message }}</p>
                 {% endfor %}
-                <button type="button" class="error-modal-ok" data-error-modal-close>Rozumím</button>
+                <button type="button" class="error-modal-ok" data-flash-center-close>Rozumím</button>
+            </div>
+        </div>
+        {% endif %}
+        {% set success_modal_list = app.flashes('success_modal') %}
+        {% if success_modal_list|length > 0 %}
+        <div id="success-flash-modal" class="success-modal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="success-flash-modal-title">
+            <div class="success-modal-panel">
+                <button type="button" class="success-modal-x" data-flash-center-close aria-label="Zavřít">×</button>
+                <h2 id="success-flash-modal-title" class="success-modal-title">Zaevidováno</h2>
+                {% for message in success_modal_list %}
+                <p class="success-modal-text">{{ message }}</p>
+                {% endfor %}
+                <button type="button" class="success-modal-ok" data-flash-center-close>Rozumím</button>
             </div>
         </div>
         {% endif %}
@@ -131,22 +184,41 @@
             if (s && s.querySelector('.flashes')) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
         })();
         (function () {
-            function close() {
+            function closeErr() {
                 var el = document.getElementById('error-flash-modal');
-                if (!el) { document.removeEventListener('keydown', onEsc); return; }
+                if (!el) { document.removeEventListener('keydown', onEscErr); return; }
                 el.remove();
-                document.body.classList.remove('error-modal-open');
-                document.removeEventListener('keydown', onEsc);
+                if (!document.getElementById('success-flash-modal')) { document.body.classList.remove('flash-center-open'); }
+                document.removeEventListener('keydown', onEscErr);
             }
-            function onEsc(ev) { if (ev.key === 'Escape') close(); }
+            function onEscErr(ev) { if (ev.key === 'Escape') closeErr(); }
             var o = document.getElementById('error-flash-modal');
-            if (!o) return;
-            document.body.classList.add('error-modal-open');
-            var ok = o.querySelector('.error-modal-ok');
-            if (ok) ok.focus();
-            o.addEventListener('click', function (ev) { if (ev.target === o) close(); });
-            o.querySelectorAll('[data-error-modal-close]').forEach(function (b) { b.addEventListener('click', close); });
-            document.addEventListener('keydown', onEsc);
+            if (o) {
+            document.body.classList.add('flash-center-open');
+            var okE = o.querySelector('.error-modal-ok');
+            if (okE) okE.focus();
+            o.addEventListener('click', function (ev) { if (ev.target === o) closeErr(); });
+            o.querySelectorAll('[data-flash-center-close]').forEach(function (b) { b.addEventListener('click', closeErr); });
+            document.addEventListener('keydown', onEscErr);
+            }
+        })();
+        (function () {
+            function closeOk() {
+                var el = document.getElementById('success-flash-modal');
+                if (!el) { document.removeEventListener('keydown', onEscOk); return; }
+                el.remove();
+                if (!document.getElementById('error-flash-modal')) { document.body.classList.remove('flash-center-open'); }
+                document.removeEventListener('keydown', onEscOk);
+            }
+            function onEscOk(ev) { if (ev.key === 'Escape') closeOk(); }
+            var s = document.getElementById('success-flash-modal');
+            if (!s) return;
+            document.body.classList.add('flash-center-open');
+            var okB = s.querySelector('.success-modal-ok');
+            if (okB) okB.focus();
+            s.addEventListener('click', function (ev) { if (ev.target === s) closeOk(); });
+            s.querySelectorAll('[data-flash-center-close]').forEach(function (b) { b.addEventListener('click', closeOk); });
+            document.addEventListener('keydown', onEscOk);
         })();
         </script>
     </body>

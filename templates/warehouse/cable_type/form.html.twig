@@ -1,11 +1,243 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ title }}{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .spool-form { max-width: 40rem; line-height: 1.6; }
+        .spool-form__field {
+            display: grid;
+            grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+            column-gap: 0.45rem;
+            row-gap: 0.2rem;
+            margin: 0 0 0.75rem;
+            align-items: start;
+        }
+        .spool-form__field > label, .spool-form__field > .spool-form__static-label {
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.25;
+            padding-top: 0.28rem;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        .spool-form__readout { margin: 0; font-size: 0.88rem; line-height: 1.35; color: #333; }
+        .spool-form__value { min-width: 0; text-align: right; }
+        .spool-form__value .form-error, .spool-form__value ul, .spool-form__value p.help-text { margin: 0.25rem 0 0; display: block; }
+        .spool-form__value p.form-text, .spool-form__value p.help-text, .spool-form__value small { font-size: 0.85rem; line-height: 1.4; color: #555; text-align: right; }
+        .spool-form__value [type="date"], .spool-form__value [type="number"],
+        .spool-form__value [type="text"], .spool-form__value textarea, .spool-form__value select {
+            max-width: 100%; box-sizing: border-box;
+        }
+        .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: right; width: 100%; }
+        @media (min-width: 42rem) {
+            .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
+            .spool-form__row--actions { grid-template-columns: 12.5rem 1fr; }
+            .spool-form__field > label, .spool-form__field > .spool-form__static-label { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; }
+            .spool-form__value > input, .spool-form__value > select, .spool-form__value > textarea { max-width: 24rem; margin-left: auto; display: block; }
+            .spool-form__value p.form-text, .spool-form__value p.help-text { max-width: 24rem; margin-left: auto; }
+            .spool-form__value--actions .spool-form__actions { max-width: 24rem; margin-left: auto; }
+            .spool-form__value > ul, .spool-form__value .form-error { text-align: left; margin-left: auto; max-width: 24rem; }
+        }
+        @media (max-width: 41.99rem) {
+            .spool-form__row--action-spacer { display: none !important; }
+            .spool-form__row--actions .spool-form__value--actions { grid-column: 1 / -1; }
+        }
+        .spool-form__actions { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; }
+        @media (min-width: 42rem) {
+            .spool-form__row--actions .spool-form__value--actions { width: 100%; }
+        }
+        .spool-form__btn, .spool-form__actions button[type="submit"] {
+            box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+            min-height: 2.55rem; min-width: 5.5rem; padding: 0.45rem 1rem; font: inherit; font-size: 1rem; font-weight: 500;
+            line-height: 1.2; border: 1px solid #bbb; border-radius: 4px; background: #f5f5f5; color: #1a1a1a; cursor: pointer;
+        }
+        .spool-form__btn:hover, .spool-form__actions button[type="submit"]:hover { background: #eaeaec; }
+        .spool-form__btn:active, .spool-form__actions button[type="submit"]:active { background: #e0e0e2; }
+        .spool-form__row--action-spacer { display: none; }
+        @media (min-width: 42rem) {
+            .spool-form__row--action-spacer { display: block; min-height: 1px; }
+        }
+        .spool-form--cable-type textarea { min-height: 5.5rem; }
+        .spool-form--cable-type .spool-form__value--checkboxes input[type="checkbox"] { width: auto; margin: 0.24rem 0 0; }
+        @media (min-width: 42rem) {
+            .spool-form--cable-type .spool-form__value--checkboxes { max-width: 24rem; margin-left: auto; text-align: left; }
+        }
+        #cable-type-form-scan-overlay[hidden] { display: none !important; }
+        #cable-type-form-scan-overlay {
+            position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.75);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1rem;
+        }
+        #cable-type-form-scan-video { max-width: min(100%, 640px); max-height: 50vh; background: #111; border-radius: 6px; }
+    </style>
+{% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>{{ title }}</h1>
-    {{ form_start(form) }}
-        {{ form_widget(form) }}
-        <p><button type="submit">Uložit</button></p>
-    {{ form_end(form) }}
-    <p><a href="{{ path('warehouse_cable_type_index') }}">← zpět na seznam</a></p>
+    {{ form_start(form, { attr: { class: 'spool-form spool-form--cable-type', id: 'cable-type-catalog-form' } }) }}
+        <div class="spool-form__field">
+            {{ form_label(form.code) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.code) }}
+                {{ form_errors(form.code) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.name) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.name) }}
+                {{ form_errors(form.name) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.fullDescription) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.fullDescription) }}
+                {{ form_errors(form.fullDescription) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.family) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.family) }}
+                {{ form_errors(form.family) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.fiberCount) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.fiberCount) }}
+                {{ form_errors(form.fiberCount) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.constructionCode) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.constructionCode) }}
+                {{ form_errors(form.constructionCode) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.diameterMm) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.diameterMm) }}
+                {{ form_errors(form.diameterMm) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.isActive) }}
+            <div class="spool-form__value spool-form__value--checkboxes">
+                {{ form_widget(form.isActive) }}
+                {{ form_errors(form.isActive) }}
+            </div>
+        </div>
+        <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value spool-form__value--actions">
+                <div class="spool-form__actions" role="group" aria-label="Akce">
+                    <button type="button" class="spool-form__btn" id="cable-type-form-scan" title="Sken čárového kódu do pole Kód zásoby">Sken</button>
+                    <button type="submit" class="spool-form__btn">Uložit</button>
+                </div>
+            </div>
+        </div>
+        {{ form_rest(form) }}
+    {{ form_end(form, { render_rest: false }) }}
+    <div id="cable-type-form-scan-overlay" hidden role="dialog" aria-label="Sken čárového kódu">
+        <p id="cable-type-form-scan-overlay-text" style="color:#fff;margin:0;text-align:center;max-width:34rem"></p>
+        <video id="cable-type-form-scan-video" playsinline autoplay muted></video>
+        <button type="button" id="cable-type-form-scan-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
+    </div>
+    <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
+        <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
+            <a class="warehouse-pill" href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a>
+        </p>
+        <p style="margin: 0; text-align: center;"><a href="{{ path('warehouse_cable_type_index') }}">← zpět na seznam</a></p>
+    </div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+(function () {
+  var codeIn = document.getElementById({{ form.code.vars.id|json_encode|raw }});
+  var scanBtn = document.getElementById('cable-type-form-scan');
+  var scanOverlay = document.getElementById('cable-type-form-scan-overlay');
+  var scanVideo = document.getElementById('cable-type-form-scan-video');
+  var scanCancel = document.getElementById('cable-type-form-scan-cancel');
+  var scanOverlayText = document.getElementById('cable-type-form-scan-overlay-text');
+  var scanRaf = null, scanStream = null;
+  function setScanText() {
+    if (scanOverlayText) {
+      scanOverlayText.textContent = 'Sken: po rozpoznání se vyplní pole Kód zásoby (případně doplňte a uložte).';
+    }
+  }
+  function stopBarcodeScan() {
+    if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
+    if (scanStream) {
+      scanStream.getTracks().forEach(function (t) { t.stop(); });
+      scanStream = null;
+    }
+    if (scanVideo) scanVideo.srcObject = null;
+    if (scanOverlay) scanOverlay.hidden = true;
+  }
+  function focusCode() {
+    if (codeIn) {
+      codeIn.focus();
+      try { codeIn.select(); } catch (e) {}
+    }
+  }
+  function onScanDecoded(v) {
+    v = String(v).trim();
+    if (!v.length) return;
+    stopBarcodeScan();
+    if (codeIn) codeIn.value = v;
+  }
+  function startBarcodeScan() {
+    if (!scanOverlay || !scanVideo) { focusCode(); return; }
+    setScanText();
+    scanOverlay.hidden = false;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+      .then(function (stream) {
+        scanStream = stream;
+        scanVideo.srcObject = stream;
+        return scanVideo.play();
+      })
+      .then(function () {
+        if (typeof window.BarcodeDetector === 'undefined') {
+          stopBarcodeScan();
+          focusCode();
+          return;
+        }
+        var detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
+        function tick() {
+          if (!scanVideo || scanStream === null) return;
+          if (scanVideo.readyState < 2) {
+            scanRaf = requestAnimationFrame(tick);
+            return;
+          }
+          detector.detect(scanVideo).then(function (codes) {
+            if (codes && codes.length && codes[0].rawValue) {
+              onScanDecoded(codes[0].rawValue);
+              return;
+            }
+            scanRaf = requestAnimationFrame(tick);
+          }).catch(function () { scanRaf = requestAnimationFrame(tick); });
+        }
+        scanRaf = requestAnimationFrame(tick);
+      })
+      .catch(function () {
+        stopBarcodeScan();
+        focusCode();
+      });
+  }
+  if (scanBtn) {
+    scanBtn.addEventListener('click', function () {
+      if (typeof window.BarcodeDetector !== 'undefined') startBarcodeScan();
+      else focusCode();
+    });
+  }
+  if (scanCancel) scanCancel.addEventListener('click', function () { stopBarcodeScan(); });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && scanOverlay && !scanOverlay.hidden) { ev.preventDefault(); stopBarcodeScan(); }
+  });
+})();
+    </script>
 {% endblock %}

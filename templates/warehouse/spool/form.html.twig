@@ -80,8 +80,14 @@
         #spool-form-scan-video { max-width: min(100%, 640px); max-height: 50vh; background: #111; border-radius: 6px; }
         body.spool-cable-panel-open { overflow: hidden; }
         .cable-type-mobile-picker { position: relative; width: 100%; }
+        @media (min-width: 42rem) {
+            .spool-form__value--cable .cable-type-mobile-picker {
+                max-width: 24rem;
+                margin-left: auto;
+            }
+        }
         .cable-type-mobile-picker__toggle {
-            display: none;
+            display: flex;
             width: 100%;
             min-height: 2.5rem;
             padding: 0.4rem 0.5rem;
@@ -104,27 +110,30 @@
             position: fixed; inset: 0; z-index: 10040; background: rgba(0,0,0,.4);
         }
         .cable-type-mobile-picker__panel[hidden] { display: none !important; }
+        .cable-type-mobile-picker__bar {
+            display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.5rem;
+            padding: 0.55rem 0.6rem;
+            border-bottom: 1px solid #ccc; background: #f4f4f4;
+        }
         @media (max-width: 41.99rem) {
-            .cable-type-mobile-picker__toggle { display: flex; }
+            .cable-type-mobile-picker__bar {
+                padding: 0.55rem max(0.6rem, env(safe-area-inset-right, 0.6rem)) 0.55rem max(0.6rem, env(safe-area-inset-left, 0.6rem));
+            }
+        }
+        .cable-type-mobile-picker__title { font-weight: 600; font-size: 1rem; }
+        .cable-type-mobile-picker__close {
+            min-width: 2.5rem; min-height: 2.5rem; padding: 0; border: 0; background: transparent; font-size: 1.35rem; line-height: 1; cursor: pointer; color: #333; border-radius: 4px;
+        }
+        @media (max-width: 41.99rem) {
             .cable-type-mobile-picker--open .cable-type-mobile-picker__panel {
                 position: fixed; z-index: 10050; left: 0; right: 0; top: 0; bottom: 0;
                 display: flex !important; flex-direction: column;
                 max-height: 100dvh; max-width: 100%;
                 width: 100%;
                 margin: 0;
-                /* výhradně horní/ spodní safe area; boční ne — list sahá k okrajům, odskok v baru */
                 padding: env(safe-area-inset-top, 0) 0 max(0.35rem, env(safe-area-inset-bottom, 0)) 0;
                 background: #fff;
                 box-sizing: border-box;
-            }
-            .cable-type-mobile-picker__bar {
-                display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.5rem;
-                padding: 0.55rem max(0.6rem, env(safe-area-inset-right, 0.6rem)) 0.55rem max(0.6rem, env(safe-area-inset-left, 0.6rem));
-                border-bottom: 1px solid #ccc; background: #f4f4f4;
-            }
-            .cable-type-mobile-picker__title { font-weight: 600; font-size: 1rem; }
-            .cable-type-mobile-picker__close {
-                min-width: 2.5rem; min-height: 2.5rem; padding: 0; border: 0; background: transparent; font-size: 1.35rem; line-height: 1; cursor: pointer; color: #333; border-radius: 4px;
             }
             .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller {
                 flex: 1 1 0;
@@ -141,25 +150,41 @@
                 min-height: 55dvh; height: auto;
                 max-width: none !important;
                 font-size: 0.9rem;
-                /* safe area; šířka listu = JS (jako na desktopu) — horiz. rolování v .cable-type-mobile-picker__scroller */
                 padding: 0.3rem max(0.3rem, env(safe-area-inset-right, 0.3rem)) 0.3rem max(0.3rem, env(safe-area-inset-left, 0.3rem));
                 text-align: left;
             }
         }
         @media (min-width: 42rem) {
-            .cable-type-mobile-picker__bar, .cable-type-mobile-picker__backdrop { display: none !important; }
-            .cable-type-mobile-picker__panel[hidden] { display: block !important; }
-            .cable-type-mobile-picker__panel {
-                position: static !important; display: block !important; background: transparent; padding: 0;
+            .cable-type-mobile-picker--open .cable-type-mobile-picker__panel {
+                position: fixed; z-index: 10050; left: 50%; top: 50%;
+                transform: translate(-50%, -50%);
+                width: min(32rem, 100vw - 2rem);
+                max-height: min(32rem, 80vh);
+                display: flex !important;
+                flex-direction: column;
+                background: #fff;
+                box-shadow: 0 0.4rem 1.5rem rgba(0,0,0,0.25);
+                border-radius: 8px;
+                box-sizing: border-box;
             }
-            .spool-form__value--cable .cable-type-mobile-picker__scroller {
-                max-width: 24rem;
-                margin-left: auto;
-                /* nativní <select> ignoruje max-content; šířku doplňuje JS — horizontální rolování tady */
+            .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller {
+                flex: 1 1 auto;
+                min-height: 0;
+                min-width: 0;
+                width: 100%;
+                max-height: min(20rem, 60vh);
                 overflow-x: auto;
                 overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
-            .cable-type-mobile-picker__scroller { max-height: min(14rem, 42vh); }
+            .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
+                display: block;
+                min-height: 12rem;
+                max-width: none !important;
+                font-size: 0.9rem;
+                text-align: left;
+                padding: 0.3rem 0.4rem;
+            }
         }
         .cable-type-hover-group { max-width: 100%; }
         .spool-form__cable-full-desc-row {
@@ -185,6 +210,31 @@
         .cable-type-hover-group:focus-within .cable-type-full-desc.has-content { display: block; }
         @media (hover: none), (pointer: coarse) {
             .cable-type-full-desc.has-content { display: block; }
+        }
+        /* Plný popis v okně: vždy viditelný, když je pikr otevřený a pro vybraný typ existuje text.
+           (Nelze spoléhat na :hover na .panel — nad nativním <select> v některých prohlížečích se :hover nepropaguje a řádek mizel.) */
+        .cable-type-mobile-picker__full-desc {
+            display: none;
+            flex-shrink: 0;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            font-size: 0.86rem; line-height: 1.45; color: #333;
+            border-top: 1px solid #e0e0e0;
+            border-left: 3px solid #bbb;
+            margin: 0;
+            padding: 0.45rem 0.6rem 0.55rem;
+            text-align: left;
+            background: #f8f8f8;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: min(9rem, 32vh);
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .cable-type-mobile-picker__full-desc:empty { display: none !important; }
+        .cable-type-mobile-picker--open .cable-type-mobile-picker__full-desc.has-content {
+            display: block;
         }
         .spool-cable-family-filter[hidden] { display: none !important; }
     </style>
@@ -219,6 +269,7 @@
                         <div class="cable-type-mobile-picker__scroller">
                             {{ form_widget(form.cableType) }}
                         </div>
+                        <div class="cable-type-mobile-picker__full-desc" id="cable-type-full-desc-in-panel" role="region" aria-label="Plný popis kabelu"></div>
                     </div>
                 </div>
                 {{ form_errors(form.cableType) }}
@@ -309,7 +360,12 @@
         <video id="spool-form-scan-video" playsinline autoplay muted></video>
         <button type="button" id="spool-form-scan-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
     </div>
-    <p><a href="{{ path('warehouse_spool_index') }}">← zpět na seznam</a></p>
+    <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
+        <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
+            <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a>
+        </p>
+        <p style="margin: 0; text-align: center;"><a href="{{ path('warehouse_spool_index') }}">← zpět na seznam</a></p>
+    </div>
 {% endblock %}
 {% block javascripts %}
     {{ parent() }}
@@ -409,7 +465,6 @@
   var sel = root.querySelector('select.cable-type-list');
   if (!sel) return;
   var PLH = '— vyberte typ —';
-  function isMobile() { return mq.matches; }
   function syncLabel() {
     if (!labelEl) return;
     var i = sel.selectedIndex;
@@ -418,7 +473,7 @@
     else { labelEl.textContent = PLH; }
   }
   function openPanel() {
-    if (!isMobile() || !panel) return;
+    if (!panel) return;
     if (sel.options.length) {
       var n = Math.min(28, Math.max(8, sel.options.length));
       sel.setAttribute('size', String(n));
@@ -428,6 +483,9 @@
     if (backdrop) backdrop.removeAttribute('hidden');
     document.body.classList.add('spool-cable-panel-open');
     if (btn) { btn.setAttribute('aria-expanded', 'true'); }
+    if (typeof window.spoolFormSyncSpoolKabelBlock === 'function') {
+      window.spoolFormSyncSpoolKabelBlock();
+    }
     try { sel.focus(); } catch (e) {}
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -451,27 +509,28 @@
   }
   if (btn) {
     btn.addEventListener('click', function (ev) {
-      if (!isMobile()) return;
       ev.preventDefault();
       if (panel && panel.hasAttribute('hidden')) { openPanel(); }
     });
   }
-  if (closeBtn) closeBtn.addEventListener('click', function () { if (isMobile()) closePanel(); });
+  if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
   if (backdrop) {
-    backdrop.addEventListener('click', function () { if (isMobile()) closePanel(); });
+    backdrop.addEventListener('click', function () { closePanel(); });
   }
   sel.addEventListener('change', function () {
     syncAll();
-    if (isMobile() && !panel.hasAttribute('hidden')) { closePanel(); }
+    if (!panel.hasAttribute('hidden')) { closePanel(); }
   });
   document.addEventListener('keydown', function (ev) {
-    if (ev.key !== 'Escape' || !isMobile() || !panel || panel.hasAttribute('hidden')) return;
+    if (ev.key !== 'Escape' || !panel || panel.hasAttribute('hidden')) return;
     ev.preventDefault();
     closePanel();
   });
   function mqChange() {
-    if (!isMobile() && !panel.hasAttribute('hidden')) { closePanel(); }
     syncAll();
+    if (!panel.hasAttribute('hidden') && typeof window.spoolFormScheduleCableTypeListbox === 'function') {
+      window.spoolFormScheduleCableTypeListbox();
+    }
   }
   if (mq.addEventListener) mq.addEventListener('change', mqChange);
   else if (mq.addListener) mq.addListener(mqChange);
@@ -481,11 +540,14 @@
 (function () {
   var cableSel = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
   if (!cableSel) return;
+  var fiberCountIn = document.getElementById({{ form.fiberCount.vars.id|json_encode|raw }});
+  var diameterMmIn = document.getElementById({{ form.diameterMm.vars.id|json_encode|raw }});
   var famSel = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
   var readout = document.getElementById('spool-kabel-typ-readout');
   var metaEl = document.getElementById('cable-type-meta-json');
   var labelsEl = document.getElementById('spool-cable-family-labels-json');
   var desc = document.getElementById('cable-type-full-desc');
+  var descInPanel = document.getElementById('cable-type-full-desc-in-panel');
   var meta = {};
   var familyLabels = {};
   var scroller = cableSel.closest('.cable-type-mobile-picker__scroller');
@@ -603,12 +665,39 @@
     }
     return null;
   }
-  function setDesc() {
-    if (!desc) {
+  function applySpoolFieldsFromCableType() {
+    var opt = getCableTypeOption();
+    if (!opt) {
       return;
     }
-    desc.textContent = '';
-    desc.classList.remove('has-content');
+    if (fiberCountIn) {
+      var f = (opt.getAttribute('data-fiber-count') != null) ? String(opt.getAttribute('data-fiber-count')).trim() : '';
+      if (f !== '') {
+        fiberCountIn.value = f;
+      }
+    }
+    if (diameterMmIn) {
+      var d = (opt.getAttribute('data-diameter-mm') != null) ? String(opt.getAttribute('data-diameter-mm')).trim() : '';
+      if (d !== '') {
+        diameterMmIn.value = d;
+      }
+    }
+  }
+  function setDesc() {
+    function clearDescPair() {
+      if (desc) {
+        desc.textContent = '';
+        desc.classList.remove('has-content');
+      }
+      if (descInPanel) {
+        descInPanel.textContent = '';
+        descInPanel.classList.remove('has-content');
+      }
+    }
+    if (!desc && !descInPanel) {
+      return;
+    }
+    clearDescPair();
     var opt = getCableTypeOption();
     if (!opt) {
       return;
@@ -638,8 +727,14 @@
     if (!t.length) {
       return;
     }
-    desc.textContent = t;
-    desc.classList.add('has-content');
+    if (desc) {
+      desc.textContent = t;
+      desc.classList.add('has-content');
+    }
+    if (descInPanel) {
+      descInPanel.textContent = t;
+      descInPanel.classList.add('has-content');
+    }
   }
   function syncKabelTyp() {
     if (!readout) return;
@@ -665,8 +760,12 @@
   }
   window.spoolFormSyncSpoolKabelBlock = syncAllBlock;
   if (famSel) famSel.addEventListener('change', syncAllBlock);
-  cableSel.addEventListener('change', syncAllBlock);
-  cableSel.addEventListener('input', syncAllBlock);
+  function onCableTypeUserPicked() {
+    applySpoolFieldsFromCableType();
+    syncAllBlock();
+  }
+  cableSel.addEventListener('change', onCableTypeUserPicked);
+  cableSel.addEventListener('input', onCableTypeUserPicked);
   window.addEventListener('resize', scheduleSizeCableTypeListbox);
   if (mobileMq.addEventListener) {
     mobileMq.addEventListener('change', function () { scheduleSizeCableTypeListbox(); });

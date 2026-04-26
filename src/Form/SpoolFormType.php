@@ -86,7 +86,12 @@ final class SpoolFormType extends AbstractType
             ->add('diameterMm', NumberType::class, [
                 'label' => 'Ø (mm)',
                 'scale' => 1,
+                'html5' => true,
                 'required' => false,
+                'attr' => [
+                    'step' => 'any',
+                    'min' => '0',
+                ],
             ])
             ->add('status', EnumType::class, [
                 'class' => SpoolStatus::class,
