@@ -5,7 +5,7 @@
     <h1>Přehled skladu</h1>
     <p class="lede">Přehled cívek podle typu a stavu; vhodné pro <strong>kontrolu zásob</strong> a přípravu <strong>inventury</strong> (samostatný inventurní režim můžeme doplnit).</p>
 
-    <form method="get" action="{{ path('warehouse_browse_index') }}" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
+    <form method="get" action="{{ path('warehouse_browse_index') }}" class="browse-filters" style="margin-bottom: 1rem;">
         <p style="margin: 0;">
             <label for="f-ct">Typ kabelu</label><br>
             <select id="f-ct" name="cableTypeId">

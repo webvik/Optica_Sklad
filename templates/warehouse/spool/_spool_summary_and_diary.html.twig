@@ -11,17 +11,18 @@
     · <strong>vláken:</strong> {{ spool.effectiveFiberCount }}
 </p>
 <h2>Deník</h2>
-<table>
+<div class="table-scroll table-scroll--wide">
+<table class="spool-diary-table">
     <thead>
-        <tr><th>Kdy</th><th>m (čtení)</th><th>Odběr (m)</th><th>Zakázka</th><th>Pozn.</th></tr>
+        <tr><th>m (čtení)</th><th>Odběr (m)</th><th>Zakázka</th><th>Kdy</th><th>Pozn.</th></tr>
     </thead>
     <tbody>
     {% for e in spool.events %}
         <tr>
-            <td>{{ e.occurredAt|date('Y-m-d') }}</td>
             <td>{{ e.visibleM is not null ? e.visibleM : '—' }}</td>
             <td>{{ e.usedMeters is not null ? e.usedMeters : '—' }}</td>
             <td>{{ e.projectLabel|default('—') }}</td>
+            <td>{{ e.occurredAt|date('Y-m-d') }}</td>
             <td>{{ e.note|default('') }}</td>
         </tr>
     {% else %}
@@ -29,3 +30,4 @@
     {% endfor %}
     </tbody>
 </table>
+</div>

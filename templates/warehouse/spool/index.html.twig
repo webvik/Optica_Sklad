@@ -4,15 +4,19 @@
     {{ parent() }}
     <style>
         .work-input-sare {
-            min-width: 32rem;
+            min-width: 0;
+            width: 100%;
             max-width: 100%;
-            flex: 1 1 20rem;
-            font-size: 1.6rem;
+            flex: 1 1 12rem;
+            font-size: 1.25rem;
             line-height: 1.3;
-            padding: 0.7rem 1.15rem;
+            padding: 0.7rem 1rem;
+        }
+        @media (min-width: 42rem) {
+            .work-input-sare { font-size: 1.6rem; padding: 0.7rem 1.15rem; flex: 1 1 20rem; min-width: 12rem; }
         }
         .work-input-meter {
-            min-width: 16rem;
+            min-width: 0;
             width: 100%;
             max-width: 28rem;
             font-size: 1.45rem;
@@ -20,7 +24,7 @@
             padding: 0.6rem 1rem;
         }
         .work-input-project {
-            min-width: 22rem;
+            min-width: 0;
             width: 100%;
             max-width: 40rem;
             font-size: 1.45rem;
@@ -72,8 +76,33 @@
         .work-karta-host-wrap { margin-top: 1.1rem; }
         .spool-karta-embed { max-width: 50rem; }
         .spool-karta-embed table { width: 100%; font-size: 0.95rem; }
+        .work-search-field-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
+        @media (max-width: 36rem) {
+            .work-search-field-row { flex-direction: column; align-items: stretch; }
+            /* v řádku dává flex-grow:1 šířku; ve sloupci stejné pravidlo roztahuje pole po výšce — vypnout */
+            .work-input-sare { flex: 0 0 auto; width: 100%; font-size: 1rem; line-height: 1.3; padding: 0.5rem 0.75rem; }
+            .work-search-field-row .work-search-action-btn { width: 100%; min-height: 2.75rem; justify-content: center; flex: 0 0 auto; }
+        }
         .work-record-scan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; }
+        @media (max-width: 36rem) {
+            .work-record-scan-row { flex-direction: column; align-items: stretch; }
+            .work-record-scan-row .work-scan-tl { width: 100%; min-height: 2.75rem; justify-content: center; }
+        }
         .work-record-scan-hint { font-size: 0.88rem; color: #555; max-width: 42rem; line-height: 1.35; }
+        .work-spool-table-wrap { margin: 0 -0.15rem; }
+        @media (max-width: 36rem) {
+            .work-page-footer { max-width: none; }
+            .work-result-stack { max-width: 100% !important; }
+            .work-spool-table-wrap .work-spool-table { font-size: 0.78rem; }
+            .work-spool-table-wrap .work-spool-table th,
+            .work-spool-table-wrap .work-spool-table td { padding: 0.28rem 0.3rem; line-height: 1.2; }
+            .work-spool-table-wrap .work-spool-table th { font-weight: 600; letter-spacing: -0.02em; }
+            .work-spool-table-wrap.table-scroll--wide > .work-spool-table { min-width: 33rem; }
+        }
+        #work-data-panel .work-submit-record, #work-record-form [type="submit"] { min-height: 2.6rem; padding: 0.5rem 1.1rem; }
+        @media (max-width: 36rem) {
+            #work-data-panel .work-submit-record, #work-record-form [type="submit"] { min-height: 2.75rem; width: 100%; font-size: 1.05rem; }
+        }
         #work-search-form .work-search-action-btn {
             box-sizing: border-box;
             display: inline-flex;
@@ -99,7 +128,7 @@
         #work-search-form .work-search-action-btn:active {
             background: #e0e0e2;
         }
-        .work-top-area { max-width: 40rem; margin-bottom: 0.75rem; }
+        .work-top-area { max-width: 40rem; width: 100%; margin-bottom: 0.75rem; }
         .work-top-area.is-search-collapsed .work-page-lede { display: none; }
         .work-top-area.is-search-collapsed .work-search-form-wrap { display: none; }
         .work-search-next-tl {
@@ -124,6 +153,12 @@
         .work-search-next-tl:hover { background: #e2e8f0; }
         .work-search-next-tl .work-search-next-ico { flex-shrink: 0; }
         .work-top-area.is-search-collapsed .work-search-next-tl { display: inline-flex; }
+        @media (max-width: 36rem) {
+            .work-search-next-tl { min-height: 2.75rem; }
+            h1 { font-size: 1.35rem; }
+            .work-result-h2 { font-size: 0.95rem !important; }
+        }
+        #work-scan-cancel { min-height: 2.75rem; min-width: 7rem; padding: 0.5rem 1.2rem; }
     </style>
 {% endblock %}
 {% block body %}
@@ -137,8 +172,8 @@
     <form id="work-search-form" method="get" action="{{ path('warehouse_spool_index') }}" style="margin: 0;">
         <p style="margin: 0;">
             <label for="work-q" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">Číslo saře</label>
-            <span style="display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;">
-                <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="např. 450-1470">
+            <span class="work-search-field-row" style="width: 100%;">
+                <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="např. 450-1470">
                 <button type="submit" class="work-search-action-btn">Hledat</button>
                 <button type="button" id="work-scan-btn" class="work-search-action-btn work-scan-tl" data-work-scan-mode="sare" title="Sken kódu saře — výsledek do pole Číslo saře (kamera nebo čtečka)">Sken</button>
             </span>
@@ -157,22 +192,23 @@
 
     <p id="work-ajax-hint" style="color: #666; font-size: .9em; min-height: 1.2em; margin: 0.35rem 0 0.6rem;" aria-live="polite"></p>
 
-    <div id="work-result-stack" style="max-width: 60rem;">
+    <div id="work-result-stack" class="work-result-stack" style="max-width: 60rem;">
         <div id="work-results-dynamic">
     {% if searchPerformed %}
         {% if spools is empty %}
             <p style="color: #333;"><strong>Žádná shoda</strong> pro dotaz «{{ searchQuery|e }}».</p>
         {% else %}
-            <h2 style="font-size: 1.1rem; margin: 0.35rem 0 .5rem;">Výsledek ({{ spools|length }})</h2>
+            <h2 class="work-result-h2" style="font-size: 1.1rem; margin: 0.35rem 0 .5rem;">Výsledek ({{ spools|length }})</h2>
+            <div class="table-scroll table-scroll--wide work-spool-table-wrap">
             <table class="work-spool-table">
                 <thead>
                     <tr>
                         <th>Číslo saře</th>
+                        <th title="Poslední čtení metru (last_visible_m)">Běžný stav (m)</th>
+                        <th>Zbývá (m)</th>
                         <th>Typ</th>
                         <th title="Počet optických vláken (z cívky nebo z typu kabelu)">Vláken</th>
                         <th title="Počáteční čtení metru na kabelu (ne délka)">PS (m)</th>
-                        <th title="Poslední čtení metru (last_visible_m)">Běžný stav (m)</th>
-                        <th>Zbývá (m)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -180,15 +216,16 @@
                     {% set rem = spoolRemaining[s.id] ?? null %}
                     <tr class="work-spool-row{% if spools|length == 1 %} is-selected{% endif %}" data-spool-id="{{ s.id }}" tabindex="0" title="Vybrat tuto cívku">
                         <td>{{ s.reelNumber }}</td>
+                        <td>{% if s.lastVisibleM is not null %}{{ s.lastVisibleM }}{% else %}—{% endif %}</td>
+                        <td>{% if rem is not null %}{{ rem.remaining }}{% if rem.warning %} <span title="{{ rem.warning|e('html_attr') }}" style="cursor: help; color: #a00;">⚠</span>{% endif %}{% else %}—{% endif %}</td>
                         <td>{{ s.family ?: '—' }}</td>
                         <td>{{ s.effectiveFiberCount }}</td>
                         <td>{{ s.initialVisibleM }}{% if rem is not null and rem.directionLabel %} <span style="font-size: .82em; color: #666;">({{ rem.directionLabel }})</span>{% endif %}</td>
-                        <td>{% if s.lastVisibleM is not null %}{{ s.lastVisibleM }}{% else %}—{% endif %}</td>
-                        <td>{% if rem is not null %}{{ rem.remaining }}{% if rem.warning %} <span title="{{ rem.warning|e('html_attr') }}" style="cursor: help; color: #a00;">⚠</span>{% endif %}{% else %}—{% endif %}</td>
                     </tr>
                 {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% if spools|length > 1 %}
             <p id="work-pick-hint" class="work-pick-hint" style="margin: .75rem 0 .5rem; color: #444;">Vyberte správnou cívku <strong>kliknutím na řádek</strong> v tabulce; níže můžete zapsat odběr, pod tím se načte karta a deník.</p>
             {% endif %}
@@ -217,7 +254,7 @@
                 <span class="work-record-scan-hint">Jeden kód: jen číslice → <strong>Běžný stav</strong> (m). Dva údaje: <code>7843;Z123</code> nebo tab / <code>|</code> → metráž a <strong>Objekt / zakázka</strong>. Bez kamery: čtečka může psát do pole (stejný formát).</span>
             </div>
             <p style="margin: 0;">
-                <button type="submit" style="padding: 0.45rem 1.1rem; font-size: 1rem;">Zapsat</button>
+                <button type="submit" class="work-submit-record" style="font-size: 1rem;">Zapsat</button>
             </p>
         </form>
     </div>
@@ -305,7 +342,7 @@
     return null;
   }
   function tableShell(rowsInner) {
-    return '<table class="work-spool-table"><thead><tr><th>Číslo saře</th><th>Typ</th><th>Vláken</th><th>PS (m)</th><th>Běžný stav (m)</th><th>Zbývá (m)</th></tr></thead><tbody>' + rowsInner + '</tbody></table>';
+    return '<div class="table-scroll table-scroll--wide work-spool-table-wrap"><table class="work-spool-table"><thead><tr><th>Číslo saře</th><th title="Poslední čtení metru">Běžný stav (m)</th><th>Zbývá (m)</th><th>Typ</th><th>Vláken</th><th>PS (m)</th></tr></thead><tbody>' + rowsInner + '</tbody></table></div>';
   }
   function formatLastVisibleCell(p) {
     if (p == null) return '—';
@@ -334,7 +371,7 @@
   function collapseToSelected(p0) {
     if (!results || !p0) return;
     lastSpoolsList = [p0];
-    var h = '<h2 style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (1)</h2>'
+    var h = '<h2 class="work-result-h2" style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (1)</h2>'
       + tableShell(rowHtml(p0, true));
     results.innerHTML = h;
     loadKarta(p0.id);
@@ -449,7 +486,7 @@
     var fam = (p.family != null && p.family !== '') ? esc(p.family) : '—';
     var fib = (p.fiberCount != null) ? esc(String(p.fiberCount)) : '—';
     return '<tr class="work-spool-row' + (selected ? ' is-selected' : '') + '" data-spool-id="' + esc(p.id) + '" tabindex="0" title="Vybrat tuto cívku">'
-      + '<td>' + esc(p.reelNumber) + '</td><td>' + fam + '</td><td>' + fib + '</td><td>' + formatPsCell(p) + '</td><td>' + formatLastVisibleCell(p) + '</td><td>' + formatRemainingCell(p) + '</td></tr>';
+      + '<td>' + esc(p.reelNumber) + '</td><td>' + formatLastVisibleCell(p) + '</td><td>' + formatRemainingCell(p) + '</td><td>' + fam + '</td><td>' + fib + '</td><td>' + formatPsCell(p) + '</td></tr>';
   }
   function renderFromApi(data) {
     if (!results) return;
@@ -469,7 +506,7 @@
       return;
     }
     var rows = list.map(function (p) { return rowHtml(p, list.length === 1); }).join('');
-    var h = '<h2 style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (' + list.length + ')</h2>' + tableShell(rows);
+    var h = '<h2 class="work-result-h2" style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (' + list.length + ')</h2>' + tableShell(rows);
     if (list.length > 1) {
       h += '<p id="work-pick-hint" class="work-pick-hint" style="margin:.75rem 0 .5rem;color:#444">Vyberte správnou cívku <strong>kliknutím na řádek</strong> (záznam a karta pod tabulkou).</p>';
       setMeterSpool(null);

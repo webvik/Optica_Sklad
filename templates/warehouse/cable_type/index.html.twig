@@ -4,6 +4,7 @@
     {% include '_app_menu_cz.html.twig' %}
     <h1>Typy kabelů</h1>
     <p><a href="{{ path('warehouse_cable_type_new') }}">Nový záznam</a></p>
+    <div class="table-scroll table-scroll--wide">
     <table>
         <thead>
             <tr>
@@ -30,4 +31,5 @@
         {% endfor %}
         </tbody>
     </table>
+    </div>
 {% endblock %}

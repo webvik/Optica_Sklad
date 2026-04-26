@@ -5,10 +5,56 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Welcome!{% endblock %}</title>
         <style>
-            :root { font-family: system-ui, sans-serif; line-height: 1.45; }
-            a { color: #06c; }
+            *, *::before, *::after { box-sizing: border-box; }
+            :root { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; line-height: 1.45; }
+            html { -webkit-text-size-adjust: 100%; }
+            body {
+                margin: 0;
+                padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+            }
+            a { color: #06c; -webkit-tap-highlight-color: rgba(0, 102, 204, 0.12); }
+            .app-menu a { -webkit-tap-highlight-color: rgba(0, 102, 204, 0.15); }
+            .app-menu { margin-bottom: 0; }
+            .app-menu__top {
+                display: flex; justify-content: space-between; align-items: center;
+                flex-wrap: wrap; gap: .5rem 1rem; margin-bottom: .75rem;
+            }
+            .app-menu__top a {
+                min-height: 2.75rem; display: inline-flex; align-items: center; padding: 0.2rem 0;
+            }
+            .app-menu__list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
+            a.app-menu__nav-link {
+                box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+                text-align: center; text-decoration: none; color: #1a2a3a; font-weight: 500; line-height: 1.2;
+                min-height: 2.55rem; padding: 0.4rem 0.6rem; font-size: 0.92rem;
+                border: 1px solid #b8c4d0; border-radius: 6px;
+                background: linear-gradient(180deg, #f7f9fc 0%, #ebeef4 100%);
+                -webkit-tap-highlight-color: transparent;
+            }
+            a.app-menu__nav-link:hover { background: #e2e8f0; color: #0a1628; }
+            a.app-menu__nav-link:active { background: #d8e0ec; }
+            @media (max-width: 36rem) {
+                .app-menu__list {
+                    flex-direction: row; flex-wrap: nowrap; gap: 0.35rem; width: 100%;
+                }
+                .app-menu__list li { flex: 1 1 0; min-width: 0; }
+                a.app-menu__nav-link {
+                    width: 100%; min-height: 2.85rem; padding: 0.35rem 0.2rem;
+                    font-size: clamp(0.8rem, 3.5vw, 0.98rem);
+                    line-height: 1.22;
+                }
+            }
+            .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+            .table-scroll > table { min-width: 100%; }
+            .table-scroll--wide > table { min-width: 40rem; }
+            .browse-filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1rem; }
+            @media (max-width: 36rem) {
+                .browse-filters { flex-direction: column; align-items: stretch; }
+                .browse-filters p { width: 100%; margin: 0; }
+                .browse-filters select, .browse-filters button { width: 100%; min-height: 2.75rem; font-size: 1rem; }
+            }
             .flash-stack { position: sticky; top: 0; z-index: 1000; margin: 0; padding: 0; }
-            .flashes p { margin: .5rem 0; padding: .65rem 1rem; border-radius: 4px; max-width: 52rem; }
+            .flashes p { margin: .5rem 0; padding: .65rem 1rem; border-radius: 4px; max-width: min(52rem, 100%); }
             .flashes .success { background: #efe; color: #060; border: 1px solid #b8d4b8; }
             .error-modal-overlay {
                 position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center;
@@ -35,6 +81,16 @@
             body.error-modal-open { overflow: hidden; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; }
+            @media (max-width: 36rem) {
+                th, td { padding: 0.5rem 0.45rem; font-size: 0.92rem; }
+            }
+            .spool-diary-table { table-layout: fixed; width: 100%; }
+            .spool-diary-table th:nth-child(1), .spool-diary-table td:nth-child(1) {
+                width: 3.6rem; max-width: 3.6rem; padding: 0.35rem 0.3rem; text-align: right; font-variant-numeric: tabular-nums;
+            }
+            .spool-diary-table th:nth-child(2), .spool-diary-table td:nth-child(2) {
+                width: 3.9rem; max-width: 3.9rem; padding: 0.35rem 0.3rem; text-align: right; font-variant-numeric: tabular-nums;
+            }
         </style>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
         {% block stylesheets %}
