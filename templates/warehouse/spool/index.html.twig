@@ -165,7 +165,7 @@
     {% include '_app_menu_cz.html.twig' %}
     <h1>Práce s optikou</h1>
     <div id="work-top-area" class="work-top-area{% if searchPerformed and spools|length == 1 %} is-search-collapsed{% endif %}">
-    <p class="lede work-page-lede" id="work-page-lede">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po pauze se hledá samo. Při více shodách <strong>klikněte na řádek</strong>. <strong>PS (m)</strong> = počáteční stav metru <em>na kabelu</em>; <strong>Délka (m)</strong> = délka kabelu na cívce.<span id="work-data-lede"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}> U vybrané cívky můžete v bloku <em>Záznam pro práci</em> hned <strong>pod tabulkou</strong> zapsat odběr tlačítkem <strong>Zapsat</strong>.</span> Odkazy v zápatí.</p>
+    <p class="lede work-page-lede" id="work-page-lede">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po pauze se hledá samo. Při více shodách <strong>klikněte na řádek</strong>. <strong>PS (m)</strong> = počáteční stav metru <em>na kabelu</em>; <strong>Délka (m)</strong> = délka kabelu na cívce.<span id="work-data-lede"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}> U vybrané cívky můžete v bloku <em>Záznam pro práci</em> hned <strong>pod tabulkou</strong> zapsat <strong>zafuk</strong> tlačítkem <strong>Zapsat</strong>.</span> Odkazy v zápatí.</p>
 
     <div class="work-search-shell">
     <div class="work-search-form-wrap">
@@ -227,7 +227,7 @@
             </table>
             </div>
             {% if spools|length > 1 %}
-            <p id="work-pick-hint" class="work-pick-hint" style="margin: .75rem 0 .5rem; color: #444;">Vyberte správnou cívku <strong>kliknutím na řádek</strong> v tabulce; níže můžete zapsat odběr, pod tím se načte karta a deník.</p>
+            <p id="work-pick-hint" class="work-pick-hint" style="margin: .75rem 0 .5rem; color: #444;">Vyberte správnou cívku <strong>kliknutím na řádek</strong> v tabulce; níže můžete zapsat zafuk, pod tím se načte karta a deník.</p>
             {% endif %}
         {% endif %}
     {% endif %}
@@ -235,7 +235,7 @@
 
     <div id="work-data-panel" class="work-data-panel" role="region" aria-labelledby="work-data-heading"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}>
         <h2 id="work-data-heading" style="font-size: 1.05rem; margin: 0 0 0.65rem;">Záznam pro práci s cívkou</h2>
-        <p id="work-data-spool-hint" style="margin: 0 0 0.75rem; color: #555; font-size: 0.95rem;">{% if searchPerformed and spools|length == 1 %}Cívka <strong>{{ spools[0].reelNumber|e }}</strong> — zapsat <strong>odběr dle metru</strong> (očekává se nové čtení m na kabelu). Doplňte také <a href="{{ path('warehouse_spool_show', {id: spools[0].id}) }}">plnou kartu</a> pro jiné typy událostí.{% else %}Tento blok se zobrazí po <strong>výběru cívky</strong> v tabulce.{% endif %}</p>
+        <p id="work-data-spool-hint" style="margin: 0 0 0.75rem; color: #555; font-size: 0.95rem;">{% if searchPerformed and spools|length == 1 %}Cívka <strong>{{ spools[0].reelNumber|e }}</strong> — zapsat <strong>zafuk</strong> (očekává se nové čtení m na kabelu). Doplňte také <a href="{{ path('warehouse_spool_show', {id: spools[0].id}) }}">plnou kartu</a> pro jiné typy událostí.{% else %}Tento blok se zobrazí po <strong>výběru cívky</strong> v tabulce.{% endif %}</p>
         <form id="work-record-form" method="post" action="{{ path('warehouse_spool_work_record') }}">
             <input type="hidden" name="_token" value="{{ csrf_token('spool_work_record') }}">
             <input type="hidden" name="return_q" id="work-record-return-q" value="{{ searchQuery|e('html_attr') }}">
@@ -316,7 +316,7 @@
     if (s) {
       dataPanel.removeAttribute('hidden');
       if (ledeData) ledeData.removeAttribute('hidden');
-      if (workDataHint) workDataHint.innerHTML = 'Cívka <strong>' + esc(s.reelNumber) + '</strong> — zadejte čtení a volitelně zakázku, <strong>Zapsat</strong> uloží odběr dle metru. Jiné události v <a href="' + spoolShowUrl(s.id) + '">kartě cívky</a>.';
+      if (workDataHint) workDataHint.innerHTML = 'Cívka <strong>' + esc(s.reelNumber) + '</strong> — zadejte čtení a volitelně zakázku, <strong>Zapsat</strong> uloží zafuk. Jiné události v <a href="' + spoolShowUrl(s.id) + '">kartě cívky</a>.';
     } else {
       dataPanel.setAttribute('hidden', '');
       if (ledeData) ledeData.setAttribute('hidden', '');
@@ -430,8 +430,8 @@
     if (p == null) { calcBox.style.display = 'block'; calcBox.textContent = 'Chybí referenční m v evidenci.'; return; }
     var used = Math.abs(n - p);
     var after = rem != null ? (rem - used) : null;
-    var w = 'Předchozí m = ' + p + ' → odběr ≈ ' + used + ' m' + (after != null ? ' → zůstatek ≈ ' + after + ' m' : '') + '.';
-    if (rem != null && used > rem) w += ' <span style="color:#a00">Odběr přesahuje zůstatek.</span>';
+    var w = 'Předchozí m = ' + p + ' → krok ≈ ' + used + ' m' + (after != null ? ' → zůstatek ≈ ' + after + ' m' : '') + '.';
+    if (rem != null && used > rem) w += ' <span style="color:#a00">Krok přesahuje zůstatek.</span>';
     calcBox.style.display = 'block';
     calcBox.innerHTML = w;
   }

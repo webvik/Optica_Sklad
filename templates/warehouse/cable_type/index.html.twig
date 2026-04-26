@@ -3,7 +3,9 @@
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Typy kabelů</h1>
-    <p><a href="{{ path('warehouse_cable_type_new') }}">Nový záznam</a></p>
+    <p style="margin: 0.4rem 0 1rem;">
+        <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu</a>
+    </p>
     <div class="table-scroll table-scroll--wide">
     <table>
         <thead>
@@ -27,7 +29,7 @@
                 <td><a href="{{ path('warehouse_cable_type_edit', {id: c.id}) }}">Upravit</a></td>
             </tr>
         {% else %}
-            <tr><td colspan="6">Zatím prázdné — <a href="{{ path('warehouse_cable_type_new') }}">přidat typ</a></td></tr>
+            <tr><td colspan="6">Zatím prázdné — <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu</a></td></tr>
         {% endfor %}
         </tbody>
     </table>

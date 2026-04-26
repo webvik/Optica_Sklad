@@ -1,8 +1,85 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ spool.reelNumber }} — Optický sklad{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .spool-form { max-width: 40rem; line-height: 1.6; }
+        .spool-form__field {
+            display: grid;
+            grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+            column-gap: 0.45rem;
+            row-gap: 0.2rem;
+            margin: 0 0 0.75rem;
+            align-items: start;
+        }
+        .spool-form__field > label, .spool-form__field > .spool-form__static-label {
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.25;
+            padding-top: 0.28rem;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        .spool-form__value { min-width: 0; text-align: left; }
+        .spool-form__value .form-error, .spool-form__value ul, .spool-form__value p.help-text { margin: 0.25rem 0 0; display: block; }
+        .spool-form__value p.form-text, .spool-form__value p.help-text, .spool-form__value small { font-size: 0.85rem; line-height: 1.4; color: #555; text-align: left; }
+        .spool-form__value [type="date"], .spool-form__value [type="datetime-local"], .spool-form__value [type="number"],
+        .spool-form__value [type="text"], .spool-form__value textarea, .spool-form__value select {
+            max-width: 100%; box-sizing: border-box;
+        }
+        .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: left; width: 100%; }
+        @media (min-width: 42rem) {
+            .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
+            .spool-form__row--actions { grid-template-columns: 12.5rem 1fr; }
+            .spool-form__field > label, .spool-form__field > .spool-form__static-label { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; }
+            .spool-form__value > input, .spool-form__value > select, .spool-form__value > textarea { max-width: 24rem; margin-left: auto; display: block; }
+            .spool-form__value p.form-text, .spool-form__value p.help-text { max-width: 24rem; margin-left: auto; }
+            .spool-form__value--actions .spool-form__actions { max-width: 24rem; margin-left: auto; }
+            .spool-form__value > ul, .spool-form__value .form-error { text-align: left; margin-left: auto; max-width: 24rem; }
+        }
+        @media (max-width: 41.99rem) {
+            .spool-form__row--action-spacer { display: none !important; }
+            .spool-form__row--actions .spool-form__value--actions { grid-column: 1 / -1; }
+        }
+        .spool-form__actions { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; }
+        @media (min-width: 42rem) {
+            .spool-form__row--actions .spool-form__value--actions { width: 100%; }
+        }
+        .spool-form__btn, .spool-form__actions button[type="submit"] {
+            box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+            min-height: 2.55rem; min-width: 5.5rem; padding: 0.45rem 1rem; font: inherit; font-size: 1rem; font-weight: 500;
+            line-height: 1.2; border: 1px solid #bbb; border-radius: 4px; background: #f5f5f5; color: #1a1a1a; cursor: pointer;
+        }
+        .spool-form__btn:hover, .spool-form__actions button[type="submit"]:hover { background: #eaeaec; }
+        .spool-form__btn:active, .spool-form__actions button[type="submit"]:active { background: #e0e0e2; }
+        .spool-form__row--action-spacer { display: none; }
+        @media (min-width: 42rem) {
+            .spool-form__row--action-spacer { display: block; min-height: 1px; }
+        }
+        .spool-form--spool-event textarea { min-height: 5rem; }
+        .spool-form__readout--balance { margin: 0; font-size: 0.95rem; line-height: 1.4; text-align: left; color: #222; }
+        .spool-form--spool-event .spool-form__value .spool-form__help--writeoff-zbytek,
+        .spool-form--spool-event .spool-form__value p.form-text.spool-form__help--writeoff-zbytek,
+        .spool-form--spool-event .spool-form__value #spool_event_writeoffRemainderM_help {
+            font-size: 0.8rem;
+            line-height: 1.3;
+            color: #666;
+            margin-top: 0.2rem;
+        }
+        @media (max-width: 41.99rem) {
+            .spool-form--spool-event .spool-form__value .spool-form__help--writeoff-zbytek,
+            .spool-form--spool-event .spool-form__value p.form-text.spool-form__help--writeoff-zbytek,
+            .spool-form--spool-event .spool-form__value #spool_event_writeoffRemainderM_help {
+                font-size: 0.68rem;
+                line-height: 1.25;
+            }
+        }
+    </style>
+{% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Cívka {{ spool.reelNumber }}</h1>
+    {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
     {% if assignCableForm is defined and assignCableForm %}
         <h2 id="doplnit-typ">Doplnit typ kabelu</h2>
@@ -13,9 +90,94 @@
         {{ form_end(assignCableForm) }}
     {% endif %}
     <h2>Nová událost</h2>
-    {{ form_start(form) }}
-        {{ form_widget(form) }}
-        <p><button type="submit">Zapsat</button></p>
-    {{ form_end(form) }}
+    {{ form_start(form, { attr: {
+        class: 'spool-form spool-form--spool-event',
+        id: 'spool-event-form',
+        'data-spool-book-m': spool.currentRemainingM is not null ? spool.currentRemainingM : ''
+    } }) }}
+        <div class="spool-form__field">
+            {{ form_label(form.type) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.type) }}
+                {{ form_errors(form.type) }}
+            </div>
+        </div>
+        <div class="spool-form__field spool-form__field--readout">
+            <span class="spool-form__static-label">Zůstatek v evidenci (nyní)</span>
+            <div class="spool-form__value">
+                <p class="spool-form__readout--balance" id="spool-event-book-remaining">{% if spool.currentRemainingM is not null %}{{ spool.currentRemainingM }} m{% else %}— (není doplňován){% endif %}</p>
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.occurredAt) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.occurredAt) }}
+                {{ form_errors(form.occurredAt) }}
+            </div>
+        </div>
+        <div class="spool-form__field js-spool-event-row-visiblem">
+            {{ form_label(form.visibleM) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.visibleM) }}
+                {{ form_errors(form.visibleM) }}
+            </div>
+        </div>
+        <div class="spool-form__field js-spool-event-row-writeoff" style="display: none;">
+            {{ form_label(form.writeoffRemainderM) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.writeoffRemainderM) }}
+                {{ form_help(form.writeoffRemainderM) }}
+                {{ form_errors(form.writeoffRemainderM) }}
+            </div>
+        </div>
+        <div class="spool-form__field js-spool-event-row-project">
+            {{ form_label(form.projectLabel) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.projectLabel) }}
+                {{ form_errors(form.projectLabel) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.note) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.note) }}
+                {{ form_errors(form.note) }}
+            </div>
+        </div>
+        <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value spool-form__value--actions">
+                <div class="spool-form__actions" role="group" aria-label="Akce">
+                    <button type="submit" class="spool-form__btn">Zapsat</button>
+                </div>
+            </div>
+        </div>
+        {{ form_rest(form) }}
+    {{ form_end(form, { render_rest: false }) }}
+    <script>
+(function () {
+  var form = document.getElementById('spool-event-form');
+  if (!form) return;
+  var typeSelect = form.querySelector('select[name$="[type]"]');
+  if (!typeSelect) return;
+  var rowV = form.querySelector('.js-spool-event-row-visiblem');
+  var rowW = form.querySelector('.js-spool-event-row-writeoff');
+  var rowP = form.querySelector('.js-spool-event-row-project');
+  var wIn = form.querySelector('.js-spool-writeoff-remainder');
+  var bookM = form.getAttribute('data-spool-book-m');
+  function isWriteoff() { return typeSelect && typeSelect.value === 'writeoff'; }
+  function sync() {
+    var w = isWriteoff();
+    if (rowV) rowV.style.display = w ? 'none' : '';
+    if (rowW) rowW.style.display = w ? '' : 'none';
+    if (rowP) rowP.style.display = w ? 'none' : '';
+    if (w && wIn && wIn.value === '' && bookM !== '' && bookM != null) {
+      wIn.value = String(bookM);
+    }
+  }
+  typeSelect.addEventListener('change', sync);
+  sync();
+})();
+    </script>
     <p><a href="{{ path('warehouse_spool_index') }}">← zpět na práci s optikou</a></p>
 {% endblock %}

@@ -19,22 +19,27 @@ class SpoolRepository extends ServiceEntityRepository
     }
 
     /**
+     * Výběr podle 0–N typů a 0–N stavů. Prázdné pole = bez omezení v dané dimenzi.
+     *
+     * @param list<int>         $cableTypeIds
+     * @param list<SpoolStatus> $statuses
+     *
      * @return list<Spool>
      */
-    public function findFiltered(?int $cableTypeId, ?SpoolStatus $status, int $limit = 500): array
+    public function findFiltered(array $cableTypeIds, array $statuses, int $limit = 500): array
     {
         $qb = $this->createQueryBuilder('s')
             ->leftJoin('s.cableType', 'c')
             ->addSelect('c')
             ->orderBy('s.reelNumber', 'ASC')
             ->setMaxResults($limit);
-        if (null !== $cableTypeId) {
-            $qb->andWhere('c.id = :cid')
-                ->setParameter('cid', $cableTypeId);
+        if ($cableTypeIds !== []) {
+            $qb->andWhere('c.id IN (:cids)')
+                ->setParameter('cids', $cableTypeIds);
         }
-        if (null !== $status) {
-            $qb->andWhere('s.status = :st')
-                ->setParameter('st', $status);
+        if ($statuses !== []) {
+            $qb->andWhere('s.status IN (:stss)')
+                ->setParameter('stss', $statuses);
         }
 
         return $qb->getQuery()->getResult();
@@ -157,7 +162,6 @@ class SpoolRepository extends ServiceEntityRepository
             ->where('s.id IN (:ids)')
             ->setParameter('ids', $ids)
             ->orderBy('s.reelNumber', 'ASC')
-            ->addOrderBy('e.occurredAt', 'ASC')
             ->addOrderBy('e.id', 'ASC');
 
         return $qb->getQuery()->getResult();
@@ -195,8 +199,7 @@ class SpoolRepository extends ServiceEntityRepository
             ->addSelect('e')
             ->where('s.id = :id')
             ->setParameter('id', $id)
-            ->orderBy('e.occurredAt', 'ASC')
-            ->addOrderBy('e.id', 'ASC')
+            ->orderBy('e.id', 'ASC')
             ->getQuery()
             ->getOneOrNullResult();
     }

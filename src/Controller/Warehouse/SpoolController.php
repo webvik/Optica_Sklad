@@ -13,6 +13,7 @@ use App\Form\SpoolEventFormType;
 use App\Form\SpoolFormType;
 use App\Repository\CableFamilyRepository;
 use App\Repository\SpoolRepository;
+use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -109,7 +110,7 @@ final class SpoolController extends AbstractController
         ]);
     }
 
-    /** Zápis odběru dle metru ze stránky „Práce s optikou“ (Běžný stav + zakázka). */
+    /** Zápis zafuku (metr) ze stránky „Práce s optikou“ (Běžný stav + zakázka). */
     #[Route('/zaznam-prace', name: 'work_record', methods: ['POST'])]
     public function workRecord(Request $request, SpoolRepository $repo, SpoolMeterService $meter, EntityManagerInterface $em): Response
     {
@@ -147,7 +148,7 @@ final class SpoolController extends AbstractController
                 $spool->setUpdatedBy($u);
             }
             $em->flush();
-            $this->addFlash('success', 'Odběr dle metru byl zapsán do deníku.');
+            $this->addFlash('success', 'Zafuk byl zapsán do deníku.');
         } catch (\Throwable $e) {
             $this->addFlash('error', $e->getMessage());
         }
@@ -250,15 +251,29 @@ final class SpoolController extends AbstractController
         }
         $event = new SpoolEvent();
         $event->setSpool($spool);
-        $form = $this->createForm(SpoolEventFormType::class, $event);
+        $form = $this->createForm(SpoolEventFormType::class, $event, [
+            'spool' => $spool,
+        ]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
             $u = $this->getUser() instanceof User ? $this->getUser() : null;
+            // Date-only pole → occurred_at 00:00:00, ve stejném dni se pak seřadí PŘED dřívější záznamy
+            // s reálným časem; nový by „zmizel“ dole pod tabulkou. Doplníme čas odeslání.
+            if (null !== $event->getOccurredAt()) {
+                $now = new \DateTimeImmutable();
+                $event->setOccurredAt(
+                    $event->getOccurredAt()->setTime(
+                        (int) $now->format('H'),
+                        (int) $now->format('i'),
+                        (int) $now->format('s')
+                    )
+                );
+            }
             $type = $event->getType();
             try {
                 if (SpoolEventType::MeterReading === $type) {
                     if (null === $event->getVisibleM()) {
-                        $this->addFlash('error', 'U odběru dle metru zadejte „viditelné čtení metru“ (m).');
+                        $this->addFlash('error', 'U zafuku zadejte „viditelné čtení metru“ (m).');
 
                         return $this->render('warehouse/spool/show.html.twig', [
                             'spool' => $spool,
@@ -283,6 +298,20 @@ final class SpoolController extends AbstractController
                         $event->getNote(),
                         $u
                     );
+                } elseif (SpoolEventType::Writeoff === $type) {
+                    $event->setVisibleM(null);
+                    $r = (int) $form->get('writeoffRemainderM')->getData();
+                    $bookBefore = $spool->getCurrentRemainingM() ?? $spool->getTotalLengthM();
+                    $meter->recordWriteoff(
+                        $spool,
+                        $event->getOccurredAt(),
+                        $r,
+                        $event->getNote(),
+                        $u
+                    );
+                    if ($r < $bookBefore) {
+                        $this->addFlash('warning', 'Fyzický zbytek ('.$r.' m) je menší než zůstatek v evidenci před zápisem ('.$bookBefore.' m) — může se projevit varování u součtu délka / zůstatek / odběry. Ověřte a případě proveďte korekci.');
+                    }
                 } else {
                     if (SpoolEventType::Transfer === $type && (null === $event->getNote() || '' === trim($event->getNote() ?? ''))) {
                         $this->addFlash('error', 'U předání uveďte komu / kam (pole „Poznámka“).');
@@ -326,12 +355,7 @@ final class SpoolController extends AbstractController
     private function serializeSpoolLookup(Spool $s, SpoolMeterService $meter): array
     {
         $rem = $meter->remainingForTableDisplay($s);
-        $evs = $s->getEvents()->toArray();
-        usort($evs, static function (SpoolEvent $a, SpoolEvent $b): int {
-            $t = $a->getOccurredAt() <=> $b->getOccurredAt();
-
-            return 0 === $t ? ($a->getId() ?? 0) <=> ($b->getId() ?? 0) : $t;
-        });
+        $evs = SpoolEventOrder::byVisibleM($s->getMeterSign(), $s->getEvents()->toArray());
         $tail = \array_slice($evs, -5);
         $tail = array_reverse($tail);
 
@@ -379,11 +403,11 @@ final class SpoolController extends AbstractController
     private function eventTypeLabel(SpoolEventType $t): string
     {
         return match ($t) {
-            SpoolEventType::MeterReading => 'odběr dle metru',
+            SpoolEventType::MeterReading => 'zafuk',
             SpoolEventType::Transfer => 'předání',
             SpoolEventType::Writeoff => 'vyřazení',
             SpoolEventType::Inventory => 'inventura',
-            SpoolEventType::Correction => 'oprava',
+            SpoolEventType::Correction => 'korekce',
             SpoolEventType::LaidSection => 'úsek (štítek)',
         };
     }

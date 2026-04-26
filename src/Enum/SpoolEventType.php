@@ -9,6 +9,6 @@ enum SpoolEventType: string
     case Writeoff = 'writeoff';
     case Inventory = 'inventory';
     case Correction = 'correction';
-    /** Záznam z nálepky: čtení metru (m) po pokládce v úseku, popis místa/stavby */
+    /** Dříve ve formuláři „úsek/štítek“; import, staré záznamy. Do UI formuláře se nevybírá. */
     case LaidSection = 'laid_section';
 }

@@ -21,29 +21,15 @@
             hyphens: auto;
         }
         .spool-form__readout { margin: 0; font-size: 0.88rem; line-height: 1.35; color: #333; }
-        .spool-form__value { min-width: 0; text-align: right; }
+        .spool-form__value { min-width: 0; text-align: left; }
         .spool-form__value .form-error, .spool-form__value ul, .spool-form__value p.help-text { margin: 0.25rem 0 0; display: block; }
-        .spool-form__value p.form-text, .spool-form__value p.help-text, .spool-form__value small { font-size: 0.85rem; line-height: 1.4; color: #555; text-align: right; }
+        .spool-form__value p.form-text, .spool-form__value p.help-text, .spool-form__value small { font-size: 0.85rem; line-height: 1.4; color: #555; text-align: left; }
         .spool-form__value [type="date"], .spool-form__value [type="number"],
         .spool-form__value [type="text"], .spool-form__value textarea, .spool-form__value select {
             max-width: 100%; box-sizing: border-box;
         }
-        .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: right; width: 100%; }
+        .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: left; width: 100%; }
         .spool-form__value select.cable-type-list { max-width: 100%; }
-        .spool-form__value--cable .cable-type-mobile-picker__scroller {
-            width: 100%;
-            min-width: 0;
-            overflow-x: auto;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        /* šířka <select> na desktopu dopočítá JS (max-content u listboxu v prohlížečích nefunguje) */
-        .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
-            max-width: none !important;
-            box-sizing: border-box;
-            display: block;
-            text-align: left;
-        }
         @media (min-width: 42rem) {
             .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
             .spool-form__row--actions { grid-template-columns: 12.5rem 1fr; }
@@ -78,112 +64,16 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1rem;
         }
         #spool-form-scan-video { max-width: min(100%, 640px); max-height: 50vh; background: #111; border-radius: 6px; }
-        body.spool-cable-panel-open { overflow: hidden; }
-        .cable-type-mobile-picker { position: relative; width: 100%; }
+        {% include 'warehouse/_cable_type_picker_core_styles.html.twig' %}
         @media (min-width: 42rem) {
             .spool-form__value--cable .cable-type-mobile-picker {
                 max-width: 24rem;
                 margin-left: auto;
             }
         }
-        .cable-type-mobile-picker__toggle {
-            display: flex;
-            width: 100%;
-            min-height: 2.5rem;
-            padding: 0.4rem 0.5rem;
-            text-align: left;
-            font: inherit;
-            font-size: 0.95rem;
-            border: 1px solid #999;
-            border-radius: 4px;
-            background: #fff;
-            color: #1a1a1a;
-            cursor: pointer;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.4rem;
-        }
-        .cable-type-mobile-picker__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
-        .cable-type-mobile-picker__chev { flex-shrink: 0; color: #555; font-size: 0.7rem; }
-        .cable-type-mobile-picker__backdrop[hidden] { display: none !important; }
-        .cable-type-mobile-picker__backdrop {
-            position: fixed; inset: 0; z-index: 10040; background: rgba(0,0,0,.4);
-        }
-        .cable-type-mobile-picker__panel[hidden] { display: none !important; }
-        .cable-type-mobile-picker__bar {
-            display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.5rem;
-            padding: 0.55rem 0.6rem;
-            border-bottom: 1px solid #ccc; background: #f4f4f4;
-        }
-        @media (max-width: 41.99rem) {
-            .cable-type-mobile-picker__bar {
-                padding: 0.55rem max(0.6rem, env(safe-area-inset-right, 0.6rem)) 0.55rem max(0.6rem, env(safe-area-inset-left, 0.6rem));
-            }
-        }
-        .cable-type-mobile-picker__title { font-weight: 600; font-size: 1rem; }
-        .cable-type-mobile-picker__close {
-            min-width: 2.5rem; min-height: 2.5rem; padding: 0; border: 0; background: transparent; font-size: 1.35rem; line-height: 1; cursor: pointer; color: #333; border-radius: 4px;
-        }
-        @media (max-width: 41.99rem) {
-            .cable-type-mobile-picker--open .cable-type-mobile-picker__panel {
-                position: fixed; z-index: 10050; left: 0; right: 0; top: 0; bottom: 0;
-                display: flex !important; flex-direction: column;
-                max-height: 100dvh; max-width: 100%;
-                width: 100%;
-                margin: 0;
-                padding: env(safe-area-inset-top, 0) 0 max(0.35rem, env(safe-area-inset-bottom, 0)) 0;
-                background: #fff;
-                box-sizing: border-box;
-            }
-            .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller {
-                flex: 1 1 0;
-                min-width: 0;
-                width: 100%;
-                max-width: 100%;
-            }
-            .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller,
-            .cable-type-mobile-picker__scroller {
-                flex: 1; min-height: 0; overflow: auto; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
-            }
-            .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
-                display: block;
-                min-height: 55dvh; height: auto;
-                max-width: none !important;
-                font-size: 0.9rem;
-                padding: 0.3rem max(0.3rem, env(safe-area-inset-right, 0.3rem)) 0.3rem max(0.3rem, env(safe-area-inset-left, 0.3rem));
-                text-align: left;
-            }
-        }
         @media (min-width: 42rem) {
-            .cable-type-mobile-picker--open .cable-type-mobile-picker__panel {
-                position: fixed; z-index: 10050; left: 50%; top: 50%;
-                transform: translate(-50%, -50%);
-                width: min(32rem, 100vw - 2rem);
-                max-height: min(32rem, 80vh);
-                display: flex !important;
-                flex-direction: column;
-                background: #fff;
-                box-shadow: 0 0.4rem 1.5rem rgba(0,0,0,0.25);
-                border-radius: 8px;
-                box-sizing: border-box;
-            }
-            .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller {
-                flex: 1 1 auto;
-                min-height: 0;
-                min-width: 0;
-                width: 100%;
-                max-height: min(20rem, 60vh);
-                overflow-x: auto;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
-                display: block;
-                min-height: 12rem;
-                max-width: none !important;
-                font-size: 0.9rem;
-                text-align: left;
-                padding: 0.3rem 0.4rem;
+            .cable-type-mobile-picker--open .cable-type-mobile-picker__full-desc.has-content {
+                max-height: min(20rem, 32vh);
             }
         }
         .cable-type-hover-group { max-width: 100%; }

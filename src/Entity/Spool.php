@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Enum\SpoolStatus;
 use App\Repository\SpoolRepository;
+use App\Service\Warehouse\SpoolEventOrder;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -83,7 +84,7 @@ class Spool
 
     /** @var Collection<int, SpoolEvent> */
     #[ORM\OneToMany(targetEntity: SpoolEvent::class, mappedBy: 'spool', cascade: ['persist'])]
-    #[ORM\OrderBy(['occurredAt' => 'ASC', 'id' => 'ASC'])]
+    #[ORM\OrderBy(['id' => 'ASC'])]
     private Collection $events;
 
     public function __construct()
@@ -226,6 +227,19 @@ class Spool
         return $this->diameterMm;
     }
 
+    /**
+     * Průměr z cívky nebo z typu kabelu (stejná logika jako u vláken).
+     */
+    public function getEffectiveDiameterMm(): ?string
+    {
+        if (null !== $this->diameterMm && '' !== \trim((string) $this->diameterMm)) {
+            return $this->diameterMm;
+        }
+        $d = $this->cableType?->getDiameterMm();
+
+        return null !== $d && '' !== \trim((string) $d) ? $d : null;
+    }
+
     public function setDiameterMm(?string $diameterMm): static
     {
         $this->diameterMm = $diameterMm;
@@ -321,6 +335,16 @@ class Spool
     public function getEvents(): Collection
     {
         return $this->events;
+    }
+
+    /**
+     * Deník a řetězec m: dle metráže a směru metru, ne dle data.
+     *
+     * @return list<SpoolEvent>
+     */
+    public function getEventsSortedByVisibleM(): array
+    {
+        return SpoolEventOrder::forSpool($this);
     }
 
     public function addEvent(SpoolEvent $event): static
