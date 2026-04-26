@@ -106,6 +106,54 @@ final class SpoolController extends AbstractController
         ]);
     }
 
+    /** Zápis odběru dle metru ze stránky „Práce s optikou“ (Běžný stav + zakázka). */
+    #[Route('/zaznam-prace', name: 'work_record', methods: ['POST'])]
+    public function workRecord(Request $request, SpoolRepository $repo, SpoolMeterService $meter, EntityManagerInterface $em): Response
+    {
+        $returnQ = \trim((string) $request->request->get('return_q', ''));
+        if (!$this->isCsrfTokenValid('spool_work_record', (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný token. Zkuste znovu.');
+
+            return $this->redirectToRoute('warehouse_spool_index', ['q' => $returnQ]);
+        }
+        $id = (int) $request->request->get('spool_id', 0);
+        $spool = $id > 0 ? $repo->findOneWithEventsById($id) : null;
+        if (null === $spool) {
+            $this->addFlash('error', 'Cívka nenalezena.');
+
+            return $this->redirectToRoute('warehouse_spool_index', ['q' => $returnQ]);
+        }
+        $rawM = $request->request->get('visible_m');
+        if (null === $rawM || '' === (string) $rawM) {
+            $this->addFlash('error', 'Zadejte „Běžný stav (aktuální metráž)“ v metrech.');
+
+            return $this->redirectToRoute('warehouse_spool_index', ['q' => '' !== $returnQ ? $returnQ : $spool->getReelNumber()]);
+        }
+        $visibleInt = (int) $rawM;
+        $project = (string) $request->request->get('project', '');
+        $u = $this->getUser() instanceof User ? $this->getUser() : null;
+        try {
+            $meter->applyMeterReading(
+                $spool,
+                $visibleInt,
+                new \DateTimeImmutable('now'),
+                '' !== $project ? $project : null,
+                $u
+            );
+            if ($u instanceof User) {
+                $spool->setUpdatedBy($u);
+            }
+            $em->flush();
+            $this->addFlash('success', 'Odběr dle metru byl zapsán do deníku.');
+        } catch (\Throwable $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        $q = '' !== $returnQ ? $returnQ : $spool->getReelNumber();
+
+        return $this->redirectToRoute('warehouse_spool_index', ['q' => $q]);
+    }
+
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $em, SpoolMeterService $meter): Response
     {
@@ -132,6 +180,20 @@ final class SpoolController extends AbstractController
         return $this->render('warehouse/spool/form.html.twig', [
             'form' => $form,
             'title' => 'Nová cívka do evidence',
+        ]);
+    }
+
+    /** HTML fragment karty cívky (shrnutí + deník) pro stránku „Práce s optikou“ (AJAX). */
+    #[Route('/{id}/karta-embed', name: 'karta_embed', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function kartaEmbed(int $id, SpoolRepository $repo): Response
+    {
+        $spool = $repo->findOneWithEventsById($id);
+        if (null === $spool) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->render('warehouse/spool/_karta_work_embed.html.twig', [
+            'spool' => $spool,
         ]);
     }
 
@@ -243,6 +305,7 @@ final class SpoolController extends AbstractController
             'currentRemainingM' => $rem['remaining'],
             'initialVisibleM' => $s->getInitialVisibleM(),
             'lastVisibleM' => $s->getLastVisibleM(),
+            'fiberCount' => $s->getEffectiveFiberCount(),
             'remainingDirectionOk' => $rem['directionOk'],
             'remainingWarning' => $rem['warning'],
             'meterNumberingLabel' => $rem['directionLabel'],

@@ -1,0 +1,31 @@
+{# Sdílené s karta cívky (show) a pracovní stránkou. Proměnná: spool #}
+<p>
+    <strong>Typ:</strong> {{ spool.cableType ? spool.cableType.name ~ ' (' ~ spool.cableType.code ~ ')' : '—' }}<br>
+    <strong>Délka:</strong> {{ spool.totalLengthM }} m,
+    <strong>PS:</strong> {{ spool.initialVisibleM }},
+    <strong>poslední m:</strong> {% if spool.lastVisibleM is not null %}{{ spool.lastVisibleM }} m{% else %}—{% endif %},
+    <strong>zbývá:</strong> {{ spool.currentRemainingM ?? '—' }} m,
+    <strong>směr čtení metru:</strong> {{ spool.meterSign is null ? '—' : (spool.meterSign == 1 ? 'rostoucí' : 'klesající') }}<br>
+    <strong>Stav:</strong> {% if spool.status.value == 'in_stock' %}na skladě{% elseif spool.status.value == 'transferred' %}předáno{% elseif spool.status.value == 'written_off' %}vyřazeno{% else %}{{ spool.status.value }}{% endif %}
+    {% if spool.family %} · <strong>řada:</strong> {{ spool.family }}{% endif %}
+    · <strong>vláken:</strong> {{ spool.effectiveFiberCount }}
+</p>
+<h2>Deník</h2>
+<table>
+    <thead>
+        <tr><th>Kdy</th><th>m (čtení)</th><th>Odběr (m)</th><th>Zakázka</th><th>Pozn.</th></tr>
+    </thead>
+    <tbody>
+    {% for e in spool.events %}
+        <tr>
+            <td>{{ e.occurredAt|date('Y-m-d') }}</td>
+            <td>{{ e.visibleM is not null ? e.visibleM : '—' }}</td>
+            <td>{{ e.usedMeters is not null ? e.usedMeters : '—' }}</td>
+            <td>{{ e.projectLabel|default('—') }}</td>
+            <td>{{ e.note|default('') }}</td>
+        </tr>
+    {% else %}
+        <tr><td colspan="5">Žádné záznamy</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
