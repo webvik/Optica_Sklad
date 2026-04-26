@@ -74,6 +74,31 @@
         .spool-karta-embed table { width: 100%; font-size: 0.95rem; }
         .work-record-scan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; }
         .work-record-scan-hint { font-size: 0.88rem; color: #555; max-width: 42rem; line-height: 1.35; }
+        #work-search-form .work-search-action-btn {
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.6rem;
+            min-width: 5.5rem;
+            padding: 0.5rem 1rem;
+            font: inherit;
+            font-size: 1.1rem;
+            line-height: 1.2;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            border: 1px solid #bbb;
+            border-radius: 4px;
+            background: #f5f5f5;
+            color: inherit;
+        }
+        #work-search-form .work-search-action-btn:hover {
+            background: #eaeaec;
+        }
+        #work-search-form .work-search-action-btn:active {
+            background: #e0e0e2;
+        }
     </style>
 {% endblock %}
 {% block body %}
@@ -86,8 +111,8 @@
             <label for="work-q" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">Číslo saře</label>
             <span style="display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;">
                 <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="např. 450-1470">
-                <button type="submit" style="white-space: nowrap;">Hledat</button>
-                <button type="button" id="work-scan-btn" class="work-scan-tl" data-work-scan-mode="sare" style="white-space: nowrap; font-size: 1.1rem; padding: 0.45rem 0.9rem;" title="Sken kódu saře — výsledek do pole Číslo saře (kamera nebo čtečka)">Sken</button>
+                <button type="submit" class="work-search-action-btn">Hledat</button>
+                <button type="button" id="work-scan-btn" class="work-search-action-btn work-scan-tl" data-work-scan-mode="sare" title="Sken kódu saře — výsledek do pole Číslo saře (kamera nebo čtečka)">Sken</button>
             </span>
         </p>
     </form>
@@ -335,7 +360,12 @@
   }
   function syncReturnQ() {
     var rq = document.getElementById('work-record-return-q');
-    if (rq && qIn) rq.value = (qIn.value != null) ? String(qIn.value) : '';
+    if (!rq) return;
+    if (meterState.s && meterState.s.reelNumber != null && meterState.s.reelNumber !== '') {
+      rq.value = String(meterState.s.reelNumber);
+    } else if (qIn) {
+      rq.value = (qIn.value != null) ? String(qIn.value) : '';
+    }
   }
   function setMeterSpool(s) {
     setWorkDataPanel(s);
@@ -346,10 +376,13 @@
     }
     meterState.s = s;
     if (s) {
+      if (qIn && s.reelNumber) qIn.value = String(s.reelNumber);
+      syncReturnQ();
       if (meterIn) meterIn.value = '';
       if (projectIn) projectIn.value = '';
     } else {
       if (calcBox) { calcBox.style.display = 'none'; calcBox.innerHTML = ''; }
+      syncReturnQ();
     }
     if (!s) return;
     bindMeter();

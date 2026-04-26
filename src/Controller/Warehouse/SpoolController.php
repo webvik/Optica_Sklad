@@ -127,7 +127,7 @@ final class SpoolController extends AbstractController
         if (null === $rawM || '' === (string) $rawM) {
             $this->addFlash('error', 'Zadejte „Běžný stav (aktuální metráž)“ v metrech.');
 
-            return $this->redirectToRoute('warehouse_spool_index', ['q' => '' !== $returnQ ? $returnQ : $spool->getReelNumber()]);
+            return $this->redirectToRoute('warehouse_spool_index', ['q' => $spool->getReelNumber()]);
         }
         $visibleInt = (int) $rawM;
         $project = (string) $request->request->get('project', '');
@@ -149,9 +149,8 @@ final class SpoolController extends AbstractController
             $this->addFlash('error', $e->getMessage());
         }
 
-        $q = '' !== $returnQ ? $returnQ : $spool->getReelNumber();
-
-        return $this->redirectToRoute('warehouse_spool_index', ['q' => $q]);
+        // Vždy přesné číslo saře (ne částečný dotaz v poli hledání) → jedna shoda, Záznam + karta.
+        return $this->redirectToRoute('warehouse_spool_index', ['q' => $spool->getReelNumber()]);
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]

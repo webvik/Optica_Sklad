@@ -15,6 +15,15 @@ use RuntimeException;
  */
 final class SpoolMeterService
 {
+    /** K jednomu fyzickému odběru: částku |Δm| srovnáme s délkou kabelu na cívce (+ 20 %). U řady mlt doplňte strop podle běžné praxe. */
+    private const ODBĚR_KROK_TOLERANCE_K_DÉLCE = 1.20;
+
+    /** Řada mlt: běžně v praxi cívky cca do této délky — pro strop v kombinaci s procenty. */
+    private const MLT_MAX_TYPICAL_CÍVKA_M = 6000;
+
+    /** Kandidátní rozsahy čítače (4–6 „číslic“) pro odhad jednoho přetočení. */
+    private const METER_MOD_CANDIDATES = [10_000, 100_000, 1_000_000];
+
     public function __construct(
         private readonly EntityManagerInterface $em,
     ) {
@@ -74,8 +83,12 @@ final class SpoolMeterService
 
     /**
      * Jeden krok v řetězci: před tím míň viditelné m na cívce, víc spotřebováno fyzicky.
-     * Předchozí m = last_visible_m (nebo initial při stavu startu), odběr = |mₙ − mₙ₋₁|,
-     * zůstatek := zůstatek − odběr, last_visible_m := mₙ.
+     * Odběr = |mₙ − mₙ₋₁| kde mₙ₋₁ = last_visible m po poslední události (ne u prvního kroku).
+     *
+     * První krok v řetězci (žádná událost meter/laid s m v deníku): referencí je vždy PS (m0).
+     * Je-li lineární |Δm| větší než rozumný max. (délka cívky + 20 %), zkouší se jedno přetočení
+     * čítače (mod 10⁴…10⁶), fyzický odběr se spočítá a určí směr metru. Dále viz
+     * {@see self::resolveSingleStepOdběrWithOptionalWrap}.
      */
     public function applyVisibleChainEvent(
         Spool $spool,
@@ -91,25 +104,36 @@ final class SpoolMeterService
         }
         $occurredAt ??= new \DateTimeImmutable();
         $m0 = $spool->getInitialVisibleM();
-        $prevM = $spool->getLastVisibleM() ?? $m0;
-        $used = \abs($newVisibleM - $prevM);
         $nPrev = $this->countVisibleChainEvents($spool);
-        if (0 === $nPrev && 0 === $used) {
+        // První záznam v řetězci: fyzický odběr a směr vycházejí z PS, ne z last_visible (může být nesoulad s PS).
+        $prevM = 0 === $nPrev
+            ? $m0
+            : ($spool->getLastVisibleM() ?? $m0);
+        if (0 === $nPrev && $newVisibleM === $m0) {
+            throw new RuntimeException('Bez odběru: zadejte čtení metru odlišné od PS (počáteční stav na kabelu).');
+        }
+        if ($nPrev > 0 && $newVisibleM === $prevM) {
             throw new RuntimeException('Oproti předchozímu čtení není žádná změna; zadejte novou hodnotu po odběru kabelu.');
         }
-
         $rem = $spool->getCurrentRemainingM() ?? $spool->getTotalLengthM();
-        if ($used > $rem) {
-            throw new RuntimeException(\sprintf('Odběr %d m přesahuje zůstatek %d m.', $used, $rem));
+        $signStored = $spool->getMeterSign();
+        $resolved = $this->resolveSingleStepOdběrWithOptionalWrap(
+            $spool,
+            $nPrev,
+            $m0,
+            $prevM,
+            $newVisibleM,
+            $rem,
+            $signStored
+        );
+        if (null === $resolved) {
+            throw new RuntimeException(
+                'Nelze spočítat fyzický odběr: zadejte čtení znovu, nebo zůstatek v evidenci neumožní ani variantu s přetočením čítače (mod 10 000 / 100 000 / 1 000 000 m).'
+            );
         }
-
-        if (0 === $nPrev && null === $spool->getMeterSign() && 0 !== $newVisibleM - $m0) {
-            $spool->setMeterSign($newVisibleM > $m0 ? 1 : -1);
-        } elseif ($nPrev > 0 && null !== $spool->getMeterSign() && 0 !== $newVisibleM - $prevM) {
-            $stepSign = $newVisibleM > $prevM ? 1 : ($newVisibleM < $prevM ? -1 : 0);
-            if (0 !== $stepSign && $stepSign !== $spool->getMeterSign()) {
-                throw new RuntimeException('Směr čísla na metru se neshoduje s evidovaným pro tuto cívku; zkontrolujte zadání.');
-            }
+        $used = $resolved['used'];
+        if (0 === $nPrev) {
+            $spool->setMeterSign($resolved['inferredSign']);
         }
 
         $spool->setCurrentRemainingM($rem - $used);
@@ -122,13 +146,137 @@ final class SpoolMeterService
         $event->setVisibleM($newVisibleM);
         $event->setUsedMeters($used);
         $event->setProjectLabel($projectLabel);
-        $event->setNote($note);
+        $event->setNote($this->appendWrapNoteToEventNote(
+            $note,
+            $resolved['wrap'] ?? false,
+            $resolved['mod'] ?? null
+        ));
         $event->setCreatedBy($user);
         $spool->addEvent($event);
         $this->em->persist($event);
         $this->em->persist($spool);
 
         return $event;
+    }
+
+    private function maxFyzickýKrokDleCívky(Spool $spool): int
+    {
+        $total = $spool->getTotalLengthM();
+        if ($total < 1) {
+            return \PHP_INT_MAX;
+        }
+        $max = (int) \ceil($total * self::ODBĚR_KROK_TOLERANCE_K_DÉLCE);
+        $fam = \strtolower(\trim($spool->getFamily() ?? ''));
+        if ($fam !== '' && \str_contains($fam, 'mlt')) {
+            $max = \min($max, (int) \ceil(self::MLT_MAX_TYPICAL_CÍVKA_M * self::ODBĚR_KROK_TOLERANCE_K_DÉLCE));
+        }
+
+        return $max;
+    }
+
+    private function appendWrapNoteToEventNote(?string $userNote, bool $wrap, ?int $mod): ?string
+    {
+        if (!$wrap) {
+            return $userNote;
+        }
+        $s = ' [přetočení čítače, mod '.$mod.']';
+        if (null === $userNote || '' === \trim($userNote)) {
+            return $s;
+        }
+
+        return \rtrim($userNote).$s;
+    }
+
+    /**
+     * @return array{used: int, inferredSign: int, wrap: bool, mod: int|null}|null
+     */
+    private function resolveSingleStepOdběrWithOptionalWrap(
+        Spool $spool,
+        int $nPrev,
+        int $m0,
+        int $prevM,
+        int $newM,
+        int $rem,
+        ?int $signStored,
+    ): ?array {
+        $maxFyz = $this->maxFyzickýKrokDleCívky($spool);
+        $cands = [];
+        if (0 === $nPrev) {
+            if ($newM > $m0) {
+                $cands[] = ['d' => $newM - $m0, 'sign' => 1, 'wrap' => false, 'mod' => null];
+                foreach (self::METER_MOD_CANDIDATES as $mod) {
+                    if ($m0 >= $mod || $newM >= $mod) {
+                        continue;
+                    }
+                    $cands[] = ['d' => $m0 + ($mod - $newM), 'sign' => -1, 'wrap' => true, 'mod' => $mod];
+                }
+            } elseif ($newM < $m0) {
+                $cands[] = ['d' => $m0 - $newM, 'sign' => -1, 'wrap' => false, 'mod' => null];
+                foreach (self::METER_MOD_CANDIDATES as $mod) {
+                    if ($m0 >= $mod || $newM >= $mod) {
+                        continue;
+                    }
+                    $cands[] = ['d' => ($mod - $m0) + $newM, 'sign' => 1, 'wrap' => true, 'mod' => $mod];
+                }
+            }
+        } elseif (null !== $signStored) {
+            if (1 === $signStored) {
+                if ($newM > $prevM) {
+                    $cands[] = ['d' => $newM - $prevM, 'wrap' => false, 'mod' => null];
+                } elseif ($newM < $prevM) {
+                    foreach (self::METER_MOD_CANDIDATES as $mod) {
+                        if ($prevM >= $mod || $newM >= $mod) {
+                            continue;
+                        }
+                        $cands[] = ['d' => ($mod - $prevM) + $newM, 'wrap' => true, 'mod' => $mod];
+                    }
+                }
+            } else {
+                if ($newM < $prevM) {
+                    $cands[] = ['d' => $prevM - $newM, 'wrap' => false, 'mod' => null];
+                } elseif ($newM > $prevM) {
+                    foreach (self::METER_MOD_CANDIDATES as $mod) {
+                        if ($prevM >= $mod || $newM >= $mod) {
+                            continue;
+                        }
+                        $cands[] = ['d' => $prevM + ($mod - $newM), 'wrap' => true, 'mod' => $mod];
+                    }
+                }
+            }
+        }
+        $valid = [];
+        foreach ($cands as $c) {
+            $d = $c['d'];
+            if ($d < 1 || $d > $rem || $d > $maxFyz) {
+                continue;
+            }
+            $valid[] = $c;
+        }
+        if ([] === $valid) {
+            return null;
+        }
+        \usort(
+            $valid,
+            static function (array $a, array $b): int {
+                if ($a['d'] !== $b['d']) {
+                    return $a['d'] <=> $b['d'];
+                }
+                if ($a['wrap'] !== $b['wrap']) {
+                    return $a['wrap'] <=> $b['wrap'];
+                }
+
+                return ($a['mod'] ?? 0) <=> ($b['mod'] ?? 0);
+            }
+        );
+        $best = $valid[0];
+        $inferred = 0 === $nPrev ? (int) ($best['sign'] ?? 0) : (int) $signStored;
+
+        return [
+            'used' => (int) $best['d'],
+            'inferredSign' => $inferred,
+            'wrap' => (bool) ($best['wrap'] ?? false),
+            'mod' => $best['mod'] ?? null,
+        ];
     }
 
     public function recordNonMeterEvent(

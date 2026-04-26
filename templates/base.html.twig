@@ -7,9 +7,32 @@
         <style>
             :root { font-family: system-ui, sans-serif; line-height: 1.45; }
             a { color: #06c; }
-            .flashes p { margin: .5rem 0; padding: .5rem 1rem; border-radius: 4px; }
-            .flashes .error { background: #fee; color: #800; }
-            .flashes .success { background: #efe; color: #060; }
+            .flash-stack { position: sticky; top: 0; z-index: 1000; margin: 0; padding: 0; }
+            .flashes p { margin: .5rem 0; padding: .65rem 1rem; border-radius: 4px; max-width: 52rem; }
+            .flashes .success { background: #efe; color: #060; border: 1px solid #b8d4b8; }
+            .error-modal-overlay {
+                position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center;
+                padding: 1rem; background: rgba(0,0,0,.45); box-sizing: border-box;
+            }
+            .error-modal-panel {
+                position: relative; max-width: 28rem; width: 100%; margin: 0; padding: 1.15rem 1.25rem 1rem;
+                background: #fff; color: #1a1a1a; border-radius: 8px; border: 1px solid #d8a0a0;
+                box-shadow: 0 8px 32px rgba(0,0,0,.2);
+            }
+            .error-modal-title { font-size: 1.1rem; margin: 0 0 .65rem; color: #800; }
+            .error-modal-text { margin: 0; line-height: 1.5; }
+            .error-modal-text + .error-modal-text { margin-top: .75rem; }
+            .error-modal-x {
+                position: absolute; top: .45rem; right: .5rem; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 4px;
+                background: transparent; color: #666; font-size: 1.4rem; line-height: 1; cursor: pointer;
+            }
+            .error-modal-x:hover { background: #f0f0f0; color: #111; }
+            .error-modal-ok {
+                display: block; width: 100%; margin-top: 1.1rem; padding: .55rem 1rem; font-size: 1rem; cursor: pointer;
+                background: #c33; color: #fff; border: 0; border-radius: 6px; font-weight: 600;
+            }
+            .error-modal-ok:hover { background: #a22; }
+            body.error-modal-open { overflow: hidden; }
             table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; }
         </style>
@@ -25,13 +48,50 @@
         {% endif %}
     </head>
     <body>
-        {% for type in ['success', 'error'] %}
-            {% for message in app.flashes(type) %}
-                <div class="flashes"><p class="{{ type }}">{{ message }}</p></div>
-            {% endfor %}
+        <div class="flash-stack" id="global-flash-stack">
+        {% for message in app.flashes('success') %}
+            <div class="flashes" role="status" data-flash-severity="success"><p class="success">{{ message }}</p></div>
         {% endfor %}
+        </div>
+        {% set error_flash_list = app.flashes('error') %}
+        {% if error_flash_list|length > 0 %}
+        <div id="error-flash-modal" class="error-modal-overlay" role="alertdialog" aria-modal="true" aria-labelledby="error-flash-modal-title">
+            <div class="error-modal-panel">
+                <button type="button" class="error-modal-x" data-error-modal-close aria-label="Zavřít">×</button>
+                <h2 id="error-flash-modal-title" class="error-modal-title">Nelze uložit</h2>
+                {% for message in error_flash_list %}
+                <p class="error-modal-text">{{ message }}</p>
+                {% endfor %}
+                <button type="button" class="error-modal-ok" data-error-modal-close>Rozumím</button>
+            </div>
+        </div>
+        {% endif %}
         {% block body %}{% endblock %}
         {% block javascripts %}
         {% endblock %}
+        <script>
+        (function () {
+            var s = document.getElementById('global-flash-stack');
+            if (s && s.querySelector('.flashes')) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })();
+        (function () {
+            function close() {
+                var el = document.getElementById('error-flash-modal');
+                if (!el) { document.removeEventListener('keydown', onEsc); return; }
+                el.remove();
+                document.body.classList.remove('error-modal-open');
+                document.removeEventListener('keydown', onEsc);
+            }
+            function onEsc(ev) { if (ev.key === 'Escape') close(); }
+            var o = document.getElementById('error-flash-modal');
+            if (!o) return;
+            document.body.classList.add('error-modal-open');
+            var ok = o.querySelector('.error-modal-ok');
+            if (ok) ok.focus();
+            o.addEventListener('click', function (ev) { if (ev.target === o) close(); });
+            o.querySelectorAll('[data-error-modal-close]').forEach(function (b) { b.addEventListener('click', close); });
+            document.addEventListener('keydown', onEsc);
+        })();
+        </script>
     </body>
 </html>
