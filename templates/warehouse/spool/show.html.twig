@@ -4,6 +4,14 @@
     {% include '_app_menu_cz.html.twig' %}
     <h1>Cívka {{ spool.reelNumber }}</h1>
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
+    {% if assignCableForm is defined and assignCableForm %}
+        <h2 id="doplnit-typ">Doplnit typ kabelu</h2>
+        <p>Typ nebyl při zaevidování uveden; můžete ho vybrat z katalogu.</p>
+        {{ form_start(assignCableForm, { action: path('warehouse_spool_assign_cable', { id: spool.id }), method: 'post' }) }}
+            {{ form_row(assignCableForm.cableType) }}
+            <p><button type="submit">Uložit typ kabelu</button></p>
+        {{ form_end(assignCableForm) }}
+    {% endif %}
     <h2>Nová událost</h2>
     {{ form_start(form) }}
         {{ form_widget(form) }}

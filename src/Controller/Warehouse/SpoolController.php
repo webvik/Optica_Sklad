@@ -7,8 +7,10 @@ use App\Entity\SpoolEvent;
 use App\Entity\User;
 use App\Enum\SpoolEventType;
 use App\Enum\SpoolStatus;
+use App\Form\SpoolAssignCableTypeFormType;
 use App\Form\SpoolEventFormType;
 use App\Form\SpoolFormType;
+use App\Repository\CableFamilyRepository;
 use App\Repository\SpoolRepository;
 use App\Service\Warehouse\SpoolMeterService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -154,7 +156,7 @@ final class SpoolController extends AbstractController
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $em, SpoolMeterService $meter): Response
+    public function new(Request $request, EntityManagerInterface $em, SpoolMeterService $meter, CableFamilyRepository $cableFamilyRepository): Response
     {
         $spool = new Spool();
         if (null === $spool->getRegisteredAt()) {
@@ -171,14 +173,24 @@ final class SpoolController extends AbstractController
             $meter->initNewSpoolState($spool);
             $em->persist($spool);
             $em->flush();
-            $this->addFlash('success', 'Cívka byla zaevidována.');
+            $msg = 'Cívka byla zaevidována.';
+            if (null === $spool->getCableType()) {
+                $msg .= ' Typ kabelu můžete kdykoli doplnit na kartě cívky (Doplnit typ kabelu).';
+            }
+            $this->addFlash('success', $msg);
 
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $familyLabels = [];
+        foreach ($cableFamilyRepository->findForPicker() as $f) {
+            $familyLabels[$f->getCode()] = $f->getLabel();
         }
 
         return $this->render('warehouse/spool/form.html.twig', [
             'form' => $form,
             'title' => 'Nová cívka do evidence',
+            'cable_family_labels_json' => \json_encode($familyLabels, \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
         ]);
     }
 
@@ -196,9 +208,41 @@ final class SpoolController extends AbstractController
         ]);
     }
 
+    /**
+     * Doplnění typu kabelu u cívky založené bez typu (POST z karty cívky).
+     */
+    #[Route('/{id}/doplnit-typ', name: 'assign_cable', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function assignCableType(Request $request, Spool $spool, EntityManagerInterface $em): Response
+    {
+        if (null !== $spool->getCableType()) {
+            $this->addFlash('warning', 'Typ kabelu je u této cívky již uveden.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+        $form = $this->createForm(SpoolAssignCableTypeFormType::class, $spool);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $u = $this->getUser();
+            if ($u instanceof User) {
+                $spool->setUpdatedBy($u);
+            }
+            $em->flush();
+            $this->addFlash('success', 'Typ kabelu byl uložen.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+        $this->addFlash('error', 'Typ kabelu se nepodařilo uložit. Zkontrolujte výběr.');
+
+        return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     public function show(Request $request, Spool $spool, SpoolMeterService $meter, EntityManagerInterface $em): Response
     {
+        $assignCableForm = null;
+        if (null === $spool->getCableType()) {
+            $assignCableForm = $this->createForm(SpoolAssignCableTypeFormType::class, $spool)->createView();
+        }
         $event = new SpoolEvent();
         $event->setSpool($spool);
         $form = $this->createForm(SpoolEventFormType::class, $event);
@@ -214,6 +258,7 @@ final class SpoolController extends AbstractController
                         return $this->render('warehouse/spool/show.html.twig', [
                             'spool' => $spool,
                             'form' => $form,
+                            'assignCableForm' => $assignCableForm,
                         ]);
                     }
                     $meter->applyMeterReading(
@@ -240,6 +285,7 @@ final class SpoolController extends AbstractController
                         return $this->render('warehouse/spool/show.html.twig', [
                             'spool' => $spool,
                             'form' => $form,
+                            'assignCableForm' => $assignCableForm,
                         ]);
                     }
                     $meter->recordNonMeterEvent(
@@ -268,6 +314,7 @@ final class SpoolController extends AbstractController
         return $this->render('warehouse/spool/show.html.twig', [
             'spool' => $spool,
             'form' => $form,
+            'assignCableForm' => $assignCableForm,
         ]);
     }
 

@@ -21,7 +21,7 @@ class Spool
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'spools')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?CableType $cableType = null;
 
     #[ORM\Column(length: 128, unique: true)]

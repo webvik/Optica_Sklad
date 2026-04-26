@@ -1,11 +1,541 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ title }}{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .spool-form { max-width: 40rem; line-height: 1.6; }
+        .spool-form__field {
+            display: grid;
+            grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+            column-gap: 0.45rem;
+            row-gap: 0.2rem;
+            margin: 0 0 0.75rem;
+            align-items: start;
+        }
+        .spool-form__field > label, .spool-form__field > .spool-form__static-label {
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.25;
+            padding-top: 0.28rem;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        .spool-form__readout { margin: 0; font-size: 0.88rem; line-height: 1.35; color: #333; }
+        .spool-form__value { min-width: 0; text-align: right; }
+        .spool-form__value .form-error, .spool-form__value ul, .spool-form__value p.help-text { margin: 0.25rem 0 0; display: block; }
+        .spool-form__value p.form-text, .spool-form__value p.help-text, .spool-form__value small { font-size: 0.85rem; line-height: 1.4; color: #555; text-align: right; }
+        .spool-form__value [type="date"], .spool-form__value [type="number"],
+        .spool-form__value [type="text"], .spool-form__value textarea, .spool-form__value select {
+            max-width: 100%; box-sizing: border-box;
+        }
+        .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: right; width: 100%; }
+        .spool-form__value select.cable-type-list { max-width: 100%; }
+        .spool-form__value--cable .cable-type-mobile-picker__scroller {
+            width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
+            max-width: none !important;
+            /* šířka dle nejdelší option — horizontální rolování v .cable-type-mobile-picker__scroller */
+            width: max(100%, max-content) !important;
+            box-sizing: border-box;
+            display: block;
+            text-align: left;
+        }
+        @media (min-width: 42rem) {
+            .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
+            .spool-form__row--actions { grid-template-columns: 12.5rem 1fr; }
+            .spool-form__field > label, .spool-form__field > .spool-form__static-label { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; }
+            .spool-form__value > input, .spool-form__value > select, .spool-form__value > textarea { max-width: 24rem; margin-left: auto; display: block; }
+            .spool-form__value p.form-text, .spool-form__value p.help-text { max-width: 24rem; margin-left: auto; }
+            .spool-form__value--actions .spool-form__actions { max-width: 24rem; margin-left: auto; }
+            .spool-form__value > ul, .spool-form__value .form-error { text-align: left; margin-left: auto; max-width: 24rem; }
+        }
+        @media (max-width: 41.99rem) {
+            .spool-form__row--action-spacer { display: none !important; }
+            .spool-form__row--actions .spool-form__value--actions { grid-column: 1 / -1; }
+        }
+        .spool-form__actions { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; }
+        @media (min-width: 42rem) {
+            .spool-form__row--actions .spool-form__value--actions { width: 100%; }
+        }
+        .spool-form__btn, .spool-form__actions button[type="submit"] {
+            box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+            min-height: 2.55rem; min-width: 5.5rem; padding: 0.45rem 1rem; font: inherit; font-size: 1rem; font-weight: 500;
+            line-height: 1.2; border: 1px solid #bbb; border-radius: 4px; background: #f5f5f5; color: #1a1a1a; cursor: pointer;
+        }
+        .spool-form__btn:hover, .spool-form__actions button[type="submit"]:hover { background: #eaeaec; }
+        .spool-form__btn:active, .spool-form__actions button[type="submit"]:active { background: #e0e0e2; }
+        .spool-form__row--action-spacer { display: none; }
+        @media (min-width: 42rem) {
+            .spool-form__row--action-spacer { display: block; min-height: 1px; }
+        }
+        #spool-form-scan-overlay[hidden] { display: none !important; }
+        #spool-form-scan-overlay {
+            position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.75);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1rem;
+        }
+        #spool-form-scan-video { max-width: min(100%, 640px); max-height: 50vh; background: #111; border-radius: 6px; }
+        body.spool-cable-panel-open { overflow: hidden; }
+        .cable-type-mobile-picker { position: relative; width: 100%; }
+        .cable-type-mobile-picker__toggle {
+            display: none;
+            width: 100%;
+            min-height: 2.5rem;
+            padding: 0.4rem 0.5rem;
+            text-align: left;
+            font: inherit;
+            font-size: 0.95rem;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: #fff;
+            color: #1a1a1a;
+            cursor: pointer;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.4rem;
+        }
+        .cable-type-mobile-picker__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+        .cable-type-mobile-picker__chev { flex-shrink: 0; color: #555; font-size: 0.7rem; }
+        .cable-type-mobile-picker__backdrop[hidden] { display: none !important; }
+        .cable-type-mobile-picker__backdrop {
+            position: fixed; inset: 0; z-index: 10040; background: rgba(0,0,0,.4);
+        }
+        .cable-type-mobile-picker__panel[hidden] { display: none !important; }
+        @media (max-width: 41.99rem) {
+            .cable-type-mobile-picker__toggle { display: flex; }
+            .cable-type-mobile-picker--open .cable-type-mobile-picker__panel {
+                position: fixed; z-index: 10050; left: 0; right: 0; top: 0; bottom: 0;
+                display: flex !important; flex-direction: column;
+                max-height: 100dvh; max-width: 100%;
+                width: 100%;
+                margin: 0;
+                /* výhradně horní/ spodní safe area; boční ne — list sahá k okrajům, odskok v baru */
+                padding: env(safe-area-inset-top, 0) 0 max(0.35rem, env(safe-area-inset-bottom, 0)) 0;
+                background: #fff;
+                box-sizing: border-box;
+            }
+            .cable-type-mobile-picker__bar {
+                display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 0.5rem;
+                padding: 0.55rem max(0.6rem, env(safe-area-inset-right, 0.6rem)) 0.55rem max(0.6rem, env(safe-area-inset-left, 0.6rem));
+                border-bottom: 1px solid #ccc; background: #f4f4f4;
+            }
+            .cable-type-mobile-picker__title { font-weight: 600; font-size: 1rem; }
+            .cable-type-mobile-picker__close {
+                min-width: 2.5rem; min-height: 2.5rem; padding: 0; border: 0; background: transparent; font-size: 1.35rem; line-height: 1; cursor: pointer; color: #333; border-radius: 4px;
+            }
+            .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller {
+                flex: 1 1 0;
+                min-width: 0;
+                width: 100%;
+                max-width: 100%;
+            }
+            .cable-type-mobile-picker__scroller {
+                flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+            }
+            .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
+                display: block;
+                min-height: 55dvh; height: auto;
+                min-width: max(100%, 28rem) !important;
+                max-width: none !important;
+                width: max(100%, max-content) !important;
+                font-size: 0.9rem;
+                /* safe area jen uvnitř listu, oblast rolování na celou šířku obrazovky */
+                padding: 0.3rem max(0.3rem, env(safe-area-inset-right, 0.3rem)) 0.3rem max(0.3rem, env(safe-area-inset-left, 0.3rem));
+                text-align: left;
+            }
+        }
+        @media (min-width: 42rem) {
+            .cable-type-mobile-picker__bar, .cable-type-mobile-picker__backdrop { display: none !important; }
+            .cable-type-mobile-picker__panel[hidden] { display: block !important; }
+            .cable-type-mobile-picker__panel {
+                position: static !important; display: block !important; background: transparent; padding: 0;
+            }
+            .spool-form__value--cable .cable-type-mobile-picker__scroller {
+                max-width: 24rem;
+                margin-left: auto;
+            }
+            .cable-type-mobile-picker__scroller { max-height: min(14rem, 42vh); }
+            .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
+                min-width: 100%;
+            }
+        }
+        .cable-type-hover-group { max-width: 100%; }
+        .cable-type-full-desc {
+            display: none;
+            font-size: 0.86rem; line-height: 1.45; color: #333;
+            border-left: 3px solid #bbb;
+            padding: 0.35rem 0.55rem 0.4rem; margin: 0.2rem 0 0.45rem; max-width: 24rem; margin-left: auto;
+            text-align: left; background: #fafafa; border-radius: 0 4px 4px 0; white-space: pre-wrap; word-break: break-word;
+        }
+        .cable-type-full-desc:empty { display: none !important; }
+        .cable-type-hover-group:hover .cable-type-full-desc.has-content,
+        .cable-type-hover-group:focus-within .cable-type-full-desc.has-content { display: block; }
+        @media (hover: none), (pointer: coarse) {
+            .cable-type-full-desc.has-content { display: block; }
+        }
+        .spool-cable-family-filter[hidden] { display: none !important; }
+    </style>
+{% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>{{ title }}</h1>
-    {{ form_start(form) }}
-        {{ form_widget(form) }}
-        <p><button type="submit">Uložit</button></p>
-    {{ form_end(form) }}
+    {% set cable_type_meta = {} %}
+    {% for ch in form.cableType.vars.choices|default([]) %}
+        {% if ch.data is defined and ch.data %}
+            {% set cable_type_meta = cable_type_meta|merge({ (ch.value): { family: ch.data.family|default(''), full: ch.data.fullDescription|default('') } }) %}
+        {% endif %}
+    {% endfor %}
+    <script type="application/json" id="cable-type-meta-json">{{ cable_type_meta|json_encode|raw }}</script>
+    <script type="application/json" id="spool-cable-family-labels-json">{{ cable_family_labels_json|default('{}')|raw }}</script>
+    {{ form_start(form, { attr: { class: 'spool-form', id: 'spool-new-form' } }) }}
+        <div class="cable-type-hover-group" id="cable-type-hover-zone">
+        <div class="spool-form__field spool-form__field--cable">
+            {{ form_label(form.cableType) }}
+            <div class="spool-form__value spool-form__value--cable">
+                <div class="cable-type-mobile-picker" id="cable-type-mobile-picker">
+                    <button type="button" class="cable-type-mobile-picker__toggle" id="cable-type-mobile-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="cable-type-mobile-panel">
+                        <span class="cable-type-mobile-picker__text" id="cable-type-mobile-label">— vyberte typ —</span>
+                        <span class="cable-type-mobile-picker__chev" aria-hidden="true">▼</span>
+                    </button>
+                    <div class="cable-type-mobile-picker__backdrop" id="cable-type-mobile-backdrop" hidden></div>
+                    <div class="cable-type-mobile-picker__panel" id="cable-type-mobile-panel" role="dialog" aria-label="Typ kabelu" hidden>
+                        <div class="cable-type-mobile-picker__bar">
+                            <span class="cable-type-mobile-picker__title">Typ kabelu</span>
+                            <button type="button" class="cable-type-mobile-picker__close" id="cable-type-mobile-close" aria-label="Zavřít">×</button>
+                        </div>
+                        <div class="cable-type-mobile-picker__scroller">
+                            {{ form_widget(form.cableType) }}
+                        </div>
+                    </div>
+                </div>
+                {{ form_errors(form.cableType) }}
+            </div>
+        </div>
+        <div class="spool-form__field" style="margin-top: -0.35rem; margin-bottom: 0.35rem;" aria-live="polite">
+            <span class="spool-form__static-label" style="grid-column: 1;"></span>
+            <div class="spool-form__value" style="min-width: 0;">
+                <div id="cable-type-full-desc" class="cable-type-full-desc" role="region" aria-label="Plný popis kabelu"></div>
+            </div>
+        </div>
+        </div>
+        <div class="spool-form__field" id="spool-kabel-typ-row" aria-live="polite">
+            {{ form_label(form.cableFamilyFilter) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.cableFamilyFilter) }}
+                <p class="spool-form__readout" id="spool-kabel-typ-readout" hidden>—</p>
+                {{ form_errors(form.cableFamilyFilter) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.reelNumber) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.reelNumber) }}
+                {{ form_errors(form.reelNumber) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.totalLengthM) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.totalLengthM) }}
+                {{ form_errors(form.totalLengthM) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.initialVisibleM) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.initialVisibleM) }}
+                {{ form_errors(form.initialVisibleM) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.fiberCount) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.fiberCount) }}
+                {{ form_errors(form.fiberCount) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.diameterMm) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.diameterMm) }}
+                {{ form_errors(form.diameterMm) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.status) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.status) }}
+                {{ form_errors(form.status) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.note) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.note) }}
+                {{ form_errors(form.note) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.registeredAt) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.registeredAt) }}
+                {{ form_errors(form.registeredAt) }}
+            </div>
+        </div>
+        <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value spool-form__value--actions">
+                <div class="spool-form__actions" role="group" aria-label="Akce">
+                    <button type="button" class="spool-form__btn" id="spool-form-scan" title="Sken kódu saře do pole Číslo saře">Sken</button>
+                    <button type="submit" class="spool-form__btn">Uložit</button>
+                </div>
+            </div>
+        </div>
+        {{ form_rest(form) }}
+    {{ form_end(form, { render_rest: false }) }}
+
+    <div id="spool-form-scan-overlay" hidden role="dialog" aria-label="Sken čárového kódu">
+        <p id="spool-form-scan-overlay-text" style="color:#fff;margin:0;text-align:center;max-width:34rem"></p>
+        <video id="spool-form-scan-video" playsinline autoplay muted></video>
+        <button type="button" id="spool-form-scan-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
+    </div>
     <p><a href="{{ path('warehouse_spool_index') }}">← zpět na seznam</a></p>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+(function () {
+  var reelIn = document.getElementById({{ form.reelNumber.vars.id|json_encode|raw }});
+  var scanBtn = document.getElementById('spool-form-scan');
+  var scanOverlay = document.getElementById('spool-form-scan-overlay');
+  var scanVideo = document.getElementById('spool-form-scan-video');
+  var scanCancel = document.getElementById('spool-form-scan-cancel');
+  var scanOverlayText = document.getElementById('spool-form-scan-overlay-text');
+  var scanRaf = null, scanStream = null;
+  function setScanText() {
+    if (scanOverlayText) {
+      scanOverlayText.textContent = 'Sken saře: po rozpoznání se vyplní pole Číslo saře (případně doplňte a uložte).';
+    }
+  }
+  function stopBarcodeScan() {
+    if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
+    if (scanStream) {
+      scanStream.getTracks().forEach(function (t) { t.stop(); });
+      scanStream = null;
+    }
+    if (scanVideo) scanVideo.srcObject = null;
+    if (scanOverlay) scanOverlay.hidden = true;
+  }
+  function focusSare() {
+    if (reelIn) {
+      reelIn.focus();
+      try { reelIn.select(); } catch (e) {}
+    }
+  }
+  function onScanDecoded(v) {
+    v = String(v).trim();
+    if (!v.length) return;
+    stopBarcodeScan();
+    if (reelIn) reelIn.value = v;
+  }
+  function startBarcodeScan() {
+    if (!scanOverlay || !scanVideo) { focusSare(); return; }
+    setScanText();
+    scanOverlay.hidden = false;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+      .then(function (stream) {
+        scanStream = stream;
+        scanVideo.srcObject = stream;
+        return scanVideo.play();
+      })
+      .then(function () {
+        if (typeof window.BarcodeDetector === 'undefined') {
+          stopBarcodeScan();
+          focusSare();
+          return;
+        }
+        var detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
+        function tick() {
+          if (!scanVideo || scanStream === null) return;
+          if (scanVideo.readyState < 2) {
+            scanRaf = requestAnimationFrame(tick);
+            return;
+          }
+          detector.detect(scanVideo).then(function (codes) {
+            if (codes && codes.length && codes[0].rawValue) {
+              onScanDecoded(codes[0].rawValue);
+              return;
+            }
+            scanRaf = requestAnimationFrame(tick);
+          }).catch(function () { scanRaf = requestAnimationFrame(tick); });
+        }
+        scanRaf = requestAnimationFrame(tick);
+      })
+      .catch(function () {
+        stopBarcodeScan();
+        focusSare();
+      });
+  }
+  if (scanBtn) {
+    scanBtn.addEventListener('click', function () {
+      if (typeof window.BarcodeDetector !== 'undefined') startBarcodeScan();
+      else focusSare();
+    });
+  }
+  if (scanCancel) scanCancel.addEventListener('click', function () { stopBarcodeScan(); });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && scanOverlay && !scanOverlay.hidden) { ev.preventDefault(); stopBarcodeScan(); }
+  });
+})();
+(function () {
+  var mq = window.matchMedia('(max-width: 41.99rem)');
+  var root = document.getElementById('cable-type-mobile-picker');
+  if (!root) return;
+  var btn = document.getElementById('cable-type-mobile-btn');
+  var labelEl = document.getElementById('cable-type-mobile-label');
+  var panel = document.getElementById('cable-type-mobile-panel');
+  var backdrop = document.getElementById('cable-type-mobile-backdrop');
+  var closeBtn = document.getElementById('cable-type-mobile-close');
+  var sel = root.querySelector('select.cable-type-list');
+  if (!sel) return;
+  var PLH = '— vyberte typ —';
+  function isMobile() { return mq.matches; }
+  function syncLabel() {
+    if (!labelEl) return;
+    var i = sel.selectedIndex;
+    var opt = sel.options[i];
+    if (opt && opt.value !== '') { labelEl.textContent = opt.text; }
+    else { labelEl.textContent = PLH; }
+  }
+  function openPanel() {
+    if (!isMobile() || !panel) return;
+    if (sel.options.length) {
+      var n = Math.min(28, Math.max(8, sel.options.length));
+      sel.setAttribute('size', String(n));
+    }
+    root.classList.add('cable-type-mobile-picker--open');
+    panel.removeAttribute('hidden');
+    if (backdrop) backdrop.removeAttribute('hidden');
+    document.body.classList.add('spool-cable-panel-open');
+    if (btn) { btn.setAttribute('aria-expanded', 'true'); }
+    try { sel.focus(); } catch (e) {}
+  }
+  function closePanel() {
+    if (!panel) return;
+    root.classList.remove('cable-type-mobile-picker--open');
+    panel.setAttribute('hidden', '');
+    if (backdrop) backdrop.setAttribute('hidden', '');
+    document.body.classList.remove('spool-cable-panel-open');
+    if (btn) { btn.setAttribute('aria-expanded', 'false'); try { btn.focus(); } catch (e) {} }
+  }
+  function syncAll() {
+    syncLabel();
+    if (typeof window.spoolFormSyncSpoolKabelBlock === 'function') { window.spoolFormSyncSpoolKabelBlock(); }
+  }
+  if (btn) {
+    btn.addEventListener('click', function (ev) {
+      if (!isMobile()) return;
+      ev.preventDefault();
+      if (panel && panel.hasAttribute('hidden')) { openPanel(); }
+    });
+  }
+  if (closeBtn) closeBtn.addEventListener('click', function () { if (isMobile()) closePanel(); });
+  if (backdrop) {
+    backdrop.addEventListener('click', function () { if (isMobile()) closePanel(); });
+  }
+  sel.addEventListener('change', function () {
+    syncAll();
+    if (isMobile() && !panel.hasAttribute('hidden')) { closePanel(); }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || !isMobile() || !panel || panel.hasAttribute('hidden')) return;
+    ev.preventDefault();
+    closePanel();
+  });
+  function mqChange() {
+    if (!isMobile() && !panel.hasAttribute('hidden')) { closePanel(); }
+    syncAll();
+  }
+  if (mq.addEventListener) mq.addEventListener('change', mqChange);
+  else if (mq.addListener) mq.addListener(mqChange);
+  window.addEventListener('pageshow', syncAll);
+  syncAll();
+})();
+(function () {
+  var cableSel = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
+  if (!cableSel) return;
+  var famSel = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
+  var readout = document.getElementById('spool-kabel-typ-readout');
+  var metaEl = document.getElementById('cable-type-meta-json');
+  var labelsEl = document.getElementById('spool-cable-family-labels-json');
+  var desc = document.getElementById('cable-type-full-desc');
+  var meta = {};
+  var familyLabels = {};
+  try { if (metaEl && metaEl.textContent) { meta = JSON.parse(metaEl.textContent); } } catch (e) {}
+  try { if (labelsEl && labelsEl.textContent) { familyLabels = JSON.parse(labelsEl.textContent); } } catch (e) {}
+  function optionFamily(opt) {
+    if (!opt || opt.value === '') return '';
+    if (opt.dataset && opt.dataset.family) return String(opt.dataset.family);
+    var a = opt.getAttribute('data-family');
+    return a ? String(a) : '';
+  }
+  function applyFamilyFilter() {
+    if (!famSel || !cableSel) return;
+    var want = (famSel.value && String(famSel.value).length) ? String(famSel.value) : '';
+    var opts = cableSel.querySelectorAll('option');
+    for (var i = 0; i < opts.length; i++) {
+      var o = opts[i];
+      if (!o.value) { o.hidden = false; continue; }
+      var fam = optionFamily(o);
+      o.hidden = (want !== '' && fam !== want);
+    }
+    if (cableSel.value) {
+      var cur = cableSel.options[cableSel.selectedIndex];
+      if (cur && (cur.value === '' || cur.hidden)) {
+        cableSel.value = '';
+        try { cableSel.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+      }
+    }
+  }
+  function setDesc() {
+    if (!desc) return;
+    desc.textContent = '';
+    desc.classList.remove('has-content');
+    if (!cableSel.value) return;
+    var m = meta[cableSel.value];
+    var t = m && m.full != null ? String(m.full) : '';
+    t = t.trim();
+    if (!t.length) return;
+    desc.textContent = t;
+    desc.classList.add('has-content');
+  }
+  function syncKabelTyp() {
+    if (!readout) return;
+    if (cableSel.value) {
+      if (famSel) { famSel.setAttribute('hidden', ''); }
+      var opt = cableSel.options[cableSel.selectedIndex];
+      var code = optionFamily(opt);
+      var label = (code && familyLabels[code]) ? familyLabels[code] : (code || '—');
+      readout.textContent = label;
+      readout.removeAttribute('hidden');
+    } else {
+      if (famSel) { famSel.removeAttribute('hidden'); }
+      readout.setAttribute('hidden', '');
+    }
+  }
+  function syncAllBlock() {
+    applyFamilyFilter();
+    syncKabelTyp();
+    setDesc();
+  }
+  window.spoolFormSyncSpoolKabelBlock = syncAllBlock;
+  if (famSel) famSel.addEventListener('change', syncAllBlock);
+  cableSel.addEventListener('change', syncAllBlock);
+  syncAllBlock();
+})();
+    </script>
 {% endblock %}
