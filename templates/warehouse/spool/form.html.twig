@@ -37,10 +37,9 @@
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
+        /* šířka <select> na desktopu dopočítá JS (max-content u listboxu v prohlížečích nefunguje) */
         .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
             max-width: none !important;
-            /* šířka dle nejdelší option — horizontální rolování v .cable-type-mobile-picker__scroller */
-            width: max(100%, max-content) !important;
             box-sizing: border-box;
             display: block;
             text-align: left;
@@ -133,17 +132,16 @@
                 width: 100%;
                 max-width: 100%;
             }
+            .cable-type-mobile-picker--open .cable-type-mobile-picker__scroller,
             .cable-type-mobile-picker__scroller {
-                flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+                flex: 1; min-height: 0; overflow: auto; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
             }
             .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
                 display: block;
                 min-height: 55dvh; height: auto;
-                min-width: max(100%, 28rem) !important;
                 max-width: none !important;
-                width: max(100%, max-content) !important;
                 font-size: 0.9rem;
-                /* safe area jen uvnitř listu, oblast rolování na celou šířku obrazovky */
+                /* safe area; šířka listu = JS (jako na desktopu) — horiz. rolování v .cable-type-mobile-picker__scroller */
                 padding: 0.3rem max(0.3rem, env(safe-area-inset-right, 0.3rem)) 0.3rem max(0.3rem, env(safe-area-inset-left, 0.3rem));
                 text-align: left;
             }
@@ -157,19 +155,30 @@
             .spool-form__value--cable .cable-type-mobile-picker__scroller {
                 max-width: 24rem;
                 margin-left: auto;
+                /* nativní <select> ignoruje max-content; šířku doplňuje JS — horizontální rolování tady */
+                overflow-x: auto;
+                overflow-y: auto;
             }
             .cable-type-mobile-picker__scroller { max-height: min(14rem, 42vh); }
-            .spool-form__value--cable .cable-type-mobile-picker__scroller select.cable-type-list {
-                min-width: 100%;
-            }
         }
         .cable-type-hover-group { max-width: 100%; }
+        .spool-form__cable-full-desc-row {
+            width: 100%;
+            max-width: 100%;
+            margin: -0.35rem 0 0.45rem;
+            min-width: 0;
+            box-sizing: border-box;
+        }
         .cable-type-full-desc {
             display: none;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             font-size: 0.86rem; line-height: 1.45; color: #333;
+            border: 1px solid #e0e0e0;
             border-left: 3px solid #bbb;
-            padding: 0.35rem 0.55rem 0.4rem; margin: 0.2rem 0 0.45rem; max-width: 24rem; margin-left: auto;
-            text-align: left; background: #fafafa; border-radius: 0 4px 4px 0; white-space: pre-wrap; word-break: break-word;
+            padding: 0.45rem 0.6rem; margin: 0;
+            text-align: left; background: #fafafa; border-radius: 4px; white-space: pre-wrap; word-break: break-word;
         }
         .cable-type-full-desc:empty { display: none !important; }
         .cable-type-hover-group:hover .cable-type-full-desc.has-content,
@@ -186,7 +195,7 @@
     {% set cable_type_meta = {} %}
     {% for ch in form.cableType.vars.choices|default([]) %}
         {% if ch.data is defined and ch.data %}
-            {% set cable_type_meta = cable_type_meta|merge({ (ch.value): { family: ch.data.family|default(''), full: ch.data.fullDescription|default('') } }) %}
+            {% set cable_type_meta = cable_type_meta|merge({ (ch.value): { family: ch.data.family|default(''), full: ch.data.fullDescription|default(''), name: ch.data.name|default('') } }) %}
         {% endif %}
     {% endfor %}
     <script type="application/json" id="cable-type-meta-json">{{ cable_type_meta|json_encode|raw }}</script>
@@ -215,11 +224,8 @@
                 {{ form_errors(form.cableType) }}
             </div>
         </div>
-        <div class="spool-form__field" style="margin-top: -0.35rem; margin-bottom: 0.35rem;" aria-live="polite">
-            <span class="spool-form__static-label" style="grid-column: 1;"></span>
-            <div class="spool-form__value" style="min-width: 0;">
-                <div id="cable-type-full-desc" class="cable-type-full-desc" role="region" aria-label="Plný popis kabelu"></div>
-            </div>
+        <div class="spool-form__cable-full-desc-row" aria-live="polite">
+            <div id="cable-type-full-desc" class="cable-type-full-desc" role="region" aria-label="Plný popis kabelu"></div>
         </div>
         </div>
         <div class="spool-form__field" id="spool-kabel-typ-row" aria-live="polite">
@@ -423,6 +429,13 @@
     document.body.classList.add('spool-cable-panel-open');
     if (btn) { btn.setAttribute('aria-expanded', 'true'); }
     try { sel.focus(); } catch (e) {}
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (typeof window.spoolFormScheduleCableTypeListbox === 'function') {
+          window.spoolFormScheduleCableTypeListbox();
+        }
+      });
+    });
   }
   function closePanel() {
     if (!panel) return;
@@ -475,8 +488,49 @@
   var desc = document.getElementById('cable-type-full-desc');
   var meta = {};
   var familyLabels = {};
+  var scroller = cableSel.closest('.cable-type-mobile-picker__scroller');
+  var mobileMq = window.matchMedia('(max-width: 41.99rem)');
+  var sizeListT = null;
   try { if (metaEl && metaEl.textContent) { meta = JSON.parse(metaEl.textContent); } } catch (e) {}
   try { if (labelsEl && labelsEl.textContent) { familyLabels = JSON.parse(labelsEl.textContent); } } catch (e) {}
+  /**
+   * Nativní listbox (size>1) skoro nikde nerozšiřuje šířku podle nejdelší option — max-content nefunguje.
+   * Změříme texty a nastavíme širší <select>, aby roloval rodič .cable-type-mobile-picker__scroller.
+   */
+  function sizeCableTypeListbox() {
+    if (!scroller) return;
+    var measure = document.createElement('div');
+    measure.setAttribute('aria-hidden', 'true');
+    measure.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;pointer-events:none;';
+    var cs = window.getComputedStyle(cableSel);
+    measure.style.font = cs.font;
+    measure.style.letterSpacing = cs.letterSpacing;
+    measure.style.textTransform = cs.textTransform;
+    document.body.appendChild(measure);
+    var maxW = 0;
+    var k;
+    for (k = 0; k < cableSel.options.length; k++) {
+      measure.textContent = cableSel.options[k].text || ' ';
+      maxW = Math.max(maxW, measure.offsetWidth);
+    }
+    document.body.removeChild(measure);
+    var pad = mobileMq.matches ? 40 : 36;
+    var cw = scroller.clientWidth;
+    if (cw < 2) {
+      cw = mobileMq.matches ? (window.innerWidth || 400) : 300;
+    }
+    var need = Math.max(cw, maxW + pad);
+    cableSel.style.minWidth = need + 'px';
+    cableSel.style.width = need + 'px';
+  }
+  function scheduleSizeCableTypeListbox() {
+    if (sizeListT) { clearTimeout(sizeListT); }
+    sizeListT = setTimeout(function () {
+      sizeListT = null;
+      sizeCableTypeListbox();
+    }, 50);
+  }
+  window.spoolFormScheduleCableTypeListbox = scheduleSizeCableTypeListbox;
   function optionFamily(opt) {
     if (!opt || opt.value === '') return '';
     if (opt.dataset && opt.dataset.family) return String(opt.dataset.family);
@@ -494,22 +548,96 @@
       o.hidden = (want !== '' && fam !== want);
     }
     if (cableSel.value) {
-      var cur = cableSel.options[cableSel.selectedIndex];
+      var cur = getCableTypeOption();
       if (cur && (cur.value === '' || cur.hidden)) {
         cableSel.value = '';
         try { cableSel.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
       }
     }
   }
+  /**
+   * Plný text bereme z <option> (data b64) — to je ta samá věc v DOM jako název řádku, žádný mapování z JSON.
+   */
+  function b64ToUtf8(b64) {
+    if (b64 == null || b64 === '') {
+      return '';
+    }
+    try {
+      b64 = String(b64).replace(/\s/g, '');
+      if (!b64.length) {
+        return '';
+      }
+      var bin = atob(b64);
+      if (typeof TextDecoder !== 'undefined') {
+        var a = new Uint8Array(bin.length);
+        for (var u = 0; u < bin.length; u++) {
+          a[u] = bin.charCodeAt(u);
+        }
+        return new TextDecoder('utf-8').decode(a);
+      }
+      return decodeURIComponent(escape(bin));
+    } catch (e) {
+      return '';
+    }
+  }
+  /**
+   * U listboxu může selectedIndex o pár míst dál od řádku odpovídajícího cableSel.value
+   * (o hlášeném „+2“). Vždy bereme <option> podle aktuálního value / selectedOptions[0].
+   */
+  function getCableTypeOption() {
+    var v = String(cableSel.value || '');
+    if (!v) {
+      return null;
+    }
+    if (cableSel.selectedOptions && cableSel.selectedOptions[0] && String(cableSel.selectedOptions[0].value) === v) {
+      return cableSel.selectedOptions[0];
+    }
+    var oi;
+    for (oi = 0; oi < cableSel.options.length; oi++) {
+      if (String(cableSel.options[oi].value) === v) {
+        return cableSel.options[oi];
+      }
+    }
+    if (cableSel.selectedIndex >= 0) {
+      return cableSel.options[cableSel.selectedIndex] || null;
+    }
+    return null;
+  }
   function setDesc() {
-    if (!desc) return;
+    if (!desc) {
+      return;
+    }
     desc.textContent = '';
     desc.classList.remove('has-content');
-    if (!cableSel.value) return;
-    var m = meta[cableSel.value];
-    var t = m && m.full != null ? String(m.full) : '';
-    t = t.trim();
-    if (!t.length) return;
+    var opt = getCableTypeOption();
+    if (!opt) {
+      return;
+    }
+    var val = String(opt.value || '');
+    if (!val) {
+      return;
+    }
+    var t = b64ToUtf8(opt.getAttribute('data-b64-cable-full')).trim();
+    if (!t.length) {
+      var nm = opt.getAttribute('data-cable-name');
+      if (nm) {
+        t = String(nm).trim();
+      }
+    }
+    if (!t.length) {
+      var m = meta[val];
+      if (m == null) {
+        m = meta[Number(val)];
+      }
+      t = m && m.full != null ? String(m.full) : '';
+      t = t.trim();
+      if (!t.length && m && m.name) {
+        t = String(m.name).trim();
+      }
+    }
+    if (!t.length) {
+      return;
+    }
     desc.textContent = t;
     desc.classList.add('has-content');
   }
@@ -517,7 +645,7 @@
     if (!readout) return;
     if (cableSel.value) {
       if (famSel) { famSel.setAttribute('hidden', ''); }
-      var opt = cableSel.options[cableSel.selectedIndex];
+      var opt = getCableTypeOption();
       var code = optionFamily(opt);
       var label = (code && familyLabels[code]) ? familyLabels[code] : (code || '—');
       readout.textContent = label;
@@ -531,10 +659,23 @@
     applyFamilyFilter();
     syncKabelTyp();
     setDesc();
+    requestAnimationFrame(function () {
+      sizeCableTypeListbox();
+    });
   }
   window.spoolFormSyncSpoolKabelBlock = syncAllBlock;
   if (famSel) famSel.addEventListener('change', syncAllBlock);
   cableSel.addEventListener('change', syncAllBlock);
+  cableSel.addEventListener('input', syncAllBlock);
+  window.addEventListener('resize', scheduleSizeCableTypeListbox);
+  if (mobileMq.addEventListener) {
+    mobileMq.addEventListener('change', function () { scheduleSizeCableTypeListbox(); });
+  } else if (mobileMq.addListener) {
+    mobileMq.addListener(function () { scheduleSizeCableTypeListbox(); });
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { scheduleSizeCableTypeListbox(); });
+  }
   syncAllBlock();
 })();
     </script>

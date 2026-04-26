@@ -41,9 +41,7 @@ final class SpoolFormType extends AbstractType
                         return [];
                     }
 
-                    return [
-                        'data-family' => $choice->getFamily(),
-                    ];
+                    return CableTypeChoiceAttrHelper::forCableType($choice);
                 },
                 'attr' => [
                     'class' => 'cable-type-list',
