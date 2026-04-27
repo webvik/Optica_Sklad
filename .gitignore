@@ -1,4 +1,7 @@
 
+### project backups (mysqldump; do not track) ###
+/backups/
+
 ###> symfony/framework-bundle ###
 /.env.local
 /.env.local.php

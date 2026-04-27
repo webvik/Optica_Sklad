@@ -1,0 +1,220 @@
+{% extends 'base.html.twig' %}
+{% block title %}Inventura cívek — Přehled kabelových cívek{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .inventura-kopf { margin: 0 0 1rem; }
+        .inventura-kopf__meta { color: #444; font-size: 0.9rem; margin: 0.25rem 0 0; }
+        .inventura-nav { margin: 0 0 0.5rem; }
+        .inventura-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .inventura-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .inventura-table th, .inventura-table td {
+            border: 1px solid #ccc;
+            padding: 0.35rem 0.5rem;
+            text-align: left;
+            vertical-align: top;
+        }
+        .inventura-table th { background: #f0f0f0; font-weight: 600; }
+        .inventura-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .inventura-table td.num { white-space: nowrap; }
+        .inventura-table tr.inventura-group-hdr td {
+            background: #e8eef5;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.4rem 0.5rem;
+        }
+        .inventura-table tr.inventura-group-sum td { background: #f7f7f7; font-weight: 500; }
+        .inventura-name { min-width: 12rem; max-width: 28rem; }
+        .inventura-brief { margin: 0 0 1.25rem; padding: 0; border: 0; background: transparent; }
+        .inventura-brief > summary {
+            display: inline-flex;
+            width: auto;
+            max-width: max-content;
+            flex: 0 0 auto;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            list-style: none;
+            font-size: 0.92rem;
+            min-height: 2.55rem;
+            padding: 0.4rem 0.6rem;
+            line-height: 1.2;
+            border: 1px solid #b8c4d0;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #f7f9fc 0%, #ebeef4 100%);
+            color: #1a2a3a;
+            box-sizing: border-box;
+        }
+        .inventura-brief > summary:hover { background: #e2e8f0; }
+        .inventura-brief > summary::-webkit-details-marker { display: none; }
+        .inventura-brief > summary::before { content: '▸ '; display: inline-block; transition: transform 0.15s; }
+        .inventura-brief[open] > summary::before { transform: rotate(90deg); }
+        .inventura-brief__inner { margin-top: 0.6rem; width: 100%; max-width: 100%; }
+        /* Krátká tabulka — jednoduché auto rozložení (před experimenty s fixed/col) */
+        .inventura-table--brief {
+            font-size: 0.92rem;
+            table-layout: auto;
+            width: 100%;
+            min-width: 34rem;
+        }
+        .inventura-table--brief th {
+            white-space: normal;
+            line-height: 1.2;
+        }
+        @media (max-width: 32rem) {
+            .inventura-table--brief th { font-size: 0.7rem; }
+        }
+        .inventura-brief__hdr--compact { display: none; }
+        @media (max-width: 40rem) {
+            .inventura-table--brief th .inventura-brief__hdr--full { display: none; }
+            .inventura-table--brief th .inventura-brief__hdr--compact { display: inline; }
+            .inventura-table--brief th.num--stav,
+            .inventura-table--brief th.num--rez { padding: 0.3rem 0.25rem; }
+            .inventura-table--brief td.num--stav,
+            .inventura-table--brief td.num--rez { padding-left: 0.25rem; padding-right: 0.25rem; }
+        }
+        .inventura-brief__skupina-wrap {
+            display: block;
+            line-height: 1.3;
+        }
+        .inventura-table--brief th.col--skupina .inventura-brief__skupina-wrap {
+            max-width: 6.5rem;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        }
+        /* Štítky skupin — jedna řádka (např. 2 vl. · blown · Ø 2,0 mm) */
+        .inventura-table--brief td.col--skupina .inventura-brief__skupina-wrap {
+            display: inline-block;
+            max-width: 100%;
+            white-space: nowrap;
+            vertical-align: top;
+        }
+        .inventura-table--brief th.col--skupina { width: 1%; }
+        /* Úzké Cívek + Rezervováno — uvolní místo ostatním sloupcům */
+        .inventura-table--brief th.num--pocet,
+        .inventura-table--brief th.num--rez {
+            width: 0.1%;
+        }
+        .inventura-table--brief th.num--pocet { max-width: 2.75rem; padding-left: 0.25rem; padding-right: 0.25rem; }
+        .inventura-table--brief th.num--rez { max-width: 3.6rem; padding-left: 0.25rem; padding-right: 0.25rem; }
+        .inventura-table--brief th.num--mm { max-width: 7rem; width: 1%; }
+        .inventura-table--brief th.num--stav { max-width: 7.5rem; width: 1%; }
+        .inventura-table--brief td.num { max-width: 7rem; white-space: nowrap; }
+        .inventura-table--brief td.num--pocet {
+            max-width: 2.5rem;
+            width: 0.1%;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+        }
+        .inventura-table--brief td.num--rez {
+            max-width: 3.6rem;
+            width: 0.1%;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+        }
+        .inventura-table--brief td.num--mm { font-size: 0.88rem; }
+        @media print {
+            a[href] { text-decoration: none; color: inherit; }
+            .app-menu, .inventura-nav, .inventura-no-print { display: none !important; }
+            body { padding: 0.5rem; }
+            .inventura-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <p class="inventura-nav"><a href="{{ path('warehouse_browse_index') }}">← Přehled skladu</a></p>
+    <header class="inventura-kopf">
+        <h1>Přehled kabelových cívek — inventura</h1>
+        <p class="inventura-kopf__meta">Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} · pouze cívky <strong>na skladě</strong> · sloupec <em>Stav</em> = zůstatek (m)</p>
+    </header>
+
+    {% if groups|length > 0 %}
+    <details class="inventura-brief">
+        <summary>Krátká tabulka (součty po skupinách)</summary>
+        <div class="inventura-brief__inner inventura-table-wrap">
+            <table class="inventura-table inventura-table--brief">
+                <thead>
+                    <tr>
+                        <th class="col--skupina"><span class="inventura-brief__skupina-wrap">Skupina (vl. · family)</span></th>
+                        <th class="num num--stav" title="Stav (m) — součet">
+                            <span class="inventura-brief__hdr--full">Stav (m) — součet</span>
+                            <span class="inventura-brief__hdr--compact">Stav (m)</span>
+                        </th>
+                        <th class="num num--rez" title="Rezervováno (m)">
+                            <span class="inventura-brief__hdr--full">Rezervováno</span>
+                            <span class="inventura-brief__hdr--compact">Rez.</span>
+                        </th>
+                        <th class="num num--pocet" title="Počet cívek ve skupině">Cívek</th>
+                        <th class="num num--mm" title="Nejvyšší zůstatek (m) u jedné cívky">Max. v kuse (m)</th>
+                        <th class="num num--mm" title="Nejnižší zůstatek (m) u jedné cívky">Min. v kuse (m)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for g in groups %}
+                    <tr>
+                        <td class="col--skupina" title="{{ g.groupLabel }}"><span class="inventura-brief__skupina-wrap">{{ g.groupLabel }}</span></td>
+                        <td class="num num--stav">{{ g.sumM|number_format(0, ',', ' ') }}</td>
+                        <td class="num num--rez">{{ g.sumR|number_format(0, ',', ' ') }}</td>
+                        <td class="num num--pocet">{{ g.spoolCount }}</td>
+                        <td class="num num--mm">{% if g.maxM is not null %}{{ g.maxM|number_format(0, ',', ' ') }}{% else %}—{% endif %}</td>
+                        <td class="num num--mm">{% if g.minM is not null %}{{ g.minM|number_format(0, ',', ' ') }}{% else %}—{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
+    {% endif %}
+
+    <div class="inventura-table-wrap">
+        <table class="inventura-table">
+            <thead>
+                <tr>
+                    <th>Evidenční číslo</th>
+                    <th>Kód zásoby</th>
+                    <th class="inventura-name">Název</th>
+                    <th class="num">Stav</th>
+                    <th class="num">Rezervováno (m)</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for g in groups %}
+                <tr class="inventura-group-hdr">
+                    <td colspan="5">Skupina: {{ g.groupLabel }}</td>
+                </tr>
+                {% for s in g.rows %}
+                <tr>
+                    <td>{{ s.reelNumber }}</td>
+                    <td>{% if s.cableType %}{{ s.cableType.code }}{% else %}—{% endif %}</td>
+                    <td class="inventura-name">
+                        {% if s.cableType %}
+                            {% set raw = s.cableType.fullDescription|default('')|trim %}
+                            {% if raw|length > 0 %}{{ raw|replace({'\n': ' ', '\r': ' '}) }}{% else %}{{ s.cableType.name }}{% endif %}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td class="num">{% if s.currentRemainingM is not null %}{{ s.currentRemainingM|number_format(0, ',', ' ') }}{% else %}—{% endif %}</td>
+                    <td class="num">{% if s.reservedM is not null and s.reservedM > 0 %}{{ s.reservedM|number_format(0, ',', ' ') }}{% else %}0{% endif %}</td>
+                </tr>
+                {% endfor %}
+                <tr class="inventura-group-sum">
+                    <td colspan="2"></td>
+                    <td><strong>Součet skupiny</strong></td>
+                    <td class="num"><strong>{{ g.sumM|number_format(0, ',', ' ') }}</strong></td>
+                    <td class="num"><strong>{{ g.sumR|number_format(0, ',', ' ') }}</strong></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">Žádné cívky na skladě v evidenci.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

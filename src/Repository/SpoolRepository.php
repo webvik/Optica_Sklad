@@ -31,7 +31,8 @@ class SpoolRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('s')
             ->leftJoin('s.cableType', 'c')
             ->addSelect('c')
-            ->orderBy('s.reelNumber', 'ASC')
+            ->orderBy('CASE WHEN s.fiberCount IS NOT NULL THEN s.fiberCount WHEN c.fiberCount IS NOT NULL THEN c.fiberCount ELSE 0 END', 'ASC')
+            ->addOrderBy('s.reelNumber', 'ASC')
             ->setMaxResults($limit);
         if ($cableTypeIds !== []) {
             $qb->andWhere('c.id IN (:cids)')
@@ -43,6 +44,24 @@ class SpoolRepository extends ServiceEntityRepository
         }
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Inventurní seznam: pouze cívky na skladě (seřazené dle cívky, seskupení dělá kontroler).
+     *
+     * @return list<Spool>
+     */
+    public function findForInventuraSheet(int $limit = 5000): array
+    {
+        return $this->createQueryBuilder('s')
+            ->leftJoin('s.cableType', 'c')
+            ->addSelect('c')
+            ->andWhere('s.status = :st')
+            ->setParameter('st', SpoolStatus::InStock)
+            ->orderBy('s.reelNumber', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
