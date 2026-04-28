@@ -380,6 +380,7 @@ final class SpoolController extends AbstractController
             'currentRemainingM' => $rem['remaining'],
             'initialVisibleM' => $s->getInitialVisibleM(),
             'lastVisibleM' => $s->getLastVisibleM(),
+            'previewPrevVisibleM' => $meter->previewPrevVisibleForMeterStep($s),
             'fiberCount' => $s->getEffectiveFiberCount(),
             'remainingDirectionOk' => $rem['directionOk'],
             'remainingWarning' => $rem['warning'],

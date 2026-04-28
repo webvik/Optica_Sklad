@@ -66,6 +66,50 @@ final class SpoolMeterService
         return SpoolEventType::MeterReading === $t || SpoolEventType::LaidSection === $t;
     }
 
+    /**
+     * Poslední čtení m ve viditelném řetězci (zafuk / úsek štítek) podle chronologie zápisu (ID řádků).
+     */
+    public static function chronologicallyLatestChainVisibleM(Spool $spool): ?int
+    {
+        $last = null;
+        foreach ($spool->getEvents() as $e) {
+            if (!self::isVisibleMeterChainEventType($e->getType())) {
+                continue;
+            }
+            $v = $e->getVisibleM();
+            if (null !== $v) {
+                $last = $v;
+            }
+        }
+
+        return $last;
+    }
+
+    /**
+     * Referenční m_{n−1} pro náhled kroku (Práce s optikou) — jako $prevM v {@see applyVisibleChainEvent},
+     * jen pokud last_visible_m = 0 a poslední záznam v deníku ukazuje nenulové čtení, bere se koncové čtení
+     * z deníku (oprava nesouladu cache po přetočení nuly / importu).
+     */
+    public function previewPrevVisibleForMeterStep(Spool $spool): int
+    {
+        $m0 = $spool->getInitialVisibleM();
+        $nPrev = $this->countVisibleChainEvents($spool);
+        if ($nPrev === 0) {
+            return $m0;
+        }
+        $stored = $spool->getLastVisibleM();
+        if (null === $stored) {
+            return $m0;
+        }
+        /** @see applyVisibleChainEvent */
+        $chainTail = self::chronologicallyLatestChainVisibleM($spool);
+        if (0 === $stored && null !== $chainTail && 0 !== $chainTail) {
+            return $chainTail;
+        }
+
+        return $stored;
+    }
+
     public function applyMeterReading(
         Spool $spool,
         int $newVisibleM,
@@ -108,10 +152,9 @@ final class SpoolMeterService
         $occurredAt ??= new \DateTimeImmutable();
         $m0 = $spool->getInitialVisibleM();
         $nPrev = $this->countVisibleChainEvents($spool);
-        // První záznam v řetězci: fyzický odběr a směr vycházejí z PS, ne z last_visible (může být nesoulad s PS).
-        $prevM = 0 === $nPrev
-            ? $m0
-            : ($spool->getLastVisibleM() ?? $m0);
+        // První záznam v řetězci: referencí je PS; u dalšího kroků musí předchozí m odpovídat řetězci po deníku
+        // ({@see previewPrevVisibleForMeterStep}: oprava rozporu cached last_visible = 0 vs poslední záznam v deníku).
+        $prevM = $this->previewPrevVisibleForMeterStep($spool);
         if (0 === $nPrev && $newVisibleM === $m0) {
             throw new RuntimeException('Bez kroku: zadejte čtení metru odlišné od PS (počáteční stav na kabelu).');
         }

@@ -418,7 +418,9 @@
     if (!calcBox || !meterIn) return;
     var s = meterState.s;
     if (!s) { calcBox.style.display = 'none'; return; }
-    var p = s.lastVisibleM != null ? s.lastVisibleM : s.initialVisibleM;
+    var p = (typeof s.previewPrevVisibleM === 'number')
+      ? s.previewPrevVisibleM
+      : (s.lastVisibleM != null ? s.lastVisibleM : s.initialVisibleM);
     var rem = s.currentRemainingM != null ? s.currentRemainingM : s.totalLengthM;
     var raw = (meterIn.value || '').trim();
     var n = raw === '' ? null : parseInt(raw, 10);
