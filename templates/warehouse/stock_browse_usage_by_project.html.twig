@@ -1,0 +1,144 @@
+{% extends 'base.html.twig' %}
+{% block title %}Filtr podle projektů — Přehled skladu{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .browse-proj-fold { margin: 0; padding: 0; border: 0; background: transparent; max-width: 52rem; }
+        .browse-proj-fold > summary {
+            list-style: none;
+            cursor: pointer;
+            display: block;
+            padding: 0.55rem 0.65rem;
+            border: 1px solid #b8c4d0;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #f7f9fc 0%, #ebeef4 100%);
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .browse-proj-fold > summary::-webkit-details-marker { display: none; }
+        .browse-proj-fold > summary::before {
+            content: '▸ ';
+            display: inline-block;
+            transition: transform 0.15s;
+            margin-right: 0.25rem;
+        }
+        .browse-proj-fold[open] > summary::before { transform: rotate(90deg); }
+        .browse-proj-fold:hover > summary { background: #e2e8f0; }
+        .browse-proj-fold__name { text-align: left; }
+        .browse-proj-fold__body {
+            margin: 0;
+            padding: 0.5rem 0.65rem 0.65rem 1.5rem;
+            border: 1px solid #ccd6e2;
+            border-top: 0;
+            border-radius: 0 0 6px 6px;
+            background: #fafbfc;
+        }
+        .browse-proj-fold__list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .browse-proj-fold__list li {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.65rem;
+            align-items: baseline;
+            font-size: 0.92rem;
+            line-height: 1.35;
+            border-bottom: 1px solid #e8edf2;
+            padding-bottom: 0.35rem;
+        }
+        .browse-proj-fold__list li:last-child { border-bottom: 0; padding-bottom: 0; }
+        .browse-proj-fold__m {
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        /* Stejná šířka jako <details class="browse-proj-fold"> (max-width: 52rem) pod tímto blokem */
+        .usage-proj-filters {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 0.65rem 1rem;
+            margin-bottom: 1rem;
+            max-width: 52rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .usage-proj-filters__dates {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 0.5rem;
+            align-items: flex-end;
+            flex: 1 1 14rem;
+            min-width: 0;
+        }
+        .usage-proj-filters__field {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+        .usage-proj-filters__field label { display: block; font-size: 0.95rem; margin-bottom: 0.15rem; }
+        .usage-proj-filters__field input[type="date"] {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            padding: 0.35rem;
+        }
+        .browse-proj-fold__wrapper { margin-bottom: 0.55rem; }
+    </style>
+{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <p><a href="{{ path('warehouse_browse_index') }}">← Přehled skladu</a></p>
+
+    <h1>Filtr podle projektů</h1>
+
+    <p style="color:#444; margin:0 0 1rem; max-width:46rem;">
+        Experimentální výpis: odběr (m) z deníku v období, seskupený podle zakázky / projektu.
+    </p>
+
+    <form method="get" action="{{ path('warehouse_browse_usage_by_project') }}" class="usage-proj-filters">
+        <div class="usage-proj-filters__dates">
+            <div class="usage-proj-filters__field">
+                <label for="usage-from">Od (datum)</label>
+                <input id="usage-from" name="dateFrom" type="date" value="{{ filterDateFrom }}" required>
+            </div>
+            <div class="usage-proj-filters__field">
+                <label for="usage-to">Do (datum)</label>
+                <input id="usage-to" name="dateTo" type="date" value="{{ filterDateTo }}" required>
+            </div>
+        </div>
+        <div>
+            <button type="submit">Zobrazit</button>
+        </div>
+    </form>
+
+    <p style="margin:0 0 1rem;"><strong>Období:</strong> {{ periodFrom|date('d.m.Y') }} – {{ periodTo|date('d.m.Y') }} <span style="color:#555;">(poslední den včetně)</span></p>
+
+    {% if projectGroups|length == 0 %}
+        <p>V období nejsou žádné záznamy s odběrem m a vyplněnou zakázkou / projektem.</p>
+    {% else %}
+        {% for p in projectGroups %}
+            <div class="browse-proj-fold__wrapper">
+                <details class="browse-proj-fold"{% if loop.first %} open{% endif %}>
+                    <summary><span class="browse-proj-fold__name">{{ p.projectLabel }}</span></summary>
+                    <div class="browse-proj-fold__body">
+                        <ul class="browse-proj-fold__list">
+                            {% for line in p.lines %}
+                                <li>
+                                    <span>{{ line.groupLabel }}</span>
+                                    <span class="browse-proj-fold__m">{{ line.meters|number_format(0, ',', ' ') }} m</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </details>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endblock %}

@@ -3,7 +3,9 @@
 namespace App\Controller\Warehouse;
 
 use App\Enum\SpoolStatus;
+use App\Service\Warehouse\SpoolMeterService;
 use App\Repository\CableTypeRepository;
+use App\Repository\SpoolEventRepository;
 use App\Repository\SpoolRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -64,6 +66,40 @@ final class StockBrowseController extends AbstractController
         return $this->render('warehouse/stock_browse_inventura.html.twig', [
             'groups' => $groups,
             'generatedAt' => new \DateTimeImmutable('now'),
+        ]);
+    }
+
+    /**
+     * Experimentální výpis odběru dle zakázky: seskupení řádků jako krátká inventura (vl. · family · Ø),
+     * bez jednoho součtu přes všechny typy v projektu.
+     */
+    #[Route('/odber-v-zakazkach', name: 'usage_by_project', methods: ['GET'])]
+    public function usageByProject(Request $request, SpoolEventRepository $eventRepository): Response
+    {
+        $today = new \DateTimeImmutable('today');
+        $defaultFrom = $today->modify('first day of this month')->setTime(0, 0, 0);
+
+        $fromDay = self::parseBrowseDateDay($request->query->get('dateFrom'));
+        $toDay = self::parseBrowseDateDay($request->query->get('dateTo'));
+        $fromDay ??= $defaultFrom;
+        $toDay ??= $today;
+        if ($fromDay > $toDay) {
+            $tmp = $fromDay;
+            $fromDay = $toDay;
+            $toDay = $tmp;
+        }
+        $from = $fromDay->setTime(0, 0, 0);
+        $to = $toDay->setTime(23, 59, 59);
+
+        $events = $eventRepository->findUsageEventsForProjectsReport($from, $to);
+        $projectGroups = self::buildProjectUsageGroupsInventuraStyle($events);
+
+        return $this->render('warehouse/stock_browse_usage_by_project.html.twig', [
+            'projectGroups' => $projectGroups,
+            'periodFrom' => $from,
+            'periodTo' => $to,
+            'filterDateFrom' => $fromDay->format('Y-m-d'),
+            'filterDateTo' => $toDay->format('Y-m-d'),
         ]);
     }
 
@@ -274,5 +310,181 @@ final class StockBrowseController extends AbstractController
         \sort($a, \SORT_NUMERIC);
 
         return $a === $allIds ? [] : $selected;
+    }
+
+    /**
+     * Seskupení odběru podle zakázky a skupiny jako u krát. inventury (vl., family, Ø).
+     * Bez jedné součtené hodnoty „celkem m“ přes více skupin — ta čísla nejsou srovnatelná cenově.
+     *
+     * @param list<\App\Entity\SpoolEvent> $events
+     *
+     * @return list<array{projectLabel: string, lines: list<array{groupLabel: string, meters: int}>}>
+     */
+    private static function buildProjectUsageGroupsInventuraStyle(array $events): array
+    {
+        /** @var array<string, array<string, array{groupLabel: string, meters: int}>> $nested */
+        $nested = [];
+        foreach ($events as $e) {
+            $pl = \trim((string) $e->getProjectLabel());
+            if ('' === $pl) {
+                continue;
+            }
+            $um = $e->getUsedMeters();
+            if (null === $um || $um < 1) {
+                continue;
+            }
+            $sp = $e->getSpool();
+            if (null === $sp) {
+                continue;
+            }
+            $fiber = $sp->getEffectiveFiberCount();
+            $family = '' !== $sp->getFamily() ? $sp->getFamily() : '—';
+            $diamKey = self::normalizeDiameterKey($sp->getEffectiveDiameterMm());
+            $bucketKey = $fiber."\0".$family."\0".$diamKey;
+            $groupLabel = self::formatInventuryGroupLabel($fiber, $family, $diamKey);
+            if (!isset($nested[$pl])) {
+                $nested[$pl] = [];
+            }
+            if (!isset($nested[$pl][$bucketKey])) {
+                $nested[$pl][$bucketKey] = [
+                    'groupLabel' => $groupLabel,
+                    'meters' => 0,
+                ];
+            }
+            $nested[$pl][$bucketKey]['meters'] += $um;
+        }
+        /** @var list<string> */
+        $projectLabelsOrdered = \array_keys($nested);
+        \usort(
+            $projectLabelsOrdered,
+            static function (string $a, string $b): int {
+                return self::compareProjectLabelsByAffinity($a, $b);
+            },
+        );
+        $out = [];
+        foreach ($projectLabelsOrdered as $label) {
+            $groups = $nested[$label];
+            $lines = \array_values($groups);
+            \usort(
+                $lines,
+                static function (array $a, array $b): int {
+                    if ($a['meters'] !== $b['meters']) {
+                        return $b['meters'] <=> $a['meters'];
+                    }
+
+                    return \strcmp($a['groupLabel'], $b['groupLabel']);
+                },
+            );
+            $out[] = [
+                'projectLabel' => $label,
+                'lines' => $lines,
+            ];
+        }
+
+        /** Virtuální zakázka pro odpisy — na konec seznamu (viz {@see SpoolMeterService::WRITEOFF_PROJECT_LABEL}). */
+        $wo = SpoolMeterService::WRITEOFF_PROJECT_LABEL;
+        $withoutWriteoff = [];
+        $writeoffBlock = null;
+        foreach ($out as $block) {
+            if ($block['projectLabel'] === $wo) {
+                $writeoffBlock = $block;
+
+                continue;
+            }
+            $withoutWriteoff[] = $block;
+        }
+        if (null !== $writeoffBlock) {
+            $withoutWriteoff[] = $writeoffBlock;
+        }
+
+        return $withoutWriteoff;
+    }
+
+    /**
+     * Řazení především podle slov (bez ohledu na pořadí), sekundárně čistě číselné kusy řetězce
+     * (např. různé číslo zakázky u stejných slov jako „test“ budou pohromadě).
+     */
+    private static function compareProjectLabelsByAffinity(string $a, string $b): int
+    {
+        $pa = self::projectAffinityBuckets($a);
+        $pb = self::projectAffinityBuckets($b);
+        if ($pa['text'] !== $pb['text']) {
+            return \strcmp($pa['text'], $pb['text']);
+        }
+        $nc = self::compareSortedNumericTokenLists($pa['nums'], $pb['nums']);
+        if (0 !== $nc) {
+            return $nc;
+        }
+
+        return \strnatcasecmp($a, $b);
+    }
+
+    /**
+     * Rozdělí slova od číselných tokenů; text setřídit, pak čísla (pro sekundární pořadí).
+     *
+     * @return array{text: string, nums: list<string>}
+     */
+    private static function projectAffinityBuckets(string $label): array
+    {
+        $label = \trim($label);
+        if ('' === $label) {
+            return ['text' => '', 'nums' => []];
+        }
+        $lower = \mb_strtolower($label, 'UTF-8');
+        $words = [];
+        if (false !== \preg_match_all('/[\p{L}\p{N}]+/u', $lower, $m) && isset($m[0]) && $m[0] !== []) {
+            $words = $m[0];
+        }
+        if ($words === []) {
+            return ['text' => $lower, 'nums' => []];
+        }
+        $textTok = [];
+        $numTok = [];
+        foreach ($words as $w) {
+            if (1 === \preg_match('/^\p{N}+$/u', $w)) {
+                $numTok[] = $w;
+
+                continue;
+            }
+            $textTok[] = $w;
+        }
+        \sort($textTok, \SORT_STRING);
+        /* řazení číselných tokenů přirozeně (2 před 10) */
+        \sort($numTok, \SORT_NATURAL);
+
+        return ['text' => \implode(' ', $textTok), 'nums' => $numTok];
+    }
+
+    /** @param list<string> $a @param list<string> $b */
+    private static function compareSortedNumericTokenLists(array $a, array $b): int
+    {
+        $na = \count($a);
+        $nb = \count($b);
+        $n = \min($na, $nb);
+        for ($i = 0; $i < $n; ++$i) {
+            $c = \strnatcmp((string) $a[$i], (string) $b[$i]);
+            if (0 !== $c) {
+                return $c;
+            }
+        }
+
+        return $na <=> $nb;
+    }
+
+    private static function parseBrowseDateDay(mixed $raw): ?\DateTimeImmutable
+    {
+        if (!\is_string($raw)) {
+            return null;
+        }
+        $raw = \trim($raw);
+        if ('' === $raw) {
+            return null;
+        }
+        $d = \DateTimeImmutable::createFromFormat('Y-m-d', $raw);
+        if (false === $d) {
+            return null;
+        }
+
+        return $d->setTime(0, 0, 0);
     }
 }

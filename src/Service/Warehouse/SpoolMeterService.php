@@ -25,7 +25,7 @@ final class SpoolMeterService
     private const METER_MOD_CANDIDATES = [10_000, 100_000, 1_000_000];
 
     /** Popisek do sloupce „Zakázka“ u odpisu — odpis z evidence a likvidace fyz. zbytku. */
-    private const WRITEOFF_PROJECT_LABEL = 'Odpis z evidence — likvidace zbytku';
+    public const WRITEOFF_PROJECT_LABEL = 'Odpis z evidence — likvidace zbytku';
 
     public function __construct(
         private readonly EntityManagerInterface $em,
