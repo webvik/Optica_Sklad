@@ -46,9 +46,9 @@ class SpoolEvent
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(targetEntity: SpoolEvent::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    private ?self $correctsEvent = null;
+    private ?SpoolEvent $correctsEvent = null;
 
     public function __construct()
     {
@@ -162,12 +162,12 @@ class SpoolEvent
         return $this->createdAt;
     }
 
-    public function getCorrectsEvent(): ?self
+    public function getCorrectsEvent(): ?SpoolEvent
     {
         return $this->correctsEvent;
     }
 
-    public function setCorrectsEvent(?self $correctsEvent): static
+    public function setCorrectsEvent(?SpoolEvent $correctsEvent): static
     {
         $this->correctsEvent = $correctsEvent;
 
