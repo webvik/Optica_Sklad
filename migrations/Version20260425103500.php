@@ -9,8 +9,11 @@ use Doctrine\Migrations\AbstractMigration;
 
 /**
  * cable_spool: replace vendor_product_code (duplicate of stock code) with family from cable_type.
+ *
+ * Must run after Version20260425103000 (CREATE cable_spool). Formerly misdated Version20260419200000
+ * and ran before CREATE (wrong lexical order).
  */
-final class Version20260419200000 extends AbstractMigration
+final class Version20260425103500 extends AbstractMigration
 {
     public function getDescription(): string
     {
