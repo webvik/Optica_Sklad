@@ -1,13 +1,6 @@
-{# Řádek: Domů vlevo, odhlášení vpravo; pod tím tři hlavní cesty. Popisy na stránkách sekcí. #}
+{# Řádek: Domů vlevo, odhlášení vpravo; pod tím tři hlavní cesty. Viz _app_menu_cz_top + _app_menu_cz_main_links. #}
 <nav class="app-menu" aria-label="Hlavní nabídka">
-    <div class="app-menu__top">
-        <a href="{{ path('app_home') }}">Domů</a>
-        <a href="{{ path('app_logout') }}">Odhlásit se</a>
-    </div>
-    <ul class="app-menu__list">
-        <li><a class="app-menu__nav-link" href="{{ path('warehouse_spool_index') }}">Práce s optikou</a></li>
-        <li><a class="app-menu__nav-link" href="{{ path('warehouse_receipt_index') }}">Příjem kabelu</a></li>
-        <li><a class="app-menu__nav-link" href="{{ path('warehouse_browse_index') }}">Přehled skladu</a></li>
-    </ul>
+{% include '_app_menu_cz_top.html.twig' %}
+{% include '_app_menu_cz_main_links.html.twig' %}
 </nav>
 <hr style="border: 0; border-top: 1px solid #ccc; margin: 0 0 1rem;">

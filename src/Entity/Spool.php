@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Enum\SpoolStatus;
 use App\Repository\SpoolRepository;
+use App\Service\Warehouse\InventuraBriefGroupLabel;
 use App\Service\Warehouse\SpoolEventOrder;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -245,6 +246,16 @@ class Spool
         $this->diameterMm = $diameterMm;
 
         return $this;
+    }
+
+    /** Stejný text jako skupina ve zkrácené inventuře (vl. · family · Ø …). */
+    public function getBriefInventuraLabel(): string
+    {
+        $fiber = $this->getEffectiveFiberCount();
+        $family = '' !== $this->getFamily() ? $this->getFamily() : '—';
+        $diamKey = InventuraBriefGroupLabel::normalizeDiameterKey($this->getEffectiveDiameterMm());
+
+        return InventuraBriefGroupLabel::format($fiber, $family, $diamKey);
     }
 
     public function getStatus(): SpoolStatus

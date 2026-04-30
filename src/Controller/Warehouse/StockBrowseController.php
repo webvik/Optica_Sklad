@@ -3,6 +3,7 @@
 namespace App\Controller\Warehouse;
 
 use App\Enum\SpoolStatus;
+use App\Service\Warehouse\InventuraBriefGroupLabel;
 use App\Service\Warehouse\SpoolMeterService;
 use App\Repository\CableTypeRepository;
 use App\Repository\SpoolEventRepository;
@@ -125,7 +126,7 @@ final class StockBrowseController extends AbstractController
         foreach ($spools as $s) {
             $fiber = $s->getEffectiveFiberCount();
             $family = '' !== $s->getFamily() ? $s->getFamily() : '—';
-            $diamKey = self::normalizeDiameterKey($s->getEffectiveDiameterMm());
+            $diamKey = InventuraBriefGroupLabel::normalizeDiameterKey($s->getEffectiveDiameterMm());
             $key = $fiber."\0".$family."\0".$diamKey;
             if (!isset($buckets[$key])) {
                 $buckets[$key] = [
@@ -181,7 +182,7 @@ final class StockBrowseController extends AbstractController
             return (float) $a['diameterKey'] <=> (float) $b['diameterKey'];
         });
         foreach ($list as $i => $g) {
-            $list[$i]['groupLabel'] = self::formatInventuryGroupLabel(
+            $list[$i]['groupLabel'] = InventuraBriefGroupLabel::format(
                 $g['fiber'],
                 (string) $g['family'],
                 (string) $g['diameterKey'],
@@ -189,41 +190,6 @@ final class StockBrowseController extends AbstractController
         }
 
         return $list;
-    }
-
-    /**
-     * Jednotný klíč pro seskupení: prázdné = průměr neuveden, jinak normalizované desetinné číslo.
-     */
-    private static function normalizeDiameterKey(?string $diamRaw): string
-    {
-        if (null === $diamRaw) {
-            return '';
-        }
-        $t = \trim((string) $diamRaw);
-        if ('' === $t) {
-            return '';
-        }
-        $t = \str_replace(',', '.', $t);
-        if (!\is_numeric($t)) {
-            return $t;
-        }
-
-        return (string) \round((float) $t, 2);
-    }
-
-    private static function formatInventuryGroupLabel(int $fiber, string $family, string $diameterKey): string
-    {
-        $base = $fiber.' vl. · '.$family;
-        if ('' === $diameterKey) {
-            return $base;
-        }
-        if (\is_numeric($diameterKey)) {
-            $csv = \number_format((float) $diameterKey, 1, ',', '');
-
-            return $base.' · Ø '.$csv.' mm';
-        }
-
-        return $base.' · Ø '.$diameterKey;
     }
 
     /**
@@ -339,9 +305,9 @@ final class StockBrowseController extends AbstractController
             }
             $fiber = $sp->getEffectiveFiberCount();
             $family = '' !== $sp->getFamily() ? $sp->getFamily() : '—';
-            $diamKey = self::normalizeDiameterKey($sp->getEffectiveDiameterMm());
+            $diamKey = InventuraBriefGroupLabel::normalizeDiameterKey($sp->getEffectiveDiameterMm());
             $bucketKey = $fiber."\0".$family."\0".$diamKey;
-            $groupLabel = self::formatInventuryGroupLabel($fiber, $family, $diamKey);
+            $groupLabel = InventuraBriefGroupLabel::format($fiber, $family, $diamKey);
             if (!isset($nested[$pl])) {
                 $nested[$pl] = [];
             }

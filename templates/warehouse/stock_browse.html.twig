@@ -11,11 +11,20 @@
             gap: 0.75rem;
             margin: 0 0 0.5rem;
         }
+        form.browse-filters {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .browse-filters__row {
+            max-width: 100%;
+            min-width: 0;
+        }
         .browse-filters__col {
             display: flex;
             flex-direction: column;
             gap: 0.25rem;
             min-width: 0;
+            max-width: 100%;
         }
         .browse-filters__col--submit { flex: 0 0 auto; }
         .browse-filters__row button[type="submit"] { min-height: 2.5rem; }
@@ -28,7 +37,7 @@
         }
         /* sloupec se nerozmačká pod šířku textu; na úzkém řádku horizontální scroll uvnitř rámečku */
         .browse-filters__col.browse-filters__col--usageReport {
-            min-width: min(100%, max-content);
+            min-width: 0;
             flex: 0 1 auto;
             max-width: 100%;
         }
@@ -88,7 +97,7 @@
         }
         .browse-filter-checkpanel__row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: auto minmax(0, 1fr);
             align-items: center;
             gap: 0.6rem 0.9rem;
             padding: 0.4rem 0.5rem;
@@ -117,6 +126,68 @@
             flex-shrink: 0;
             margin: 0;
         }
+        /*
+         * Panel „Typ kabelu“: vlevo + horizontální scroll pro dlouhé názvy.
+         * Bez @media — jinak na tabletech / úzkém desktopu (šířka > ~672px) platí jen „desktop modal“
+         * z _cable_type_picker_core_styles a tyto pravidla se vůbec nepoužijí.
+         */
+        #browse-cable-type-picker.cable-type-mobile-picker--open #browse-cable-type-panel.cable-type-mobile-picker__panel > .cable-type-mobile-picker__scroller {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            box-sizing: border-box;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            direction: ltr;
+        }
+        #browse-cable-type-panel .browse-filter-checkpanel {
+            width: max-content;
+            min-width: 100%;
+            box-sizing: border-box;
+            margin-inline: 0;
+            align-self: flex-start;
+            align-items: flex-start;
+            direction: ltr;
+            padding-inline: max(0.35rem, env(safe-area-inset-left, 0px))
+                         max(0.35rem, env(safe-area-inset-right, 0px));
+        }
+        #browse-cable-type-panel .browse-filter-checkpanel__row {
+            display: grid;
+            grid-template-columns: auto auto;
+            justify-content: start;
+            justify-items: start;
+            width: max-content;
+            max-width: none;
+            box-sizing: border-box;
+            text-align: left;
+            direction: ltr;
+        }
+        #browse-cable-type-panel .browse-filter-checkpanel__text {
+            white-space: nowrap;
+            text-align: left;
+            justify-self: start;
+        }
+        #browse-cable-type-panel .browse-filter-checkpanel__text--cable-with-brief {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.12rem;
+            white-space: normal;
+            line-height: 1.25;
+        }
+        #browse-cable-type-panel .browse-cable-type__brief {
+            font-size: 0.88em;
+            font-weight: 500;
+            color: #355064;
+            white-space: nowrap;
+        }
+        #browse-cable-type-panel .browse-cable-type__code-line {
+            white-space: nowrap;
+        }
+        #browse-cable-type-panel .browse-filter-checkpanel__row {
+            align-items: start;
+        }
     </style>
 {% endblock %}
 {% block body %}
@@ -143,13 +214,16 @@
                         <div class="cable-type-mobile-picker__scroller">
                             <div class="browse-filter-checkpanel" role="group" aria-label="Výběr typu kabelu">
                                 <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--all">
-                                    <span class="browse-filter-checkpanel__text">Vše</span>
                                     <input type="checkbox" class="js-browse-cable-vse" aria-label="Vše: zaškrtnout všechny typy" title="Vše" tabindex="0">
+                                    <span class="browse-filter-checkpanel__text">Vše</span>
                                 </label>
                                 {% for ct in cableTypeChoices %}
                                     <label class="browse-filter-checkpanel__row">
-                                        <span class="browse-filter-checkpanel__text">{{ ct.code }} — {{ ct.name }}</span>
                                         <input type="checkbox" name="cableTypeIds[]" value="{{ ct.id }}" class="js-browse-cable-cb" data-browse-label="{{ ct.code|e('html_attr') }} — {{ ct.name|e('html_attr') }}"{% if ct.id in filterCableTypeIds %} checked{% endif %}>
+                                        <span class="browse-filter-checkpanel__text browse-filter-checkpanel__text--cable-with-brief">
+                                            <span class="browse-cable-type__brief">{{ ct.briefInventuraLabel }}</span>
+                                            <span class="browse-cable-type__code-line">{{ ct.code }} — {{ ct.name }}</span>
+                                        </span>
                                     </label>
                                 {% endfor %}
                             </div>
@@ -173,20 +247,20 @@
                         <div class="cable-type-mobile-picker__scroller">
                             <div class="browse-filter-checkpanel" role="group" aria-label="Výběr stavu cívky">
                                 <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--all">
-                                    <span class="browse-filter-checkpanel__text">Vše</span>
                                     <input type="checkbox" class="js-browse-status-vse" aria-label="Vše: všechny stavy" title="Vše" tabindex="0">
+                                    <span class="browse-filter-checkpanel__text">Vše</span>
                                 </label>
                                 <label class="browse-filter-checkpanel__row">
-                                    <span class="browse-filter-checkpanel__text">na skladě</span>
                                     <input type="checkbox" name="status[]" value="in_stock" class="js-browse-status-cb" data-browse-label="na skladě"{% if 'in_stock' in filterStatusValues %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">na skladě</span>
                                 </label>
                                 <label class="browse-filter-checkpanel__row">
-                                    <span class="browse-filter-checkpanel__text">předáno</span>
                                     <input type="checkbox" name="status[]" value="transferred" class="js-browse-status-cb" data-browse-label="předáno"{% if 'transferred' in filterStatusValues %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">předáno</span>
                                 </label>
                                 <label class="browse-filter-checkpanel__row">
-                                    <span class="browse-filter-checkpanel__text">vyřazeno</span>
                                     <input type="checkbox" name="status[]" value="written_off" class="js-browse-status-cb" data-browse-label="vyřazeno"{% if 'written_off' in filterStatusValues %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">vyřazeno</span>
                                 </label>
                             </div>
                         </div>
@@ -311,6 +385,11 @@
 
     function sizePanelMinWidth() {
       if (!scroller) return;
+      /* Cable types: řádky mají vlastní šířku (CSS max-content); inline minWidth by kazil horizontální scroll na mobilu. */
+      if (root.id === 'browse-cable-type-picker') {
+        scroller.style.minWidth = '';
+        return;
+      }
       var cbs = root.querySelectorAll('input[type=checkbox]');
       if (!cbs.length) return;
       var measure = document.createElement('div');
@@ -351,7 +430,18 @@
       if (btn) btn.setAttribute('aria-expanded', 'true');
       var first = root.querySelector('input[type=checkbox]');
       try { if (first) first.focus(); } catch (e) {}
-      requestAnimationFrame(function () { requestAnimationFrame(function () { scheduleSize(); }); });
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          scheduleSize();
+          /* Horizontální scroll jinak někdy otevře ukázaný konec vpravo (safari/engine). */
+          if (root.id === 'browse-cable-type-picker' && scroller) {
+            try { scroller.scrollLeft = 0; } catch (e1) {}
+            window.setTimeout(function () {
+              try { scroller.scrollLeft = 0; } catch (e2) {}
+            }, 0);
+          }
+        });
+      });
     }
 
     function closePanel() {

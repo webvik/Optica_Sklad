@@ -1,6 +1,7 @@
 {# Společné okno s nativním <select> listbox — vložit uvnitř <style> (bez vlastních tagů). #}
         body.spool-cable-panel-open { overflow: hidden; }
-        .cable-type-mobile-picker { position: relative; width: 100%; }
+        /* min-width:0 — jinak dlouhý text v toggle (flex) roztáhne celou stránku na mobilu */
+        .cable-type-mobile-picker { position: relative; width: 100%; min-width: 0; max-width: 100%; }
         .cable-type-mobile-picker__scroller {
             width: 100%;
             min-width: 0;
@@ -17,6 +18,8 @@
         .cable-type-mobile-picker__toggle {
             display: flex;
             width: 100%;
+            min-width: 0;
+            max-width: 100%;
             min-height: 2.5rem;
             padding: 0.4rem 0.5rem;
             text-align: left;

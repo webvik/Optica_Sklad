@@ -5,8 +5,9 @@
         <tr>
             <th>Číslo cívky</th>
             <th>Typ</th>
-            <th>Délka L (m)</th>
+            <th title="Jako skupina v krátké inventuře (vláken · řada · průměr)">Skupina</th>
             <th>Zbývá (m)</th>
+            <th>Délka L (m)</th>
             <th>Stav</th>
             <th></th>
         </tr>
@@ -16,13 +17,14 @@
         <tr>
             <td>{{ s.reelNumber }}</td>
             <td>{{ s.cableType ? s.cableType.code : '—' }}</td>
-            <td>{{ s.totalLengthM }}</td>
+            <td>{{ s.briefInventuraLabel }}</td>
             <td>{{ s.currentRemainingM ?? '—' }}</td>
+            <td>{{ s.totalLengthM }}</td>
             <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}</td>
             <td><a href="{{ path('warehouse_spool_show', {id: s.id}) }}">Karta</a></td>
         </tr>
     {% else %}
-        <tr><td colspan="6">Žádné záznamy v tomto výběru.</td></tr>
+        <tr><td colspan="7">Žádné záznamy v tomto výběru.</td></tr>
     {% endfor %}
     </tbody>
 </table>

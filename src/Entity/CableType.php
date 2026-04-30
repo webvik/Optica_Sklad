@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\CableTypeRepository;
+use App\Service\Warehouse\InventuraBriefGroupLabel;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -217,5 +218,11 @@ class CableType
     public function onPreUpdate(): void
     {
         $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    /** Stejný štítek jako ve zkrácené inventuře (vl. · family · Ø …). */
+    public function getBriefInventuraLabel(): string
+    {
+        return InventuraBriefGroupLabel::forCableType($this);
     }
 }
