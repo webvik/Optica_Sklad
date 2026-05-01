@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -33,13 +34,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var list<string>
      */
-    #[ORM\Column]
+    #[ORM\Column(type: Types::JSON)]
     private array $roles = [];
 
     #[ORM\Column]
     private string $password = '';
 
-    #[ORM\Column(options: ['default' => true])]
+    #[ORM\Column(type: Types::BOOLEAN, options: ['default' => true])]
     private bool $isActive = true;
 
     #[ORM\Column]
@@ -134,14 +135,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return array_values(array_unique($roles));
     }
 
-    /**
-     * Role přímo v DB ($roles JSON — bez automatického ROLE_USER).
-     *
-     * @return list<string>
-     */
+    /** @return list<string> řádek z DB (bez doplnění ROLE_USER v getRoles()). */
     public function getAssignedRoles(): array
     {
-        return $this->roles;
+        if (!\is_array($this->roles)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($this->roles as $r) {
+            if (\is_string($r) && '' !== $r) {
+                $out[] = $r;
+            }
+        }
+
+        return array_values(array_unique($out));
     }
 
     /**
@@ -149,7 +157,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function setRoles(array $roles): static
     {
-        $this->roles = $roles;
+        $clean = [];
+        foreach ($roles as $r) {
+            if (\is_string($r) && '' !== $r) {
+                $clean[] = $r;
+            }
+        }
+        $this->roles = array_values(array_unique($clean));
 
         return $this;
     }
@@ -164,11 +178,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->password = $password;
 
         return $this;
-    }
-
-    public function isActive(): bool
-    {
-        return $this->isActive;
     }
 
     public function getIsActive(): bool
