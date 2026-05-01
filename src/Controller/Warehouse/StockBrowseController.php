@@ -78,7 +78,8 @@ final class StockBrowseController extends AbstractController
     public function usageByProject(Request $request, SpoolEventRepository $eventRepository): Response
     {
         $today = new \DateTimeImmutable('today');
-        $defaultFrom = $today->modify('first day of this month')->setTime(0, 0, 0);
+        /** Výchozí od: půl roku zpět („Filtr podle projektů“ bez parametrů v URL). */
+        $defaultFrom = $today->modify('-6 months')->setTime(0, 0, 0);
 
         $fromDay = self::parseBrowseDateDay($request->query->get('dateFrom'));
         $toDay = self::parseBrowseDateDay($request->query->get('dateTo'));
