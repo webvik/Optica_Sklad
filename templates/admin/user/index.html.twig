@@ -1,7 +1,9 @@
 {% extends 'base.html.twig' %}
 {% block title %}Správa uživatelů{% endblock %}
 {% block body %}
-    {% include '_app_menu_cz.html.twig' %}
+    <nav class="app-menu app-menu--toolbar" aria-label="Účet a navigace správy">
+        {% include '_app_menu_cz_top.html.twig' %}
+    </nav>
     <h1>Správa uživatelů</h1>
     <aside style="max-width:50rem;margin:0 0 1rem;font-size:.9rem;color:#445;line-height:1.46">
         <p style="margin:0 0 .5rem"><strong>Úrovně:</strong>
@@ -29,11 +31,18 @@
             <tbody>
             {% for u in users %}
                 <tr>
-                    <td><code>{{ u.userIdentifier }}</code></td>
-                    <td>{{ u.displayName }}</td>
+                    <td><code>{{ u.getUserIdentifier() }}</code></td>
+                    <td>{{ u.getDisplayName() }}</td>
                     <td>{% if u.getIsActive() %}ano{% else %}ne{% endif %}</td>
-                    <td>{{ u.assignedRoles|join(', ') ?: '—' }}</td>
-                    <td><a href="{{ path('app_admin_users_edit', { id: u.id }) }}">Upravit</a></td>
+                    <td>
+                        {% set _ar = u.getAssignedRoles() %}
+                        {% if _ar is iterable and _ar is not empty %}
+                            {{ _ar|join(', ') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td><a href="{{ path('app_admin_users_edit', { id: u.getId() }) }}">Upravit</a></td>
                 </tr>
             {% else %}
                 <tr><td colspan="5">Žádní uživatelé.</td></tr>
