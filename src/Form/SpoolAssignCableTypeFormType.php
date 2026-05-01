@@ -4,6 +4,7 @@ namespace App\Form;
 
 use App\Entity\CableType;
 use App\Entity\Spool;
+use App\Repository\CableTypeRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -15,15 +16,18 @@ use Symfony\Component\Validator\Constraints\NotBlank;
  */
 final class SpoolAssignCableTypeFormType extends AbstractType
 {
+    public function __construct(
+        private readonly CableTypeRepository $cableTypes,
+    ) {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->add('cableType', EntityType::class, [
             'class' => CableType::class,
             'label' => 'Typ kabelu',
             'choice_label' => static fn (CableType $c) => $c->getCode().' — '.$c->getName(),
-            'query_builder' => static fn ($r) => $r->createQueryBuilder('c')
-                ->andWhere('c.isActive = true')
-                ->orderBy('c.name', 'ASC'),
+            'choices' => $this->cableTypes->findAllOrderedForCableTypePicker(true),
             'constraints' => [new NotBlank(message: 'Vyberte typ kabelu.')],
             'help' => 'Uložením se typ naváže na tuto cívku (řada se převezme z katalogu).',
             'choice_attr' => static function (mixed $choice, string $key, string $value): array {

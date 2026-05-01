@@ -25,7 +25,7 @@ final class StockBrowseController extends AbstractController
         SpoolRepository $spools,
         CableTypeRepository $cableTypes,
     ): Response {
-        $choiceEntities = $cableTypes->findBy([], ['name' => 'ASC']);
+        $choiceEntities = $cableTypes->findAllOrderedForCableTypePicker(false);
         $allCableTypeIds = array_values(array_map(
             static fn ($ct) => (int) $ct->getId(),
             $choiceEntities,

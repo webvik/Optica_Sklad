@@ -6,6 +6,7 @@ use App\Entity\CableFamily;
 use App\Entity\CableType;
 use App\Entity\Spool;
 use App\Enum\SpoolStatus;
+use App\Repository\CableTypeRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
@@ -21,6 +22,11 @@ use Symfony\Component\Validator\Constraints\Positive;
 
 final class SpoolFormType extends AbstractType
 {
+    public function __construct(
+        private readonly CableTypeRepository $cableTypes,
+    ) {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
@@ -30,9 +36,7 @@ final class SpoolFormType extends AbstractType
                 'placeholder' => '— zatím neuvedeno, doplníte na kartě cívky —',
                 'choice_label' => static fn (CableType $c) => $c->getCode().' — '.$c->getName(),
                 'label' => 'Typ kabelu',
-                'query_builder' => static fn ($r) => $r->createQueryBuilder('c')
-                    ->andWhere('c.isActive = true')
-                    ->orderBy('c.name', 'ASC'),
+                'choices' => $this->cableTypes->findAllOrderedForCableTypePicker(true),
                 'choice_value' => static function (?CableType $c): string {
                     return null === $c ? '' : (string) $c->getId();
                 },
