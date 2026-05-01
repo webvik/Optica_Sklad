@@ -10,6 +10,7 @@ parameters:
     env(BETA_WHATSAPP_PHONE): ''
     env(AUDIT_HTTP_LOG_MODE): detailed
     env(AUDIT_LOG_FORM_FIELDS): '0'
+    env(USER_AUDIT_LOG_RETENTION_DAYS): '30'
 
 services:
     # default configuration for services in *this* file
@@ -28,3 +29,7 @@ services:
         arguments:
             $auditHttpLogMode: '%env(string:AUDIT_HTTP_LOG_MODE)%'
             $auditLogFormFields: '%env(bool:AUDIT_LOG_FORM_FIELDS)%'
+
+    App\Command\PurgeOldUserAuditLogCommand:
+        arguments:
+            $defaultRetentionDays: '%env(int:USER_AUDIT_LOG_RETENTION_DAYS)%'
