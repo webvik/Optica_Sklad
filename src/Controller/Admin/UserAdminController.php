@@ -67,7 +67,7 @@ final class UserAdminController extends AbstractController
             }
 
             $willHaveAppAdmin = WarehouseRole::APP_ADMIN === $level;
-            $adminsNow = $userRepository->countWithAssignedRole(WarehouseRole::APP_ADMIN);
+            $adminsNow = $this->countStoredAppAdmins($userRepository);
             $removingLastAppAdmin = $hadAppAdmin && !$willHaveAppAdmin && $adminsNow <= 1;
             if ($removingLastAppAdmin) {
                 $this->addFlash(
@@ -107,5 +107,22 @@ final class UserAdminController extends AbstractController
             'editUser' => $user,
             'form' => $form,
         ]);
+    }
+
+    /** Počet řádků v DB majících ROLE_APP_ADMIN v JSON „roles“. */
+    private function countStoredAppAdmins(UserRepository $userRepository): int
+    {
+        $n = 0;
+        $list = $userRepository->createQueryBuilder('u')
+            ->getQuery()
+            ->getResult();
+
+        foreach ($list as $row) {
+            if ($row instanceof User && \in_array(WarehouseRole::APP_ADMIN, $row->getAssignedRoles(), true)) {
+                ++$n;
+            }
+        }
+
+        return $n;
     }
 }
