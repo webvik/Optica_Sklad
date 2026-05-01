@@ -17,7 +17,18 @@
         <code>sklad_scope</code> jen <code>/sklad</code> a <code>/sprava</code>,
         <code>mutations_only</code> jen zápisové metody mimo HEAD/OPTIONS,
         <code>off</code> vypne logování úplně.
+        Delší historie je rozdělena po stránkách (max. {{ pageSize }} řádků na stránku); odkazy ke stránkování jsou pod tabulkou.
     </p>
+    {% if total > 0 %}
+        <p class="audit-protocol-summary" style="margin:-0.25rem 0 0.85rem;font-size:.93rem;line-height:1.45;color:#333">
+            <strong>{{ total }}</strong> záznamů v databázi.
+            {% if pageCount > 1 %}
+                Zobrazena stránka <strong>{{ page }}</strong> / {{ pageCount }}.
+            {% else %}
+                Jedna stránka — všechny záznamy jsou vidět (stránkování se objeví až nad {{ pageSize }} řádky).
+            {% endif %}
+        </p>
+    {% endif %}
     <div class="table-scroll table-scroll--wide">
         <table>
             <thead>
@@ -60,4 +71,16 @@
             </tbody>
         </table>
     </div>
+    {% if pageCount > 1 %}
+        <nav class="audit-pager" style="margin:1rem 0 2rem;display:flex;flex-wrap:wrap;gap:.65rem .9rem;align-items:center;font-size:.95rem" aria-label="Stránkování protokolu">
+            <span>Stránka <strong>{{ page }}</strong> / {{ pageCount }} (celkem {{ total }} řádků)</span>
+            {% if page < pageCount %}
+                <a class="warehouse-pill" href="{{ path('app_admin_audit_index', { page: page + 1 }) }}">Další stránka → (starší záznamy)</a>
+            {% endif %}
+            {% if page > 1 %}
+                <a class="warehouse-pill" href="{{ path('app_admin_audit_index', { page: page - 1 }) }}">← Novější události</a>
+                <a class="warehouse-pill" href="{{ path('app_admin_audit_index') }}">Nejnovější (1. strana)</a>
+            {% endif %}
+        </nav>
+    {% endif %}
 {% endblock %}

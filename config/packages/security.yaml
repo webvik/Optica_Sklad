@@ -2,6 +2,11 @@ security:
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
+    role_hierarchy:
+        ROLE_APP_ADMIN: [ROLE_SKLAD_ADMIN, ROLE_SKLAD_EDIT, ROLE_SKLAD_VIEW]
+        ROLE_SKLAD_ADMIN: [ROLE_SKLAD_EDIT, ROLE_SKLAD_VIEW]
+        ROLE_SKLAD_EDIT: [ROLE_SKLAD_VIEW]
+
     providers:
         app_user_provider:
             entity:
@@ -38,6 +43,8 @@ security:
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/$, roles: PUBLIC_ACCESS }
+        - { path: ^/sprava, roles: ROLE_APP_ADMIN }
+        - { path: ^/sklad, roles: ROLE_SKLAD_VIEW }
         - { path: ^/, roles: ROLE_USER }
 
 when@test:

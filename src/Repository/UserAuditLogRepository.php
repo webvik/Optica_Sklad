@@ -22,13 +22,24 @@ class UserAuditLogRepository extends ServiceEntityRepository
     /**
      * @return list<UserAuditLog>
      */
-    public function findRecent(int $limit = 400): array
+    public function findRecent(int $limit = 400, int $offset = 0): array
     {
-        return $this->createQueryBuilder('a')
+        $qb = $this->createQueryBuilder('a')
             ->orderBy('a.occurredAt', 'DESC')
-            ->setMaxResults($limit)
+            ->setMaxResults($limit);
+        if ($offset > 0) {
+            $qb->setFirstResult($offset);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    public function countAll(): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
             ->getQuery()
-            ->getResult();
+            ->getSingleScalarResult();
     }
 
     public function countOlderThan(\DateTimeImmutable $cutoff): int

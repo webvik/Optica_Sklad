@@ -284,6 +284,154 @@
         {% block javascripts %}
         {% endblock %}
         <script>
+        (function () {
+            /**
+             * Výchozí 0 na číselných polích (type=number): select/setSelectionRange v Chromium často nefunguje.
+             * řešení: při hodnotě „jen nula“ první stisk číslice / vkládání nahradí místo prefixu „0…“.
+             */
+            function isZeroPlaceholder(v) {
+                if (typeof v !== 'string' || /[eE]/.test(v)) return false;
+                var s = v.trim();
+
+                return /^-?0+(?:\\.0*)?$/.test(s);
+            }
+
+            function fieldSelector() {
+                return (
+                    'input[type="number"]:not(.no-number-zero-select):not(:disabled):not(:read-only)'
+                    + ', input[type="text"]:not(.no-number-zero-select):not(:disabled):not(:read-only)[inputmode="numeric"]'
+                    + ', input[type="text"]:not(.no-number-zero-select):not(:disabled):not(:read-only)[inputmode="decimal"]'
+                );
+            }
+
+            function keyDigitOrEmpty(ev) {
+                if (!ev.key || ev.key.length !== 1) return '';
+                if (ev.ctrlKey || ev.metaKey || ev.altKey || ev.repeat) return '';
+                var c = ev.key;
+                return (c >= '0' && c <= '9') ? c : '';
+            }
+
+            function dispatchInputSyn(el) {
+                try {
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                } catch (eI) {}
+
+                try {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                } catch (eC) {}
+            }
+
+            function pasteNormalized(text, decimalOk) {
+                var s = String(text || '').replace(/\s+/g, '');
+                if (!decimalOk) {
+                    var i;
+                    var o = '';
+
+                    for (i = 0; i < s.length; i++) {
+                        var ch = s.charCodeAt(i);
+                        if (ch >= 48 && ch <= 57) o += s.charAt(i);
+                    }
+
+                    return o;
+                }
+                var j;
+                var out = '';
+
+                var seenDot = false;
+                for (j = 0; j < s.length; j++) {
+                    var cu = s.charAt(j);
+
+                    var code = s.charCodeAt(j);
+                    if (code >= 48 && code <= 57) {
+                        out += cu;
+
+                        continue;
+                    }
+                    if ((cu === '.' || cu === ',') && !seenDot) {
+                        out += '.';
+                        seenDot = true;
+                    }
+                }
+
+                return out.replace(/\.+$/, '');
+            }
+
+            document.addEventListener('keydown', function (ev) {
+                var el = ev.target;
+
+                if (!(el.matches && el.matches(fieldSelector()))) return;
+                if (!isZeroPlaceholder(String(el.value))) return;
+                var d = keyDigitOrEmpty(ev);
+
+                if (!d) return;
+                ev.preventDefault();
+                el.value = d;
+                dispatchInputSyn(el);
+            }, true);
+
+            document.addEventListener('paste', function (ev) {
+                var elP = ev.target;
+
+                if (!(elP.matches && elP.matches(fieldSelector()))) return;
+                if (!isZeroPlaceholder(String(elP.value))) return;
+                var dec = !!(elP.matches && elP.matches('input[inputmode="decimal"]'));
+                var raw = '';
+
+                try {
+                    raw = (ev.clipboardData || window.clipboardData).getData('text') || '';
+                } catch (eA) {}
+
+                var norm = pasteNormalized(raw, dec);
+
+                if (norm === '' || norm === '.' || norm === '-') return;
+                ev.preventDefault();
+                elP.value = norm;
+                dispatchInputSyn(elP);
+            }, true);
+
+            document.addEventListener('focusin', function (ev) {
+                var ef = ev.target;
+
+                if (!(ef.matches && ef.matches(fieldSelector()))) return;
+                if (!isZeroPlaceholder(String(ef.value))) return;
+
+                window.requestAnimationFrame(function () {
+                    try {
+                        if (typeof ef.setSelectionRange === 'function') {
+                            var len = String(ef.value || '').length;
+
+                            ef.setSelectionRange(0, len);
+
+                            return;
+                        }
+                    } catch (e1) {}
+
+                    try {
+                        ef.select();
+                    } catch (e2) {}
+                });
+            });
+
+            document.addEventListener('pointerdown', function (ev) {
+                var ep = ev.target;
+
+                if (!(ep.matches && ep.matches(fieldSelector()))) return;
+                if (!isZeroPlaceholder(String(ep.value))) return;
+
+                function blockUp(evUp) {
+                    evUp.preventDefault();
+
+                    evUp.stopPropagation?.();
+                    ep.removeEventListener('pointerup', blockUp, true);
+                    ep.removeEventListener('mouseup', blockUp, true);
+                }
+
+                ep.addEventListener('pointerup', blockUp, true);
+                ep.addEventListener('mouseup', blockUp, true);
+            }, true);
+        })();
+        </script>
+        <script>
         function __betaWelcomeVisible() {
             var m = document.getElementById('beta-welcome-modal');
             return !!(m && !m.hasAttribute('hidden'));
