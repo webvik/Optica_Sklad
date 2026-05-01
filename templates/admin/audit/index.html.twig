@@ -1,0 +1,51 @@
+{% extends 'base.html.twig' %}
+{% block title %}Protokol HTTP{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <p style="margin:0 0 1rem">
+        <a href="{{ path('app_admin_users_index') }}">← Správa uživatelů</a>
+    </p>
+    <h1>Protokol stránek a požadavků</h1>
+    <p style="max-width:48rem;font-size:.9rem;color:#444;line-height:1.45;margin-top:0">
+        Zápisy vznikají po každé odpovědi aplikace. Ukládá se čas, uživatel, metoda HTTP, název Symfony route,
+        cesta (<code>path</code>), stavové kód, IP a začátek User-Agent — <strong>neukládají se těla POST</strong>.
+        Rozsah řídí proměnná <code>AUDIT_HTTP_LOG_MODE</code> v <code>.env</code> /
+        výchozí hodnota v <code>config/services.yaml</code>:
+        <code>detailed</code> (= návštěvy <code>/sklad</code> + <code>/sprava</code> i zápisy kdekoliv v aplikaci),
+        <code>sklad_scope</code> jen <code>/sklad</code> a <code>/sprava</code>,
+        <code>mutations_only</code> jen zápisové metody mimo HEAD/OPTIONS,
+        <code>off</code> vypne logování úplně.
+    </p>
+    <div class="table-scroll table-scroll--wide">
+        <table>
+            <thead>
+                <tr>
+                    <th>Čas</th>
+                    <th>Uživatel</th>
+                    <th>Role (DB snapshot)</th>
+                    <th>Metoda</th>
+                    <th>HTTP</th>
+                    <th>Route</th>
+                    <th>Cesta</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for e in entries %}
+                <tr>
+                    <td>{{ e.occurredAt|date('Y-m-d H:i:s') }}</td>
+                    <td><code>{{ e.username }}</code></td>
+                    <td>{{ e.rolesSnapshot|default([])|join(', ') ?: '—' }}</td>
+                    <td>{{ e.method }}</td>
+                    <td>{{ e.httpStatus ?? '—' }}</td>
+                    <td>{{ e.routeName ?? '—' }}</td>
+                    <td style="word-break:break-word;font-size:.85rem">{{ e.path }}</td>
+                    <td>{{ e.ip ?? '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8">Zatím nic — projdi sklad po přihlášení (režim není „off“).</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

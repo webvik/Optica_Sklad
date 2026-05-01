@@ -4,16 +4,18 @@ namespace App\Command;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Security\WarehouseRole;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[AsCommand(
     name: 'app:user:create',
-    description: 'Vytvořit uživatele: přihlášení = username, heslo; volitelně e-mail, jméno, příjmení',
+    description: 'Vytvořit uživatele: přihlášení + heslo; volitelně e-mail, jméno; přepínač --role výchozí EDIT',
 )]
 final class CreateUserCommand extends Command
 {
@@ -31,6 +33,13 @@ final class CreateUserCommand extends Command
         $this->addArgument('email', InputArgument::OPTIONAL, 'E-mail (volitelné)');
         $this->addArgument('firstName', InputArgument::OPTIONAL, 'Jméno');
         $this->addArgument('lastName', InputArgument::OPTIONAL, 'Příjmení');
+        $this->addOption(
+            'role',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Přímá přiřazená role: ' . implode(', ', WarehouseRole::assignableRoles()),
+            WarehouseRole::EDIT,
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -40,10 +49,18 @@ final class CreateUserCommand extends Command
         $email = $input->getArgument('email');
         $firstName = $input->getArgument('firstName');
         $lastName = $input->getArgument('lastName');
+        $role = (string) $input->getOption('role');
+
+        if (!\in_array($role, WarehouseRole::assignableRoles(), true)) {
+            $output->writeln('<error>Neplatná --role.</error>');
+
+            return Command::FAILURE;
+        }
 
         $user = new User();
         $user->setUsername($username);
         $user->setPassword($this->passwordHasher->hashPassword($user, $plain));
+        $user->setRoles([$role]);
         if (null !== $email && '' !== trim($email)) {
             $user->setEmail(trim($email));
         }
@@ -57,9 +74,10 @@ final class CreateUserCommand extends Command
         $this->users->save($user);
 
         $output->writeln(sprintf(
-            'Uživatel <info>%s</info> (id <info>%d</info>) byl vytvořen.',
+            'Uživatel <info>%s</info> (id <info>%d</info>), role <info>%s</info>.',
             $username,
-            $user->getId() ?? 0
+            $user->getId() ?? 0,
+            $role,
         ));
 
         return Command::SUCCESS;

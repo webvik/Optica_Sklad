@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+{% block title %}Upravit uživatele{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <p style="margin:0 0 1rem"><a href="{{ path('app_admin_users_index') }}">← zpět na seznam</a></p>
+    <h1>Upravit uživatele</h1>
+    <p>Účet: <strong><code>{{ editUser.userIdentifier }}</code></strong> — {{ editUser.displayName }}</p>
+    {{ form_start(form) }}
+        {{ form_row(form.isActive) }}
+        {{ form_row(form.accessLevel) }}
+        {{ form_row(form.save) }}
+    {{ form_end(form) }}
+{% endblock %}

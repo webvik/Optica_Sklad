@@ -13,6 +13,39 @@
          * Přihlášení: Android v landscape / „širší“ viewport často přesahuje 36rem → bez stylů mrňavá pole.
          * 60rem (~960px) pokryje většinu mobilů i na šířku; min. 16px kvůli Android Chrome / měřítku systému.
          */
+        .home-admin-cta {
+            max-width: 44rem;
+            margin: 0 0 1rem;
+            padding: 0.85rem 1rem 1rem;
+            border: 1px solid #c5d2e0;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #f0f6fc 0%, #e8eef8 100%);
+        }
+        .home-admin-cta__title {
+            margin: 0 0 0.35rem;
+            font-size: 1.05rem;
+            color: #0a1628;
+        }
+        .home-admin-cta__lede {
+            margin: 0 0 0.85rem;
+            font-size: 0.88rem;
+            color: #3a4654;
+            line-height: 1.42;
+        }
+        .home-admin-cta__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.55rem 0.65rem;
+            align-items: stretch;
+        }
+        @media (max-width: 26rem) {
+            .home-admin-cta__actions {
+                flex-direction: column;
+            }
+            .home-admin-cta__actions > a {
+                width: 100%;
+            }
+        }
         @media (max-width: 60rem) {
             .home-login-form {
                 max-width: 100%;
@@ -71,6 +104,18 @@
     <h1 {% if app.user %}class="home-title"{% endif %}>Optický sklad</h1>
 
     {% if app.user %}
+        {% if is_granted('ROLE_APP_ADMIN') %}
+            <section class="home-admin-cta" aria-label="Správa uživatelů a sledování">
+                <h2 class="home-admin-cta__title">Správa uživatelů a sledování</h2>
+                <p class="home-admin-cta__lede">
+                    Účty, úrovně oprávnění (VIEW / EDIT / správce katalogu / aplikační admin) a protokol požadavků (jaké stránky uživatel otevřel a jaké měl zápisy).
+                </p>
+                <div class="home-admin-cta__actions">
+                    <a class="warehouse-pill" href="{{ path('app_admin_users_index') }}">Uživatelé a&nbsp;role</a>
+                    <a class="warehouse-pill" href="{{ path('app_admin_audit_index') }}">Monitoring (HTTP&nbsp;log)</a>
+                </div>
+            </section>
+        {% endif %}
         <nav class="app-menu" aria-label="Hlavní nabídka">
             {% include '_app_menu_cz_main_links.html.twig' %}
         </nav>

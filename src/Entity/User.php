@@ -135,6 +135,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * Role přímo v DB ($roles JSON — bez automatického ROLE_USER).
+     *
+     * @return list<string>
+     */
+    public function getAssignedRoles(): array
+    {
+        return $this->roles;
+    }
+
+    /**
      * @param list<string> $roles
      */
     public function setRoles(array $roles): static
@@ -157,6 +167,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     public function isActive(): bool
+    {
+        return $this->isActive;
+    }
+
+    public function getIsActive(): bool
     {
         return $this->isActive;
     }

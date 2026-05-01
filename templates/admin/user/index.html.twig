@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+{% block title %}Správa uživatelů{% endblock %}
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+    <h1>Správa uživatelů</h1>
+    <aside style="max-width:50rem;margin:0 0 1rem;font-size:.9rem;color:#445;line-height:1.46">
+        <p style="margin:0 0 .5rem"><strong>Úrovně:</strong>
+            <strong>ROLE_SKLAD_VIEW</strong> jen čitelný sklad;
+            <strong>ROLE_SKLAD_EDIT</strong> zápis špulí, zápisy měření, příjem;
+            <strong>ROLE_SKLAD_ADMIN</strong> katalog typů kabelů (+ vše níže);
+            <strong>ROLE_APP_ADMIN</strong> tato sekce + protokol (hierarchii doplňuje <code>security.yaml</code>).
+        </p>
+        <p style="margin:0">V každém účtu se v databázi ukládá typicky jedna „hlavní“ skladová role; Symfony spočítá nižší role automaticky.</p>
+    </aside>
+    <p style="margin:0 0 1rem">
+        <a href="{{ path('app_admin_audit_index') }}">HTTP protokol (návštěvy)</a>
+    </p>
+    <div class="table-scroll table-scroll--wide">
+        <table>
+            <thead>
+                <tr>
+                    <th>Uživatelské jméno</th>
+                    <th>Jméno</th>
+                    <th>Aktivní</th>
+                    <th>Role v DB</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in users %}
+                <tr>
+                    <td><code>{{ u.userIdentifier }}</code></td>
+                    <td>{{ u.displayName }}</td>
+                    <td>{% if u.getIsActive() %}ano{% else %}ne{% endif %}</td>
+                    <td>{{ u.assignedRoles|join(', ') ?: '—' }}</td>
+                    <td><a href="{{ path('app_admin_users_edit', { id: u.id }) }}">Upravit</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">Žádní uživatelé.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}
