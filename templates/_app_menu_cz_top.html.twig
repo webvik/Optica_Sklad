@@ -1,8 +1,12 @@
 <div class="app-menu__top">
-    <a href="{{ path('app_home') }}">Domů</a>
+    <div class="app-menu__top-row app-menu__top-row--account">
+        <a href="{{ path('app_home') }}">Domů</a>
+        <a href="{{ path('app_logout') }}">Odhlásit se</a>
+    </div>
     {% if is_granted('ROLE_APP_ADMIN') %}
-        <a href="{{ path('app_admin_users_index') }}" style="margin-left: .75rem">Správa uživatelů</a>
-        <a href="{{ path('app_admin_audit_index') }}" style="margin-left: .65rem">Protokol</a>
+        <div class="app-menu__top-row app-menu__top-row--admin" aria-label="Správa aplikace">
+            <a class="warehouse-pill" href="{{ path('app_admin_users_index') }}">Správa uživatelů</a>
+            <a class="warehouse-pill" href="{{ path('app_admin_audit_index') }}">Protokol</a>
+        </div>
     {% endif %}
-    <a href="{{ path('app_logout') }}" style="margin-left: .75rem">Odhlásit se</a>
 </div>
