@@ -8,7 +8,9 @@
     <h1>Protokol stránek a požadavků</h1>
     <p style="max-width:48rem;font-size:.9rem;color:#444;line-height:1.45;margin-top:0">
         Zápisy vznikají po každé odpovědi aplikace. Ukládá se čas, uživatel, metoda HTTP, název Symfony route,
-        cesta (<code>path</code>), stavové kód, IP a začátek User-Agent — <strong>neukládají se těla POST</strong>.
+        cesta (<code>path</code>), stavové kód, IP a začátek User-Agent. Těla POST se ve výchozím stavu neukládají;
+        volitelně lze zapnout <code>AUDIT_LOG_FORM_FIELDS=1</code>: uloží se jen pole z formuláře (<code>$request->request</code>)
+        bez hesel/tokenů a <strong>nikoli u přihlášení</strong> (<code>app_home</code> POST).
         Rozsah řídí proměnná <code>AUDIT_HTTP_LOG_MODE</code> v <code>.env</code> /
         výchozí hodnota v <code>config/services.yaml</code>:
         <code>detailed</code> (= návštěvy <code>/sklad</code> + <code>/sprava</code> i zápisy kdekoliv v aplikaci),
@@ -28,6 +30,7 @@
                     <th>Route</th>
                     <th>Cesta</th>
                     <th>IP</th>
+                    <th>POST (redig.)</th>
                 </tr>
             </thead>
             <tbody>
@@ -41,9 +44,18 @@
                     <td>{{ e.routeName ?? '—' }}</td>
                     <td style="word-break:break-word;font-size:.85rem">{{ e.path }}</td>
                     <td>{{ e.ip ?? '—' }}</td>
+                    <td style="max-width:24rem;font-size:.8rem;vertical-align:top">
+                        {% if e.postPayloadRedacted %}
+                            <details>
+                                {% set _json_vis = constant('JSON_UNESCAPED_UNICODE') + constant('JSON_PRETTY_PRINT') %}
+                                <summary style="cursor:pointer">{{ e.postPayloadRedacted|json_encode(_json_vis)|length }} znaků</summary>
+                                <pre style="margin:.35rem 0 0;white-space:pre-wrap;word-break:break-word">{{ e.postPayloadRedacted|json_encode(_json_vis) }}</pre>
+                            </details>
+                        {% else %}—{% endif %}
+                    </td>
                 </tr>
             {% else %}
-                <tr><td colspan="8">Zatím nic — projdi sklad po přihlášení (režim není „off“).</td></tr>
+                <tr><td colspan="9">Zatím nic — projdi sklad po přihlášení (režim není „off“).</td></tr>
             {% endfor %}
             </tbody>
         </table>

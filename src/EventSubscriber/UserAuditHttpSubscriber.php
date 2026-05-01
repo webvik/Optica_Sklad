@@ -6,6 +6,7 @@ namespace App\EventSubscriber;
 
 use App\Entity\User;
 use App\Entity\UserAuditLog;
+use App\Service\Audit\FormPayloadRedactor;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -14,8 +15,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
 /**
- * Zapisuje HTTP aktivitu přihlášených uživatelů (bez těla dotazu / bez hesel).
- * Režim: parametr env AUDIT_HTTP_LOG_MODE (viz .env + config/services.yaml defaults).
+ * Zapisuje HTTP aktivitu přihlášených uživatelů. Volitelně ukládá redigovaná pole z $request->request
+ * při AUDIT_LOG_FORM_FIELDS=1 (nikoli u POST přihlášení na app_home).
  */
 final class UserAuditHttpSubscriber implements EventSubscriberInterface
 {
@@ -23,7 +24,9 @@ final class UserAuditHttpSubscriber implements EventSubscriberInterface
         private readonly TokenStorageInterface $tokenStorage,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly FormPayloadRedactor $formPayloadRedactor,
         private readonly string $auditHttpLogMode,
+        private readonly bool $auditLogFormFields,
     ) {
     }
 
@@ -74,6 +77,12 @@ final class UserAuditHttpSubscriber implements EventSubscriberInterface
                 $request->getClientIp(),
                 $agent,
             );
+            if ($this->auditLogFormFields) {
+                $payload = $this->formPayloadRedactor->redactFormParameters($request);
+                if (null !== $payload) {
+                    $row->setPostPayloadRedacted($payload);
+                }
+            }
             $this->em->persist($row);
             $this->em->flush();
         } catch (\Throwable $e) {

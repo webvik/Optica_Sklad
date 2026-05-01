@@ -51,6 +51,10 @@ class UserAuditLog
     #[ORM\Column(length: 512, nullable: true)]
     private ?string $userAgentFragment = null;
 
+    /** @var array<string, mixed>|null Redigované POST pole (bez hesel/tokenů); plní se jen pokud AUDIT_LOG_FORM_FIELDS=1. */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $postPayloadRedacted = null;
+
     public static function fromRequestOutcome(
         User $actingUser,
         string $method,
@@ -128,5 +132,17 @@ class UserAuditLog
     public function getUserAgentFragment(): ?string
     {
         return $this->userAgentFragment;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function getPostPayloadRedacted(): ?array
+    {
+        return $this->postPayloadRedacted;
+    }
+
+    /** @param array<string, mixed>|null $postPayloadRedacted */
+    public function setPostPayloadRedacted(?array $postPayloadRedacted): void
+    {
+        $this->postPayloadRedacted = $postPayloadRedacted;
     }
 }

@@ -9,6 +9,7 @@
 parameters:
     env(BETA_WHATSAPP_PHONE): ''
     env(AUDIT_HTTP_LOG_MODE): detailed
+    env(AUDIT_LOG_FORM_FIELDS): '0'
 
 services:
     # default configuration for services in *this* file
@@ -26,3 +27,4 @@ services:
     App\EventSubscriber\UserAuditHttpSubscriber:
         arguments:
             $auditHttpLogMode: '%env(string:AUDIT_HTTP_LOG_MODE)%'
+            $auditLogFormFields: '%env(bool:AUDIT_LOG_FORM_FIELDS)%'
