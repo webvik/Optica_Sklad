@@ -42,14 +42,55 @@
             justify-content: center;
             gap: 1rem;
             padding: 1rem;
+            box-sizing: border-box;
         }
         #work-scan-overlay[hidden] { display: none !important; }
-        #work-scan-video {
+        #work-scan-video-wrap {
+            flex-shrink: 0;
             max-width: min(100%, 640px);
+            box-sizing: border-box;
+        }
+        /* Režim záznamu: velké náhledové video jako dříve */
+        #work-scan-video-wrap:not(.work-scan-video-wrap--sare-strip) #work-scan-video {
+            display: block;
+            max-width: 100%;
             max-height: 50vh;
+            width: auto;
+            height: auto;
             background: #111;
             border-radius: 6px;
         }
+        /* Sken čísla saře: nízký pruh (≈ řádek štítku), rozpoznává se jen prostředek snímku */
+        .work-scan-overlay--sare-strip #work-scan-video-wrap.work-scan-video-wrap--sare-strip {
+            width: min(100%, 34rem);
+            height: clamp(5.75rem, 16vh, 8.75rem);
+            overflow: hidden;
+            border-radius: 8px;
+            border: 2px solid rgba(85, 220, 175, 0.9);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+            background: #111;
+            position: relative;
+        }
+        .work-scan-overlay--sare-strip #work-scan-video-wrap.work-scan-video-wrap--sare-strip::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-sizing: border-box;
+            border-radius: inherit;
+            z-index: 1;
+        }
+        .work-scan-overlay--sare-strip #work-scan-video-wrap.work-scan-video-wrap--sare-strip #work-scan-video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-height: none;
+            border-radius: 0;
+            object-fit: cover;
+            object-position: center center;
+        }
+
         .work-spool-table { width: 100%; }
         .work-spool-table tbody tr.work-spool-row { cursor: pointer; }
         .work-spool-table tbody tr.work-spool-row:hover { background: #f0f7ff; }
@@ -175,7 +216,7 @@
             <span class="work-search-field-row" style="width: 100%;">
                 <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="např. 450-1470">
                 <button type="submit" class="work-search-action-btn">Hledat</button>
-                <button type="button" id="work-scan-btn" class="work-search-action-btn work-scan-tl" data-work-scan-mode="sare" title="Sken kódu saře — výsledek do pole Číslo saře (kamera nebo čtečka)">Sken</button>
+                <button type="button" id="work-scan-btn" class="work-search-action-btn work-scan-tl" data-work-scan-mode="sare" title="Sken čísla saře: úzký pruh nad kódem → pole Číslo saře (upravte před Hledat)">Sken</button>
             </span>
         </p>
     </form>
@@ -264,7 +305,9 @@
 
     <div id="work-scan-overlay" hidden role="dialog" aria-label="Sken čárového kódu">
         <p id="work-scan-overlay-text" style="color:#fff;margin:0;text-align:center;max-width:34rem"></p>
-        <video id="work-scan-video" playsinline autoplay muted></video>
+        <div id="work-scan-video-wrap">
+            <video id="work-scan-video" playsinline autoplay muted></video>
+        </div>
         <button type="button" id="work-scan-cancel" style="padding:0.5rem 1.2rem;font-size:1rem">Zrušit</button>
     </div>
 
@@ -602,17 +645,25 @@
   var scanBtn = document.getElementById('work-scan-btn');
   var scanRecordBtn = document.getElementById('work-record-scan-btn');
   var scanOverlay = document.getElementById('work-scan-overlay');
+  var scanVideoWrap = document.getElementById('work-scan-video-wrap');
   var scanVideo = document.getElementById('work-scan-video');
   var scanCancel = document.getElementById('work-scan-cancel');
   var scanOverlayText = document.getElementById('work-scan-overlay-text');
   var scanRaf = null;
   var scanStream = null;
+  var scanCropCanvas = null;
   /** 'sare' = pole vyhledávání; 'record' = Běžný stav + Objekt / zakázka */
   var scanMode = 'sare';
+  function syncScanOverlayLayout() {
+    if (!scanOverlay || !scanVideoWrap) return;
+    var sare = scanMode === 'sare';
+    scanOverlay.classList.toggle('work-scan-overlay--sare-strip', sare);
+    scanVideoWrap.classList.toggle('work-scan-video-wrap--sare-strip', sare);
+  }
   function setScanOverlayCopy() {
     if (!scanOverlayText) return;
     if (scanMode === 'sare') {
-      scanOverlayText.textContent = 'Sken saře: po rozpoznání se vyplní pole Číslo saře a spustí hledání.';
+      scanOverlayText.textContent = 'Sken čísla saře: úzký pruh nad kódem. Po přečtení se doplní pole — zkontrolujte a teprve pak Hledat; doba pauzy spustí hledání samo.';
     } else {
       scanOverlayText.textContent = 'Sken do záznamu: samostatné číslo = metráž (m). Dva údaje: metráž;zakázka nebo oddělovač | nebo tabulátor (např. 7843;Z123).';
     }
@@ -624,7 +675,11 @@
       scanStream = null;
     }
     if (scanVideo) scanVideo.srcObject = null;
-    if (scanOverlay) scanOverlay.hidden = true;
+    if (scanOverlay) {
+      scanOverlay.hidden = true;
+      scanOverlay.classList.remove('work-scan-overlay--sare-strip');
+    }
+    if (scanVideoWrap) scanVideoWrap.classList.remove('work-scan-video-wrap--sare-strip');
   }
   function focusSareForHardwareScan() {
     if (qIn) {
@@ -648,7 +703,15 @@
     if (!val || !qIn) return;
     qIn.value = String(val).trim();
     syncReturnQ();
-    if (qIn.value.length) runFetch(qIn.value, true);
+    if (!qIn.value.length) return;
+    qIn.focus();
+    try { qIn.select(); } catch (eSel) {}
+    try {
+      qIn.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (eIn) {
+      onQueryChange();
+    }
+    if (hint) hint.textContent = 'Údaje z kamery zkontrolujte v poli Číslo saře — po opravě počkejte na hledání nebo stiskněte Hledat.';
   }
   /** Oddělovač tab, ; nebo | — první výskyt. Čisté číslo = metráž, jinak zakázka; dva segmenty dle pravidel. */
   function applyRecordScan(val) {
@@ -696,6 +759,7 @@
       if (!scanOverlay || !scanVideo) { focusRecordForHardwareScan(); return; }
     }
     setScanOverlayCopy();
+    syncScanOverlayLayout();
     scanOverlay.hidden = false;
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
       .then(function (stream) {
@@ -705,22 +769,52 @@
       })
       .then(function () {
         var detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
+        function getCropCanvasEl() {
+          if (!scanCropCanvas) scanCropCanvas = document.createElement('canvas');
+          return scanCropCanvas;
+        }
+        /** Středový horizontální pás kamery → méně falešných čtení z okolí; viz CSS pruh „sare“. */
+        var sareStripFrac = 0.26;
         function tick() {
           if (!scanVideo || scanStream === null) return;
           if (scanVideo.readyState < 2) {
             scanRaf = requestAnimationFrame(tick);
             return;
           }
-          detector.detect(scanVideo).then(function (codes) {
-            if (codes && codes.length && codes[0].rawValue) {
-              var v = String(codes[0].rawValue).trim();
-              if (v.length) {
-                onScanDecoded(v);
-                return;
+          function decodeFrom(src) {
+            detector.detect(src).then(function (codes) {
+              if (codes && codes.length && codes[0].rawValue) {
+                var val = String(codes[0].rawValue).trim();
+                if (val.length) {
+                  onScanDecoded(val);
+                  return;
+                }
               }
+              scanRaf = requestAnimationFrame(tick);
+            }).catch(function () { scanRaf = requestAnimationFrame(tick); });
+          }
+          if (scanMode === 'sare') {
+            var vw = scanVideo.videoWidth;
+            var vh = scanVideo.videoHeight;
+            if (vw < 2 || vh < 2) {
+              scanRaf = requestAnimationFrame(tick);
+              return;
             }
-            scanRaf = requestAnimationFrame(tick);
-          }).catch(function () { scanRaf = requestAnimationFrame(tick); });
+            var sh = Math.max(12, Math.round(vh * sareStripFrac));
+            var sy = Math.round((vh - sh) / 2);
+            var cw = Math.min(720, vw);
+            var ch = Math.max(12, Math.round(sh * (cw / vw)));
+            var canv = getCropCanvasEl();
+            if (canv.width !== cw || canv.height !== ch) {
+              canv.width = cw;
+              canv.height = ch;
+            }
+            var ctx = canv.getContext('2d');
+            ctx.drawImage(scanVideo, 0, sy, vw, sh, 0, 0, cw, ch);
+            decodeFrom(canv);
+          } else {
+            decodeFrom(scanVideo);
+          }
         }
         scanRaf = requestAnimationFrame(tick);
       })
