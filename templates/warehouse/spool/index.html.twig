@@ -671,6 +671,18 @@
    *  0: od začátku rovnou rozšířené lineární kódy (bez čekání v 1. fázi). */
   var WORK_SARE_SCAN_PHASE2_AFTER_MS = 900;
 
+  /**
+   * Dvě cesty pro „dva čárové kódy vedle sebe“ na štítku (evid. č. vs délka):
+   *
+   * Varianta A (AKTUÁLNÍ): heuristika — čistě číselná hodnota na 1–4 znaky považovat za délku (m) a pro sařu ignorovat.
+   *   Odpojit = chování jako dřív před touto heuristikou:
+   *     WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS = false;
+   *
+   * Varianta B (ZKUŠÍME POZDĚJI): stabilizace v čase — přijmout jen hodnotu, která stejná N× za sebou / po X ms bez přepnutí
+   *   (zatím NEIMPLEMENTOVÁNO; držet flag výše „false“, až doplníme logiku vedle decodeFrom/tick).
+   */
+  var WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS = true;
+
   var scanBtn = document.getElementById('work-scan-btn');
   var scanRecordBtn = document.getElementById('work-record-scan-btn');
   var scanOverlay = document.getElementById('work-scan-overlay');
@@ -744,9 +756,13 @@
     var s = String(raw == null ? '' : raw).trim();
     return /^\d{1,4}$/.test(s);
   }
-  /** Z výsledku BarcodeDetector vybere první řetězec, který není pravděpodobně jen délka (m). */
+  /** Když je WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS vypnuto, bere se jen první detekovaný řetězec. */
   function pickSareBarcodeFromDetections(codes) {
     if (!codes || !codes.length) return '';
+    if (!WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS) {
+      var r0 = codes[0].rawValue;
+      return (r0 != null && r0 !== '') ? String(r0).trim() : '';
+    }
     for (var i = 0; i < codes.length; i++) {
       var rv = codes[i].rawValue;
       if (rv == null || rv === '') continue;
