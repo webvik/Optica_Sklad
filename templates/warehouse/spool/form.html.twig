@@ -292,64 +292,132 @@
             cursor: not-allowed;
             pointer-events: none;
         }
-        #spool-cable-ocr-suggestions[hidden] {
+        #spool-cable-ocr-choice-modal[hidden] {
             display: none !important;
         }
-        #spool-cable-ocr-suggestions {
-            margin-top: 0.65rem;
-            width: min(100%, 28rem);
-            box-sizing: border-box;
+        #spool-cable-ocr-choice-modal:not([hidden]) {
+            display: flex;
         }
-        .spool-cable-ocr-sug-hints {
-            margin: 0 0 0.45rem;
-            color: rgba(255, 255, 255, 0.78);
-            font-size: 0.86rem;
+        #spool-cable-ocr-choice-modal {
+            box-sizing: border-box;
+            position: fixed;
+            inset: 0;
+            z-index: 10002;
+            padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .spool-cable-ocr-choice-modal__backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .spool-cable-ocr-choice-modal__card {
+            position: relative;
+            z-index: 1;
+            width: min(100%, 23rem);
+            max-height: min(88vh, 28rem);
+            overflow: auto;
+            margin: auto;
+            box-sizing: border-box;
+            padding: 1rem 1.05rem 1.1rem;
+            border-radius: 10px;
+            background: linear-gradient(170deg, #232b38 0%, #1a1f28 100%);
+            color: #eaf0f8;
+            box-shadow:
+                0 10px 40px rgba(0, 0, 0, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(120, 180, 255, 0.22);
+        }
+        .spool-cable-ocr-choice-modal__heading {
+            margin: 0 0 0.5rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.28;
+            color: #fff;
+        }
+        .spool-cable-ocr-choice-modal__lead {
+            margin: 0 0 0.65rem;
+            font-size: 0.92rem;
+            line-height: 1.42;
+            text-align: center;
+            color: rgba(236, 244, 255, 0.88);
+        }
+        .spool-cable-ocr-choice-modal__best {
+            margin: 0 0 0.5rem;
+            padding: 0.55rem 0.65rem;
+            border-radius: 8px;
+            border: 1px solid rgba(130, 200, 255, 0.35);
+            background: rgba(12, 16, 24, 0.65);
+            font-size: 0.94rem;
+            line-height: 1.37;
+            text-align: center;
+            word-break: break-word;
+        }
+        .spool-cable-ocr-choice-modal__best-strong {
+            display: block;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.2rem;
+        }
+        .spool-cable-ocr-choice-modal__meta {
+            margin: 0 0 0.85rem;
+            font-size: 0.82rem;
             line-height: 1.38;
             text-align: center;
+            color: rgba(200, 215, 235, 0.78);
+            min-height: 0;
         }
-        .spool-cable-ocr-sug-list {
+        .spool-cable-ocr-choice-modal__actions {
             display: flex;
             flex-direction: column;
-            gap: 0.45rem;
+            gap: 0.5rem;
         }
-        .spool-cable-ocr-sug-pick {
+        .spool-cable-ocr-choice-modal__btn {
             width: 100%;
             box-sizing: border-box;
-            min-height: 2.5rem;
-            padding: 0.45rem 0.65rem;
-            border-radius: 6px;
-            border: 1px solid rgba(160, 210, 255, 0.45);
-            background: rgba(28, 36, 48, 0.98);
-            color: #eaf2fb;
-            font: inherit;
-            font-size: 0.94rem;
-            text-align: left;
-            cursor: pointer;
-            line-height: 1.3;
-        }
-        .spool-cable-ocr-sug-pick:hover {
-            border-color: rgba(200, 235, 255, 0.75);
-            background: rgba(38, 50, 66, 0.98);
-        }
-        .spool-cable-ocr-new-type {
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-            margin-top: 0.55rem;
-            min-height: 2.5rem;
+            min-height: 2.55rem;
             padding: 0.45rem 0.85rem;
-            border-radius: 6px;
-            border: 1px dashed rgba(255, 215, 150, 0.55);
-            background: rgba(55, 40, 22, 0.55);
-            color: rgba(255, 245, 220, 1);
+            border-radius: 8px;
             font: inherit;
+            font-size: 0.96rem;
             font-weight: 600;
-            font-size: 0.95rem;
             cursor: pointer;
+            border: 1px solid rgba(140, 200, 255, 0.45);
+            background: rgba(35, 50, 72, 0.95);
+            color: #f0f6ff;
         }
-        .spool-cable-ocr-new-type:hover {
-            background: rgba(70, 52, 28, 0.72);
-            border-color: rgba(255, 230, 180, 0.75);
+        .spool-cable-ocr-choice-modal__btn:hover:not(:disabled) {
+            border-color: rgba(180, 228, 255, 0.75);
+            background: rgba(45, 60, 86, 0.98);
+        }
+        .spool-cable-ocr-choice-modal__btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .spool-cable-ocr-choice-modal__btn--primary {
+            border-color: rgba(120, 200, 140, 0.85);
+            background: rgba(34, 95, 58, 0.95);
+            color: #fff;
+        }
+        .spool-cable-ocr-choice-modal__btn--primary:hover:not(:disabled) {
+            border-color: rgba(150, 235, 170, 0.95);
+            background: rgba(42, 115, 70, 0.98);
+        }
+        .spool-cable-ocr-choice-modal__btn--ghost {
+            font-weight: 500;
+            border-style: dashed;
+            border-color: rgba(255, 255, 255, 0.25);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.82);
+        }
+        .spool-cable-ocr-choice-modal__btn--ghost:hover:not(:disabled) {
+            border-color: rgba(255, 255, 255, 0.42);
+            background: rgba(255, 255, 255, 0.06);
         }
         #spool-cable-ocr-video {
             display: block;
@@ -572,13 +640,25 @@
             <div id="spool-cable-ocr-match-row" role="presentation">
                 <button type="button" id="spool-cable-ocr-match">Porovnat s katalogem</button>
             </div>
-            <div id="spool-cable-ocr-suggestions" hidden>
-                <p id="spool-cable-ocr-suggestions-sub" class="spool-cable-ocr-sug-hints"></p>
-                <div id="spool-cable-ocr-suggestions-list" class="spool-cable-ocr-sug-list"></div>
-                <button type="button" id="spool-cable-ocr-new-type-stash" class="spool-cable-ocr-new-type">Žádný z těchto — nový typ (přenést text)</button>
-            </div>
         </div>
         <button type="button" id="spool-cable-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
+        <div id="spool-cable-ocr-choice-modal" class="spool-cable-ocr-choice-modal-root" hidden>
+            <div class="spool-cable-ocr-choice-modal__backdrop" tabindex="-1" aria-hidden="true"></div>
+            <div class="spool-cable-ocr-choice-modal__card" role="dialog" aria-modal="true" aria-labelledby="spool-cable-ocr-choice-heading">
+                <p class="spool-cable-ocr-choice-modal__heading" id="spool-cable-ocr-choice-heading">Výsledek porovnání</p>
+                <p id="spool-cable-ocr-choice-lead" class="spool-cable-ocr-choice-modal__lead"></p>
+                <div id="spool-cable-ocr-choice-best-panel" class="spool-cable-ocr-choice-modal__best" hidden>
+                    <span class="spool-cable-ocr-choice-modal__best-strong" id="spool-cable-ocr-choice-best-line"></span>
+                    <span id="spool-cable-ocr-choice-best-sub"></span>
+                </div>
+                <p id="spool-cable-ocr-choice-meta" class="spool-cable-ocr-choice-modal__meta"></p>
+                <div class="spool-cable-ocr-choice-modal__actions">
+                    <button type="button" id="spool-cable-ocr-choice-pick" class="spool-cable-ocr-choice-modal__btn spool-cable-ocr-choice-modal__btn--primary">Vybrat tento typ</button>
+                    <button type="button" id="spool-cable-ocr-choice-new" class="spool-cable-ocr-choice-modal__btn">Nový typ kabelu (přenos textu)</button>
+                    <button type="button" id="spool-cable-ocr-choice-back" class="spool-cable-ocr-choice-modal__btn spool-cable-ocr-choice-modal__btn--ghost">Zpět na úpravu štítku</button>
+                </div>
+            </div>
+        </div>
     </div>
     <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
         <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
@@ -851,10 +931,20 @@
   var cableTextDraft = document.getElementById('spool-cable-ocr-text-draft');
   var cableMatchBtn = document.getElementById('spool-cable-ocr-match');
   var ocrTextHint = document.getElementById('spool-cable-ocr-overlay-text');
-  var ocrSugPanel = document.getElementById('spool-cable-ocr-suggestions');
-  var ocrSugSub = document.getElementById('spool-cable-ocr-suggestions-sub');
-  var ocrSugList = document.getElementById('spool-cable-ocr-suggestions-list');
-  var ocrNewTypeStashBtn = document.getElementById('spool-cable-ocr-new-type-stash');
+  var choiceModal = document.getElementById('spool-cable-ocr-choice-modal');
+  var choiceBackdrop = choiceModal
+    ? choiceModal.querySelector('.spool-cable-ocr-choice-modal__backdrop')
+    : null;
+  var choiceLead = document.getElementById('spool-cable-ocr-choice-lead');
+  var choiceBestPanel = document.getElementById('spool-cable-ocr-choice-best-panel');
+  var choiceBestLine = document.getElementById('spool-cable-ocr-choice-best-line');
+  var choiceBestSub = document.getElementById('spool-cable-ocr-choice-best-sub');
+  var choiceMeta = document.getElementById('spool-cable-ocr-choice-meta');
+  var choicePickBtn = document.getElementById('spool-cable-ocr-choice-pick');
+  var choiceNewBtn = document.getElementById('spool-cable-ocr-choice-new');
+  var choiceBackBtn = document.getElementById('spool-cable-ocr-choice-back');
+  var pendingPickCableType = null;
+
   var cableSelOcr = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
   var famSelOcr = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
   var psIn = document.getElementById({{ form.initialVisibleM.vars.id|json_encode|raw }});
@@ -953,11 +1043,114 @@
       .replace(/\s+/g, ' ');
   }
 
-  function clearCableOcrSuggestions() {
-    if (!ocrSugPanel) return;
-    ocrSugPanel.setAttribute('hidden', '');
-    if (ocrSugList) ocrSugList.innerHTML = '';
-    if (ocrSugSub) ocrSugSub.textContent = '';
+  function hideCableChoiceModal() {
+    if (!choiceModal) return;
+    choiceModal.setAttribute('hidden', '');
+    choiceModal.setAttribute('aria-hidden', 'true');
+    pendingPickCableType = null;
+    if (choiceBestPanel) choiceBestPanel.setAttribute('hidden', '');
+    if (choiceBestLine) choiceBestLine.textContent = '';
+    if (choiceBestSub) choiceBestSub.textContent = '';
+    if (choiceMeta) choiceMeta.textContent = '';
+    if (choiceLead) choiceLead.textContent = '';
+    if (choicePickBtn) choicePickBtn.disabled = true;
+  }
+
+  /** @returns {object|null} zápis typu přes HTTP (má id, code, name …) */
+  function pickBestCableAfterMatch(j) {
+    var auto = !!(j && j.matched && j.cableType && j.cableType.id != null);
+    if (auto) return j.cableType;
+    if (j && j.candidates && j.candidates.length) {
+      var r0 = j.candidates[0];
+      var ct = r0 && r0.cableType ? r0.cableType : null;
+      if (ct && ct.id != null) return ct;
+    }
+
+    return null;
+  }
+
+  function pickBestScoreAfterMatch(j, bestCt) {
+    if (!bestCt || bestCt.id == null) return null;
+    var cid = Number(bestCt.id);
+    var auto = !!(
+      j &&
+      j.matched &&
+      j.cableType &&
+      j.cableType.id != null &&
+      Number(j.cableType.id) === cid
+    );
+    if (auto && j.score != null) return j.score;
+    if (j && j.candidates && j.candidates.length) {
+      var r0 = j.candidates[0];
+      var ct = r0 && r0.cableType ? r0.cableType : null;
+      if (ct && ct.id != null && Number(ct.id) === cid && r0.score != null) return r0.score;
+    }
+
+    return null;
+  }
+
+  /** Jedno vstupní okno po Porovnat — doporučený jeden typ nebo jen nový / zpět */
+  function showCableChoiceModal(j) {
+    if (!choiceModal || !choiceLead) return;
+
+    pendingPickCableType = pickBestCableAfterMatch(j);
+    var sch = !!(j && j.matched && j.cableType);
+    var hasBest = !!(pendingPickCableType && pendingPickCableType.id != null);
+    var sc = pickBestScoreAfterMatch(j, pendingPickCableType);
+
+    if (sch && hasBest) {
+      choiceLead.textContent =
+        'Nejspíše odpovídá text štítku níže uvedenému typu v katalogu — zkontrolujte a potvrďte, nebo zadejte nový typ.';
+    } else if (hasBest) {
+      choiceLead.textContent =
+        'Shoda nemusí být správná — jako nejbližší nabízíme tento typ. Ověřte nebo použijte nový typ.';
+    } else {
+      choiceLead.textContent =
+        'V katalogu není rozumně blízký typ — upravte text a zkuste znovu, nebo pokračujte jako novým typem.';
+    }
+
+    var hintFmt = formatOcrHintLine(j && j.hints);
+    var metaParts = [];
+    if (hintFmt) metaParts.push(hintFmt.replace(/\.$/, ''));
+    if (hasBest && sc != null) metaParts.push('blízkost ' + String(sc));
+    if (choiceMeta)
+      choiceMeta.textContent =
+        metaParts.length > 0
+          ? metaParts.join(' — ') + '.'
+          : '';
+
+    if (choiceBestPanel && choiceBestLine) {
+      if (hasBest) {
+        choiceBestLine.textContent =
+          String(pendingPickCableType.code || '') +
+          ' — ' +
+          String(pendingPickCableType.name || '');
+        if (choiceBestSub) {
+          var sp = [];
+          if (pendingPickCableType.fiberCount)
+            sp.push(String(pendingPickCableType.fiberCount) + ' vl.');
+          if (pendingPickCableType.diameterMm)
+            sp.push('\u00d8 ' + String(pendingPickCableType.diameterMm) + ' mm');
+          choiceBestSub.textContent = sp.join(' · ');
+        }
+        choiceBestPanel.removeAttribute('hidden');
+      } else {
+        choiceBestPanel.setAttribute('hidden', '');
+        if (choiceBestSub) choiceBestSub.textContent = '';
+      }
+    }
+
+    if (choicePickBtn) choicePickBtn.disabled = !hasBest;
+
+    choiceModal.removeAttribute('hidden');
+    choiceModal.setAttribute('aria-hidden', 'false');
+
+    window.setTimeout(function () {
+      try {
+        if (hasBest && choicePickBtn) choicePickBtn.focus();
+        else if (choiceNewBtn) choiceNewBtn.focus();
+      } catch (eFoc) {}
+    }, 30);
   }
 
   function formatOcrHintLine(h) {
@@ -971,6 +1164,7 @@
   }
 
   function stashOcrDraftAndOpenNewType(draftText) {
+    hideCableChoiceModal();
     if (!cfg.newCableUrl || !cfg.stashUrl || !cfg.csrfStash) {
       window.alert('Formul\u00e1\u0159 nov\u00e9ho typu nen\u00ed na str\u00e1nce nakonfigurov\u00e1n.');
       return;
@@ -1006,56 +1200,6 @@
       });
   }
 
-  function renderOcrMatchFollowup(j) {
-    if (!ocrSugPanel || !ocrSugList || !ocrNewTypeStashBtn) return;
-    clearCableOcrSuggestions();
-
-    if (j && j.matched) return;
-
-    var cand = j && j.candidates ? j.candidates : [];
-    var hintLine = formatOcrHintLine(j && j.hints);
-    var hasCand = !!(cand && cand.length);
-
-    if (ocrSugSub) {
-      if (hasCand && hintLine) {
-        ocrSugSub.textContent =
-          hintLine + ' Vyberte typ níže nebo otevřete nový typ (přenos textu).';
-      } else if (hasCand) {
-        ocrSugSub.textContent =
-          'Vyberte nejlepší typ ze seznamu nebo použijte tlačítko nového typu.';
-      } else if (hintLine) {
-        ocrSugSub.textContent =
-          hintLine + ' Žádná dostatečná shoda — upravte text a klepněte znovu, nebo nový typ níže.';
-      } else {
-        ocrSugSub.textContent =
-          'Žádné blízké typy — upravte text a porovnejte znovu, nebo použijte nový typ níže.';
-      }
-    }
-
-    ocrNewTypeStashBtn.hidden = false;
-    ocrSugPanel.removeAttribute('hidden');
-
-    for (var ci = 0; ci < cand.length; ci++) {
-      var row = cand[ci];
-      var ct = row && row.cableType ? row.cableType : null;
-      if (!ct || ct.id == null) continue;
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'spool-cable-ocr-sug-pick';
-      var score = row.score != null ? String(row.score) : '?';
-      b.textContent =
-        score + ' — ' + String(ct.code || '') + ' — ' + String(ct.name || '');
-      (function pickCt(picked) {
-        b.addEventListener('click', function () {
-          stopCableOcr();
-          terminateTessLocal();
-          applyCableFromMatch(picked);
-        });
-      })(ct);
-      ocrSugList.appendChild(b);
-    }
-  }
-
   function terminateTessLocal() {
     tessWorkerPromise = null;
     var w = tessWorker;
@@ -1068,7 +1212,7 @@
     ocrBusy = false;
     setCableCaptureUiBusy(false);
     setCableMatchUiBusy(false);
-    clearCableOcrSuggestions();
+    hideCableChoiceModal();
     setCableOcrEditorVisible(false);
     if (scanRaf != null) {
       try { window.cancelAnimationFrame(scanRaf); } catch (eRaf) {}
@@ -1254,20 +1398,13 @@
     try {
       cableSelOcr.dispatchEvent(new Event('input', { bubbles: true }));
     } catch (eCi) {}
-    window.alert(
-      'Vybrán typ z katalogu: ' +
-        String(ct.code || '') +
-        ' — ' +
-        String(ct.name || '') +
-        '. Zkontrolujte řádek „Typ kabelu“ / vlákna / průměr a uložte.'
-    );
     return true;
   }
 
   function submitCableDraftForMatch() {
     if (!cableReady || !cableTextDraft) return;
     if (ocrBusy || cableMatchBusy) return;
-    clearCableOcrSuggestions();
+    hideCableChoiceModal();
     var text = normalizeDraftText(cableTextDraft.value);
     if (!text.length) {
       window.alert(
@@ -1276,10 +1413,13 @@
       return;
     }
     if (text.length < MIN_CHARS) {
-      if (!window.confirm(
-        'Text má méně než ' + MIN_CHARS +
-          ' znaků — výsledek párování může být nespolehlivý. Pokračovat v porovnání?'
-      )) {
+      if (
+        !window.confirm(
+          'Text má méně než ' +
+            MIN_CHARS +
+            ' znaků — výsledek párování může být nespolehlivý. Pokračovat v porovnání?'
+        )
+      ) {
         return;
       }
     }
@@ -1290,36 +1430,11 @@
       function (j) {
         setCableMatchUiBusy(false);
         if (cableCaptureBtn && !overlay.hidden && scanStream) cableCaptureBtn.disabled = false;
-        if (j.matched && j.cableType) {
-          clearCableOcrSuggestions();
-          stopCableOcr();
-          terminateTessLocal();
-          applyCableFromMatch(j.cableType);
-          return;
-        }
-        renderOcrMatchFollowup(j);
-        var scoreStr = String(j.score != null ? j.score : '—');
         if (ocrTextHint) {
-          if (j && j.candidates && j.candidates.length) {
-            ocrTextHint.textContent =
-              'Žádná jist\u00e1 automatick\u00e1 shoda (nejlep\u0161\u00ed sk\u00f3re ' +
-              scoreStr +
-              '). Vyberte typ ze seznamu nebo zkuste opravit text a porovnat znovu.';
-          } else {
-            ocrTextHint.textContent =
-              '\u017d\u00e1dn\u00e9 bl\u00edzk\u00e9 typy (\u017e\u00e1dn\u00e9 kandid\u00e1ty). Sk\u00f3re ' +
-              scoreStr +
-              '. Upravte text nebo klepn\u011bte nov\u00fd typ.';
-          }
+          ocrTextHint.textContent =
+            'Vyberte v dialogu: typ z katalogu, nový typ, nebo zpět na úpravu štítku.';
         }
-        var hasCand = !!(j && j.candidates && j.candidates.length);
-        if (!hasCand && !(j && j.hints && Object.keys(j.hints).length)) {
-          window.alert(
-            'V katalogu nejsou kandid\u00e1ti (nejlep\u0161\u00ed sk\u00f3re \u201e' +
-              scoreStr +
-              '\u201c). Text z\u016fst\u00e1v\u00e1 k \xfaprav\u011b.'
-          );
-        }
+        showCableChoiceModal(j);
       },
       function () {
         setCableMatchUiBusy(false);
@@ -1350,7 +1465,7 @@
         window.alert('Konfigurace OCR typu kabelu chybí.');
         return;
       }
-      clearCableOcrSuggestions();
+      hideCableChoiceModal();
       setCableOcrEditorVisible(true);
       setCableMatchUiBusy(false);
       if (cableTextDraft) cableTextDraft.value = '';
@@ -1382,11 +1497,32 @@
       });
   }
 
+  function dismissChoiceStayOnDraft() {
+    hideCableChoiceModal();
+    applyHintCable();
+  }
+
   if (cableMatchBtn) {
     cableMatchBtn.addEventListener('click', submitCableDraftForMatch);
   }
-  if (ocrNewTypeStashBtn) {
-    ocrNewTypeStashBtn.addEventListener('click', function () {
+  if (choiceBackdrop) {
+    choiceBackdrop.addEventListener('click', dismissChoiceStayOnDraft);
+  }
+  if (choiceBackBtn) {
+    choiceBackBtn.addEventListener('click', dismissChoiceStayOnDraft);
+  }
+  if (choicePickBtn) {
+    choicePickBtn.addEventListener('click', function () {
+      var ct = pendingPickCableType;
+      if (!ct || ct.id == null) return;
+      hideCableChoiceModal();
+      stopCableOcr();
+      terminateTessLocal();
+      applyCableFromMatch(ct);
+    });
+  }
+  if (choiceNewBtn) {
+    choiceNewBtn.addEventListener('click', function () {
       var draft = normalizeDraftText(cableTextDraft ? cableTextDraft.value : '');
       if (!draft.length) {
         window.alert(
@@ -1421,11 +1557,14 @@
     });
   }
   document.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Escape' && overlay && !overlay.hidden) {
-      ev.preventDefault();
-      stopCableOcr();
-      terminateTessLocal();
+    if (ev.key !== 'Escape' || !overlay || overlay.hidden) return;
+    ev.preventDefault();
+    if (choiceModal && choiceModal.hidden === false) {
+      dismissChoiceStayOnDraft();
+      return;
     }
+    stopCableOcr();
+    terminateTessLocal();
   });
 })();
 (function () {
