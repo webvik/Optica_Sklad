@@ -762,7 +762,7 @@
     if (scanMode === 'sare') {
       var tierNote = '';
       if (sareOverlayReadMode === 'number') {
-        tierNote = ' Režim číslo: ITF/EAN/UPC/Codabar — vhodné pro čistě číselný kód (bez přeskakování krátké délky).';
+        tierNote = ' Režim Číslo: stejné typy čárovek jako plná fáze (včetně Code128); preferuje krátké číslice; bez přeskakování 1–4 znaků.';
       } else if (Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) && WORK_SARE_SCAN_PHASE2_AFTER_MS === 0) {
         tierNote = ' Používají se hned všechny čárové typy výchozí sady (bez QR/DM).';
       } else if (Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) && WORK_SARE_SCAN_PHASE2_AFTER_MS > 0 && WORK_SARE_SCAN_PHASE2_AFTER_MS < 1e12) {
@@ -816,17 +816,33 @@
     var s = String(raw == null ? '' : raw).trim();
     return /^\d{1,4}$/.test(s);
   }
-  /** Když je WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS vypnuto, bere se jen první detekovaný řetězec. V režimu „číslo“ se přeskakování nepoužívá. */
+  /** Číslo: stejné dekódování jako čárový kód, jen výběr při více řádcích najednou + bez „přeskoku“ délky. */
   function pickSareBarcodeFromDetections(codes) {
     if (!codes || !codes.length) return '';
     if (sareOverlayReadMode === 'number') {
-      for (var n = 0; n < codes.length; n++) {
-        var rN = codes[n].rawValue;
-        if (rN != null && rN !== '') {
-          var vN = String(rN).trim();
-          if (vN.length) return vN;
-        }
+      var i;
+      var anyDigit = '';
+      var anyOther = '';
+      for (i = 0; i < codes.length; i++) {
+        var rN = codes[i].rawValue;
+        if (rN == null || rN === '') continue;
+        var vN = String(rN).trim();
+        if (!vN.length) continue;
+        if (/^\d{1,4}$/.test(vN)) return vN;
       }
+      for (i = 0; i < codes.length; i++) {
+        var r2 = codes[i].rawValue;
+        if (r2 == null || r2 === '') continue;
+        var v2 = String(r2).trim();
+        if (!v2.length) continue;
+        if (/^\d+$/.test(v2)) {
+          anyDigit = v2;
+          break;
+        }
+        if (!anyOther.length) anyOther = v2;
+      }
+      if (anyDigit.length) return anyDigit;
+      if (anyOther.length) return anyOther;
       return '';
     }
     if (!WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS) {
@@ -919,16 +935,39 @@
         function makeRecordDetector() {
           return new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
         }
+        /** Chrome může vyhodit výjimku u neznámého názvu formátu — sestupně zúžit. */
+        function trySareLinearDetector(formats) {
+          var f = formats.slice();
+          try {
+            return new window.BarcodeDetector({ formats: f });
+          } catch (e1) {
+            var core = ['code_128', 'code_39', 'code_93', 'itf', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
+            var slim = f.filter(function (x) { return core.indexOf(x) >= 0; });
+            try {
+              if (slim.length) return new window.BarcodeDetector({ formats: slim });
+            } catch (e2) { /* dál */ }
+            try {
+              return new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'itf'] });
+            } catch (e3) {
+              return new window.BarcodeDetector();
+            }
+          }
+        }
         /** QR/Data Matrix u saře ne — jen čárové „textové“ řádkové kódy + eskalace. */
         function makeSareBarcodeDetector(wideTier) {
           var narrowLin = ['code_128', 'code_39', 'code_93', 'itf'];
           var extraLin = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
           var fmts = wideTier ? narrowLin.concat(extraLin) : narrowLin.slice();
-          return new window.BarcodeDetector({ formats: fmts });
+          return trySareLinearDetector(fmts);
         }
-        /** Režim „Číslo“: čárové kódy tíhnoucí k číslům na štítku (bez přeskakování 1–4 znaků). */
+        /**
+         * Režim „Číslo“: na štítku je délka často v Code128 (čisté číslice) — musí být ve stejné sadě jako „čárový kód“.
+         * Rozdíl je jen ve výběru z více detekcí (preferovat krátké číslice) a bez přeskakování 1–4 znaků.
+         */
         function makeSareNumberDetector() {
-          return new window.BarcodeDetector({ formats: ['itf', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'] });
+          var narrowLin = ['code_128', 'code_39', 'code_93', 'itf'];
+          var extraLin = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
+          return trySareLinearDetector(narrowLin.concat(extraLin));
         }
         var sarePhase2Immediate = WORK_SARE_SCAN_PHASE2_AFTER_MS <= 0;
         var sareScanOpenedAtMs = scanMode === 'sare' ? performance.now() : 0;
