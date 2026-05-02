@@ -14,11 +14,16 @@ final class CableTypeOcrMatcher
 {
     private const ACTIVE_ONLY = true;
 
-    /** Nejlepší skóre musí překročit tento práh */
+    /** Nejlepší skóre musí překročit tento práh (autom. výběr) */
     private const MIN_ACCEPT_SCORE = 62.0;
 
     /** Rozdíl oproti druhému kandidátovi */
     private const MIN_MARGIN = 3.5;
+
+    /** Nejhorší score v seznamu kandidátů vráceného do UI — filtr nesmyslů */
+    private const MIN_SHOW_CANDIDATE_SCORE = 18.0;
+
+    private const OCR_MAX_PREVIEW = 12;
 
     public function __construct(
         private readonly CableTypeRepository $cableTypes,
@@ -31,12 +36,15 @@ final class CableTypeOcrMatcher
      *   score: float,
      *   margin: float,
      *   cableType: ?CableType,
-     *   normalizedQuery: string
+     *   normalizedQuery: string,
+     *   hints: array<string, int|string|null>,
+     *   candidates: list<array{cableType: CableType, score: float}>
      * }
      */
-    public function matchBest(string $raw): array
+    public function matchWithCandidates(string $raw, ?int $maxCandidates = null): array
     {
-        $raw = \trim($raw);
+        $limit = min(20, max(1, $maxCandidates ?? self::OCR_MAX_PREVIEW));
+        $raw = trim($raw);
         if ('' === $raw || \strlen($raw) > 65535) {
             return [
                 'matched' => false,
@@ -44,6 +52,8 @@ final class CableTypeOcrMatcher
                 'margin' => 0.0,
                 'cableType' => null,
                 'normalizedQuery' => '',
+                'hints' => [],
+                'candidates' => [],
             ];
         }
 
@@ -55,39 +65,78 @@ final class CableTypeOcrMatcher
                 'margin' => 0.0,
                 'cableType' => null,
                 'normalizedQuery' => $qNorm,
+                'hints' => [],
+                'candidates' => [],
             ];
         }
 
         $qCompact = $this->alnumLower($raw);
+        $hints = $this->extractStructuralHintsFromLabel($raw);
         /** @var list<CableType> $list */
         $list = $this->cableTypes->findAllOrderedForCableTypePicker(self::ACTIVE_ONLY);
+
+        $ranked = [];
+        foreach ($list as $c) {
+            $base = $this->scoreCableType($c, $qNorm, $qCompact);
+            $bonus = $this->heuristicStructuralBonus($c, $hints);
+            $score = min(99.98, max(0.0, $base + $bonus));
+            $ranked[] = ['cableType' => $c, 'score' => $score];
+        }
+
+        \usort(
+            $ranked,
+            static fn (array $a, array $b): int => $b['score'] <=> $a['score']
+        );
 
         $bestScore = -1.0;
         $bestType = null;
         $secondBest = -1.0;
+        if ([] !== $ranked) {
+            $bestScore = $ranked[0]['score'];
+            $bestType = $ranked[0]['cableType'];
+            $secondBest = \count($ranked) >= 2 ? $ranked[1]['score'] : -1.0;
+        }
+        $margin = $bestScore - ((-1.0 === $secondBest) ? 0.0 : $secondBest);
 
-        foreach ($list as $c) {
-            $s = $this->scoreCableType($c, $qNorm, $qCompact);
-            if ($s > $bestScore) {
-                $secondBest = $bestScore;
-                $bestScore = $s;
-                $bestType = $c;
-            } elseif ($s > $secondBest) {
-                $secondBest = $s;
+        $candidates = [];
+        foreach ($ranked as $row) {
+            if ($row['score'] < self::MIN_SHOW_CANDIDATE_SCORE) {
+                continue;
+            }
+            $candidates[] = ['cableType' => $row['cableType'], 'score' => $row['score']];
+            if (\count($candidates) >= $limit) {
+                break;
             }
         }
-
-        $secondForMargin = (-1.0 === $secondBest) ? 0.0 : $secondBest;
-        $margin = $bestScore - $secondForMargin;
 
         return [
             'matched' => $bestType instanceof CableType
                 && $bestScore >= self::MIN_ACCEPT_SCORE
                 && $margin >= self::MIN_MARGIN,
-            'score' => \max(0.0, $bestScore),
+            'score' => max(0.0, $bestScore),
             'margin' => $margin,
             'cableType' => ($bestScore >= self::MIN_ACCEPT_SCORE && $margin >= self::MIN_MARGIN) ? $bestType : null,
             'normalizedQuery' => $qNorm,
+            'hints' => $this->hintsToApiPayload($hints),
+            'candidates' => $candidates,
+        ];
+    }
+
+    /**
+     * Zpětná kompatibilita; deleguje na matchWithCandidates (bez použití kandidátů navíc).
+     *
+     * @return array<string, mixed>
+     */
+    public function matchBest(string $raw): array
+    {
+        $r = $this->matchWithCandidates($raw, 5);
+
+        return [
+            'matched' => $r['matched'],
+            'score' => $r['score'],
+            'margin' => $r['margin'],
+            'cableType' => $r['cableType'],
+            'normalizedQuery' => $r['normalizedQuery'],
         ];
     }
 
@@ -230,6 +279,159 @@ final class CableTypeOcrMatcher
     }
 
     /**
+     * Extrakce typických bloků štítku – NE9 (vlákna), UNIT∅ mm, blown, Z‑kód.
+     *
+     * @return array{
+     *   fiberCount?: int,
+     *   fiberEBlockTail?: int,
+     *   diameterMm?: float,
+     *   diameterRaw?: string,
+     *   constructionCode?: string,
+     *   familyGuess?: string
+     * }
+     */
+    private function extractStructuralHintsFromLabel(string $raw): array
+    {
+        $text = \trim(\str_replace(["\r\n", "\r"], "\n", $raw));
+        if ('' === $text) {
+            return [];
+        }
+
+        $hints = [];
+
+        if (1 === \preg_match('/\b(\d{1,4})\s*[Ee]\s*(\d{1,4})\b/u', $text, $me)) {
+            $f = (int) $me[1];
+            $tail = (int) $me[2];
+            if ($f > 0 && $f < 2000) {
+                $hints['fiberCount'] = $f;
+                $hints['fiberEBlockTail'] = $tail;
+            }
+        }
+
+        if (1 === \preg_match('/\bUNIT\b[^\d\r\n]{0,16}?([0-9]{1,2})\s*[.,]\s*([0-9])\b/u', $text, $mu)) {
+            $dStr = $mu[1].'.'.$mu[2];
+            if (\is_numeric($dStr)) {
+                $d = (float) $dStr;
+                if ($d > 0.0 && $d < 100.0) {
+                    $hints['diameterMm'] = $d;
+                    $hints['diameterRaw'] = $dStr;
+                }
+            }
+        }
+
+        if (1 === \preg_match('/\b(Z\d{3,}[A-Za-z]?)\\b/u', $text, $mz)) {
+            $hints['constructionCode'] = \mb_substr((string) $mz[1], 0, 31);
+        }
+
+        if (1 === \preg_match('/\b(?:BLOW[NŇ]?|BLWN)\\b/ui', $text)) {
+            $hints['familyGuess'] = 'blown';
+        } else {
+            foreach (['mlt', 'drop', 'fletka', 'blown'] as $code) {
+                if (1 === \preg_match('/\b'.\preg_quote($code, '/').'\\b/ui', $text)) {
+                    $hints['familyGuess'] = $code;
+
+                    break;
+                }
+            }
+        }
+
+        return $hints;
+    }
+
+    /**
+     * Část „hintů“ bezpečně pro JSON odpověď (kulatá Ø v mm jako číslo).
+     *
+     * @param array{fiberCount?: int, fiberEBlockTail?: int, diameterMm?: float, diameterRaw?: string, constructionCode?: string, familyGuess?: string} $hints
+     *
+     * @return array<string, float|int|string>
+     */
+    private function hintsToApiPayload(array $hints): array
+    {
+        $out = [];
+
+        if (isset($hints['fiberCount'])) {
+            $out['fiberCount'] = (int) $hints['fiberCount'];
+        }
+        if (isset($hints['fiberEBlockTail'])) {
+            $out['fiberEBlockTail'] = (int) $hints['fiberEBlockTail'];
+        }
+        if (isset($hints['constructionCode'])) {
+            $out['constructionCode'] = (string) $hints['constructionCode'];
+        }
+        if (isset($hints['familyGuess'])) {
+            $out['familyGuess'] = (string) $hints['familyGuess'];
+        }
+        if (isset($hints['diameterMm'])) {
+            $out['diameterMm'] = \round((float) $hints['diameterMm'], 2);
+        }
+        if (isset($hints['diameterRaw'])) {
+            $out['diameterRaw'] = (string) $hints['diameterRaw'];
+        }
+
+        return $out;
+    }
+
+    /** Bonus ke skóre podle strukturálních shod štítek ↔ záznam (omezen horní částí kvůli stabilitě). */
+    private function heuristicStructuralBonus(CableType $c, array $hints): float
+    {
+        $bonus = 0.0;
+        $fam = \mb_strtolower(\trim($c->getFamily()), 'UTF-8');
+
+        if (isset($hints['fiberCount'])) {
+            $qf = (int) $hints['fiberCount'];
+            $cf = $c->getFiberCount();
+            if ($cf > 0) {
+                if ($cf === $qf) {
+                    $bonus += 28.0;
+                } elseif (\abs($cf - $qf) <= 1) {
+                    $bonus += 15.0;
+                } elseif (\abs($cf - $qf) <= 4) {
+                    $bonus += 8.0;
+                }
+            }
+        }
+
+        if (isset($hints['diameterMm'])) {
+            $qd = (float) $hints['diameterMm'];
+            $dstr = $c->getDiameterMm();
+            if (null !== $dstr && '' !== (string) $dstr) {
+                $cd = (float) \str_replace(',', '.', (string) $dstr);
+                if ($cd > 0.0) {
+                    $delta = \abs($cd - $qd);
+                    if ($delta < 0.051) {
+                        $bonus += 22.0;
+                    } elseif ($delta < 0.21) {
+                        $bonus += 12.0;
+                    } elseif ($delta < 0.51) {
+                        $bonus += 6.0;
+                    }
+                }
+            }
+        }
+
+        if (isset($hints['constructionCode']) && '' !== $hints['constructionCode']) {
+            $hRaw = \mb_strtoupper(\trim((string) $hints['constructionCode']), 'UTF-8');
+            $code = \mb_strtoupper(\trim((string) ($c->getConstructionCode() ?? '')), 'UTF-8');
+            if ('' !== $code) {
+                if ($hRaw === $code) {
+                    $bonus += 20.0;
+                } elseif (\str_contains($code, $hRaw) || \str_contains($hRaw, $code)) {
+                    $bonus += 12.0;
+                }
+            }
+        }
+
+        if (isset($hints['familyGuess'])) {
+            $guess = \mb_strtolower(\trim((string) $hints['familyGuess']), 'UTF-8');
+            if ('' !== $guess && \str_contains($fam, $guess)) {
+                $bonus += 12.0;
+            }
+        }
+
+        return \min(52.0, $bonus);
+    }
+
+    /**
      * Jemné dopočty z OCR pro předběžné vyplnění nového CableType — uživatel dál upravuje.
      *
      * @return array{
@@ -261,8 +463,16 @@ final class CableTypeOcrMatcher
 
         $name = '' !== $firstNonEmpty ? \mb_substr($firstNonEmpty, 0, 254) : \mb_substr($fullText, 0, 120);
 
+        $hintsStruct = $this->extractStructuralHintsFromLabel($fullText);
+
         $fiberCount = null;
-        if (1 === \preg_match('/(?:^|[\\s,;])(\\d{1,4})\\s*(?:vl|vl\\.|x?\\s*fibr|optic|optic\\.|fib(er)?\\b)/ui', $fullText, $mf)) {
+        if (isset($hintsStruct['fiberCount'])) {
+            $n = (int) $hintsStruct['fiberCount'];
+            if ($n > 0 && $n < 2000) {
+                $fiberCount = $n;
+            }
+        }
+        if (null === $fiberCount && 1 === \preg_match('/(?:^|[\\s,;])(\\d{1,4})\\s*(?:vl|vl\\.|x?\\s*fibr|optic|optic\\.|fib(er)?\\b)/ui', $fullText, $mf)) {
             $n = (int) $mf[1];
             if ($n > 0 && $n < 2000) {
                 $fiberCount = $n;
@@ -270,7 +480,10 @@ final class CableTypeOcrMatcher
         }
 
         $diameterMm = null;
-        if (1 === \preg_match('/(?: ø|dia\\.?|\\b[pP]r[uů]?m\\.?|\\b[oOØ]|\\bdd\\s*\\.?|\\bmm)\\s*[:=]?\\s*([0-9]{1,2}[,.]?[0-9]{1,4}|[0-9]{1,2}\\b)/u', $fullText, $md)) {
+        if (isset($hintsStruct['diameterMm'])) {
+            $diameterMm = (string) \round((float) $hintsStruct['diameterMm'], 2);
+        }
+        if (null === $diameterMm && 1 === \preg_match('/(?: ø|dia\\.?|\\b[pP]r[uů]?m\\.?|\\b[oOØ]|\\bdd\\s*\\.?|\\bmm)\\s*[:=]?\\s*([0-9]{1,2}[,.]?[0-9]{1,4}|[0-9]{1,2}\\b)/u', $fullText, $md)) {
             $d = \trim(\str_replace(' ', '', (string) $md[1]));
             $d = \str_replace(',', '.', $d);
             if ('' !== $d && \is_numeric($d)) {
@@ -279,15 +492,20 @@ final class CableTypeOcrMatcher
         }
 
         $constructionCode = null;
-        if (1 === \preg_match('/\\b(Z\\d{3,}[A-Za-z]?)\\b/u', $fullText, $mz)) {
+        if (isset($hintsStruct['constructionCode']) && '' !== (string) $hintsStruct['constructionCode']) {
+            $constructionCode = (string) $hintsStruct['constructionCode'];
+        }
+        if (null === $constructionCode && 1 === \preg_match('/\\b(Z\\d{3,}[A-Za-z]?)\\b/u', $fullText, $mz)) {
             $constructionCode = \mb_substr((string) $mz[1], 0, 31);
         }
 
-        $familyCode = null;
-        foreach (['blown', 'mlt', 'drop', 'fletka'] as $code) {
-            if (\preg_match('/\\b'. \preg_quote($code, '/') . '\\b/ui', $fullText) === 1) {
-                $familyCode = $code;
-                break;
+        $familyCode = $hintsStruct['familyGuess'] ?? null;
+        if (null === $familyCode) {
+            foreach (['blown', 'mlt', 'drop', 'fletka'] as $code) {
+                if (1 === \preg_match('/\\b'.\preg_quote($code, '/').'\\b/ui', $fullText)) {
+                    $familyCode = $code;
+                    break;
+                }
             }
         }
 

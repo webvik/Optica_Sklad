@@ -113,7 +113,20 @@ final class SpoolController extends AbstractController
             return new JsonResponse(['ok' => false, 'error' => 'text'], 400);
         }
 
-        $r = $matcher->matchBest($text);
+        $r = $matcher->matchWithCandidates($text, 14);
+        $hints = isset($r['hints']) && \is_array($r['hints']) ? $r['hints'] : [];
+        $candidatesOut = [];
+        foreach (($r['candidates'] ?? []) as $row) {
+            $ctRow = \is_array($row) ? ($row['cableType'] ?? null) : null;
+            if (!$ctRow instanceof CableType) {
+                continue;
+            }
+            $candidatesOut[] = [
+                'score' => \round((float) ($row['score'] ?? 0.0), 1),
+                'cableType' => $this->cableTypeToOcrMatchArray($ctRow),
+            ];
+        }
+
         $bt = $r['cableType'];
         if ($r['matched'] && $bt instanceof CableType) {
             return new JsonResponse([
@@ -121,6 +134,8 @@ final class SpoolController extends AbstractController
                 'matched' => true,
                 'score' => round($r['score'], 1),
                 'margin' => round($r['margin'], 2),
+                'hints' => $hints,
+                'candidates' => $candidatesOut,
                 'cableType' => $this->cableTypeToOcrMatchArray($bt),
             ]);
         }
@@ -131,6 +146,8 @@ final class SpoolController extends AbstractController
             'score' => round($r['score'], 1),
             'margin' => round($r['margin'], 2),
             'normalizedQuery' => \mb_substr((string) $r['normalizedQuery'], 0, 480),
+            'hints' => $hints,
+            'candidates' => $candidatesOut,
         ]);
     }
 
