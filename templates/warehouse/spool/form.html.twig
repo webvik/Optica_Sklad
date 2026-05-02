@@ -111,10 +111,53 @@
         }
         #spool-form-scan-overlay[hidden] { display: none !important; }
         #spool-form-scan-overlay {
-            position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,.75);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1rem;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, .75);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1rem;
+            box-sizing: border-box;
         }
-        #spool-form-scan-video { max-width: min(100%, 640px); max-height: 50vh; background: #111; border-radius: 6px; }
+        /* Stejné proporce jako sken vyhledávání (Úzký pruh). JS: sareStripFrac 0.17 — měnit společně s work-scan u spool/index */
+        #spool-form-scan-video-wrap {
+            flex-shrink: 0;
+            max-width: min(100%, 640px);
+            box-sizing: border-box;
+        }
+        .spool-form-scan-overlay--strip #spool-form-scan-video-wrap.spool-form-scan-video-wrap--strip {
+            width: min(100%, 34rem);
+            height: clamp(4.25rem, 11.5vh, 6.25rem);
+            overflow: hidden;
+            border-radius: 8px;
+            border: 2px solid rgba(85, 220, 175, 0.9);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+            background: #111;
+            position: relative;
+        }
+        .spool-form-scan-overlay--strip #spool-form-scan-video-wrap.spool-form-scan-video-wrap--strip::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-sizing: border-box;
+            border-radius: inherit;
+            z-index: 1;
+        }
+        .spool-form-scan-overlay--strip #spool-form-scan-video-wrap.spool-form-scan-video-wrap--strip #spool-form-scan-video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-height: none;
+            border-radius: 0;
+            object-fit: cover;
+            object-position: center center;
+        }
         #spool-cable-ocr-overlay[hidden] { display: none !important; }
         #spool-cable-ocr-overlay {
             position: fixed; inset: 0; z-index: 10000;
@@ -145,6 +188,43 @@
             background: #111;
             flex-shrink: 0;
             box-sizing: border-box;
+        }
+        #spool-cable-ocr-capture-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            align-items: center;
+            justify-content: center;
+            max-width: min(100%, 28rem);
+        }
+        #spool-cable-ocr-capture {
+            flex: 1 1 auto;
+            min-width: min(100%, 12rem);
+            min-height: 2.65rem;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            font: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.15;
+            color: #1a1a1a;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 2px solid rgba(95, 200, 255, 0.95);
+            background: rgba(200, 240, 255, 0.98);
+            -webkit-tap-highlight-color: rgba(95, 200, 255, 0.25);
+        }
+        #spool-cable-ocr-capture:hover:not(:disabled) {
+            background: rgba(170, 230, 255, 1);
+            border-color: rgba(130, 220, 255, 1);
+        }
+        #spool-cable-ocr-capture:disabled {
+            opacity: 0.55;
+            cursor: progress;
+            pointer-events: none;
         }
         #spool-cable-ocr-video {
             display: block;
@@ -348,14 +428,19 @@
         {{ form_rest(form) }}
     {{ form_end(form, { render_rest: false }) }}
 
-    <div id="spool-form-scan-overlay" hidden role="dialog" aria-label="Sken čárového kódu">
+    <div id="spool-form-scan-overlay" class="spool-form-scan-overlay--strip" hidden role="dialog" aria-label="Sken čárového kódu">
         <p id="spool-form-scan-overlay-text" style="color:#fff;margin:0;text-align:center;max-width:34rem"></p>
-        <video id="spool-form-scan-video" playsinline autoplay muted></video>
+        <div id="spool-form-scan-video-wrap" class="spool-form-scan-video-wrap--strip">
+            <video id="spool-form-scan-video" playsinline autoplay muted></video>
+        </div>
         <button type="button" id="spool-form-scan-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
     </div>
     <div id="spool-cable-ocr-overlay" hidden role="dialog" aria-label="Sken štítku typu kabelu (OCR)">
         <p id="spool-cable-ocr-overlay-text"></p>
         <div id="spool-cable-ocr-video-wrap"><video id="spool-cable-ocr-video" playsinline autoplay muted></video></div>
+        <div id="spool-cable-ocr-capture-row" role="presentation">
+            <button type="button" id="spool-cable-ocr-capture">Přečíst řádek (OCR)</button>
+        </div>
         <button type="button" id="spool-cable-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
     </div>
     <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
@@ -378,35 +463,71 @@
   var scanVideo = document.getElementById('spool-form-scan-video');
   var scanCancel = document.getElementById('spool-form-scan-cancel');
   var scanOverlayText = document.getElementById('spool-form-scan-overlay-text');
-  var scanRaf = null, scanStream = null;
+  var scanRaf = null;
+  var scanStream = null;
+  var scanCropCanvas = null;
   /** @type {'reel'|'length'} */
   var scanTarget = 'reel';
+  /** Sladěno se sareStripFrac u work-scan (spool/index) */
+  var SPOOL_BC_STRIP_FRAC = 0.17;
+  /** Úzké lineární formáty → po ms rozšíření o EAN/UPC/Codabar (viz WORK_SARE_SCAN_PHASE2_AFTER_MS) */
+  var SPOOL_BC_PHASE2_AFTER_MS = 900;
+
+  /** Heuristika 1–4 číslice = délka (m) jako u vyhledávání — pro sařu přeskakovat, pro délku preferovat */
   function longestDigitRun(s) {
     var m = String(s || '').match(/\d+/g);
     if (!m || !m.length) return '';
     return m.reduce(function (a, b) { return b.length > a.length ? b : a; }, '');
   }
-  function pickDecodedRaw(codes) {
+  /** Stejně jako work-scan sareDetectionRaw */
+  function sareDetectionRaw(det) {
+    if (!det || typeof det !== 'object') return '';
+    var r = det.rawValue;
+    if (r == null || r === '') r = det.value;
+    return String(r == null ? '' : r).trim();
+  }
+  function sareDecodedLooksLikeCableLengthMeters(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    return /^\d{1,4}$/.test(s);
+  }
+  /** Stejné chování jako pickSareBarcodeFromDetections ve vyhledávání */
+  function pickSareBarcodeFromDetections(codes) {
     if (!codes || !codes.length) return '';
-    if (scanTarget === 'length') {
-      var i, rv, run, pure = [];
-      for (i = 0; i < codes.length; i++) {
-        rv = String(codes[i].rawValue || '').trim();
-        if (!rv.length) continue;
-        if (/^\d+$/.test(rv)) pure.push(rv);
-      }
-      if (pure.length) {
-        return pure.reduce(function (a, b) { return b.length > a.length ? b : a; });
-      }
-      var bestRun = '';
-      for (i = 0; i < codes.length; i++) {
-        rv = String(codes[i].rawValue || '').trim();
-        run = longestDigitRun(rv);
-        if (run.length > bestRun.length) bestRun = run;
-      }
-      return bestRun || String(codes[0].rawValue || '').trim();
+    for (var i = 0; i < codes.length; i++) {
+      var rv = sareDetectionRaw(codes[i]);
+      if (!rv.length) continue;
+      if (!sareDecodedLooksLikeCableLengthMeters(rv)) return rv;
     }
-    return String(codes[0].rawValue || '').trim();
+    return '';
+  }
+  /** Inverze: nejdřív krátké čisté číslo (délka), pak dřívější logika „nejdelší číslice“ */
+  function pickLengthBarcodeFromDetections(codes) {
+    if (!codes || !codes.length) return '';
+    var i, rv, run, pure = [];
+    for (i = 0; i < codes.length; i++) {
+      rv = sareDetectionRaw(codes[i]);
+      if (rv.length && sareDecodedLooksLikeCableLengthMeters(rv)) return rv;
+    }
+    for (i = 0; i < codes.length; i++) {
+      rv = sareDetectionRaw(codes[i]);
+      if (!rv.length) continue;
+      if (/^\d+$/.test(rv)) pure.push(rv);
+    }
+    if (pure.length) {
+      return pure.reduce(function (a, b) { return b.length > a.length ? b : a; });
+    }
+    var bestRun = '';
+    for (i = 0; i < codes.length; i++) {
+      rv = sareDetectionRaw(codes[i]);
+      run = longestDigitRun(rv);
+      if (run.length > bestRun.length) bestRun = run;
+    }
+    return bestRun || sareDetectionRaw(codes[0]);
+  }
+  function pickDecodedRaw(codes) {
+    if (!codes) codes = [];
+    if (scanTarget === 'reel') return pickSareBarcodeFromDetections(codes);
+    return pickLengthBarcodeFromDetections(codes);
   }
   function normalizeLengthBarcode(raw) {
     var run = longestDigitRun(raw);
@@ -418,12 +539,15 @@
     if (scanOverlayText) {
       scanOverlayText.textContent =
         scanTarget === 'length'
-          ? 'Sken délky: po rozpoznání se vyplní pole Délka L (m); při potížích zadejte ručně.'
-          : 'Sken čísla saře: po rozpoznání se vyplní pole Číslo saře (případně doplňte a uložte).';
+          ? 'Sken délky: úzký pruh nad kódem (jako vyhledávání). Nejprve hodnoty 1–4 číslice = metry; zkontrolujte pole.'
+          : 'Sken čísla saře: úzký pruh nad čárovým kódem (jako při Hledat). Hodnoty 1–4 číslice z vedlejšího kódu se přeskakují; zkontrolujte pole.';
     }
   }
   function stopBarcodeScan() {
-    if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
+    if (scanRaf) {
+      try { cancelAnimationFrame(scanRaf); } catch (eR) {}
+      scanRaf = null;
+    }
     if (scanStream) {
       scanStream.getTracks().forEach(function (t) { t.stop(); });
       scanStream = null;
@@ -460,10 +584,42 @@
       reelIn.value = v;
     }
   }
+  function getCropCanvasEl() {
+    if (!scanCropCanvas) scanCropCanvas = document.createElement('canvas');
+    return scanCropCanvas;
+  }
+  function trySpoolLinearDetector(formats) {
+    var f = formats.slice();
+    try {
+      return new window.BarcodeDetector({ formats: f });
+    } catch (e1) {
+      var core = ['code_128', 'code_39', 'code_93', 'itf', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
+      var slim = f.filter(function (x) { return core.indexOf(x) >= 0; });
+      try {
+        if (slim.length) return new window.BarcodeDetector({ formats: slim });
+      } catch (e2) { /* fall through */ }
+      try {
+        return new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'itf'] });
+      } catch (e3) {
+        return new window.BarcodeDetector();
+      }
+    }
+  }
+  function makeSpoolBarcodeDetector(wideTier) {
+    var narrowLin = ['code_128', 'code_39', 'code_93', 'itf'];
+    var extraLin = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
+    var fmts = wideTier ? narrowLin.concat(extraLin) : narrowLin.slice();
+    return trySpoolLinearDetector(fmts);
+  }
   function startBarcodeScan() {
     if (!scanOverlay || !scanVideo) { focusScanTargetField(); return; }
     setScanText();
     scanOverlay.hidden = false;
+    var phase2Immediate = SPOOL_BC_PHASE2_AFTER_MS <= 0;
+    var spoolFmtTier = phase2Immediate ? 1 : 0;
+    var spoolScanOpenedAtMs = typeof performance !== 'undefined' ? performance.now() : 0;
+    var detector = makeSpoolBarcodeDetector(spoolFmtTier === 1);
+
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
       .then(function (stream) {
         scanStream = stream;
@@ -476,14 +632,43 @@
           focusScanTargetField();
           return;
         }
-        var detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
+        function maybeEscalateSpoolFormats() {
+          if (spoolFmtTier !== 0) return;
+          if (!Number.isFinite(SPOOL_BC_PHASE2_AFTER_MS) || SPOOL_BC_PHASE2_AFTER_MS <= 0) return;
+          if (performance.now() - spoolScanOpenedAtMs < SPOOL_BC_PHASE2_AFTER_MS) return;
+          spoolFmtTier = 1;
+          detector = makeSpoolBarcodeDetector(true);
+        }
         function tick() {
           if (!scanVideo || scanStream === null) return;
           if (scanVideo.readyState < 2) {
             scanRaf = requestAnimationFrame(tick);
             return;
           }
-          detector.detect(scanVideo).then(function (codes) {
+          maybeEscalateSpoolFormats();
+          var vw = scanVideo.videoWidth;
+          var vh = scanVideo.videoHeight;
+          if (vw < 2 || vh < 2) {
+            scanRaf = requestAnimationFrame(tick);
+            return;
+          }
+          var sh = Math.max(12, Math.round(vh * SPOOL_BC_STRIP_FRAC));
+          var sy = Math.round((vh - sh) / 2);
+          var cw = Math.min(720, vw);
+          var ch = Math.max(12, Math.round(sh * (cw / vw)));
+          var canv = getCropCanvasEl();
+          if (canv.width !== cw || canv.height !== ch) {
+            canv.width = cw;
+            canv.height = ch;
+          }
+          var ctx = canv.getContext('2d');
+          ctx.drawImage(scanVideo, 0, sy, vw, sh, 0, 0, cw, ch);
+          if (!detector || typeof detector.detect !== 'function') {
+            scanRaf = requestAnimationFrame(tick);
+            return;
+          }
+          detector.detect(canv).then(function (codes) {
+            if (!codes) codes = [];
             var raw = pickDecodedRaw(codes);
             if (raw) {
               onScanDecoded(raw);
@@ -524,6 +709,7 @@
   var overlay = document.getElementById('spool-cable-ocr-overlay');
   var ocrVideo = document.getElementById('spool-cable-ocr-video');
   var ocrCancel = document.getElementById('spool-cable-ocr-cancel');
+  var cableCaptureBtn = document.getElementById('spool-cable-ocr-capture');
   var ocrTextHint = document.getElementById('spool-cable-ocr-overlay-text');
   var cableSelOcr = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
   var famSelOcr = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
@@ -532,10 +718,8 @@
   var scanRaf = null;
   var scanStream = null;
   var ocrBusy = false;
-  var ocrLastAt = 0;
   var ocrCropCanvas = null;
   var CABLE_STRIP_FRAC = 0.2;
-  var OCR_INTERVAL_MS = 820;
   var MIN_CHARS = 10;
   var tessWorkerPromise = null;
   var tessWorker = null;
@@ -581,7 +765,7 @@
       ocrTextHint.textContent =
         typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function'
           ? 'OCR se nenačetla — zkuste obnovit stránku.'
-          : 'Držte řádek se značením kabelu ve světlém pruhu. Po přečtení se porovná katalog.';
+          : 'Držte text značení kabelu v modrém pruhu. Až řádek sedí přesně, klepněte na „Přečíst řádek (OCR)“. Opakujte, pokud je text neúplný.';
     }
   }
 
@@ -590,8 +774,15 @@
       ocrTextHint.textContent =
         typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function'
           ? 'OCR se nenačetla — zkuste obnovit stránku.'
-          : 'Na štítku chybí čárový kód PS — držte číslo viditelných metrů (PS / délky na vinutí) ve světlém pruhu.';
+          : 'Držte číslo viditelných metrů v modrém pruhu — pak klepněte „Přečíst řádek (OCR)“. Bez čárového kódu.';
     }
+  }
+
+  function setCableCaptureUiBusy(busy) {
+    if (!cableCaptureBtn) return;
+    cableCaptureBtn.disabled = !!busy;
+    if (busy) cableCaptureBtn.setAttribute('aria-busy', 'true');
+    else cableCaptureBtn.removeAttribute('aria-busy');
   }
 
   function terminateTessLocal() {
@@ -604,6 +795,7 @@
 
   function stopCableOcr() {
     ocrBusy = false;
+    setCableCaptureUiBusy(false);
     if (scanRaf != null) {
       try { window.cancelAnimationFrame(scanRaf); } catch (eRaf) {}
       try { window.clearTimeout(scanRaf); } catch (eTo) {}
@@ -644,6 +836,109 @@
   function getCropCanvas() {
     if (!ocrCropCanvas) ocrCropCanvas = document.createElement('canvas');
     return ocrCropCanvas;
+  }
+
+  function captureCableOcrCropCanvas() {
+    if (!ocrVideo || scanStream === null) return null;
+    if (ocrVideo.readyState < 2) return null;
+    var vw = ocrVideo.videoWidth;
+    var vh = ocrVideo.videoHeight;
+    if (vw < 2 || vh < 2) return null;
+    var sh = Math.max(12, Math.round(vh * CABLE_STRIP_FRAC));
+    var sy = Math.round((vh - sh) / 2);
+    var cw = Math.min(960, vw);
+    var ch = Math.max(12, Math.round(sh * (cw / vw)));
+    var canv = getCropCanvas();
+    if (canv.width !== cw || canv.height !== ch) {
+      canv.width = cw;
+      canv.height = ch;
+    }
+    var ctx = canv.getContext('2d');
+    ctx.drawImage(ocrVideo, 0, sy, vw, sh, 0, 0, cw, ch);
+    return canv;
+  }
+
+  function performCableOcrSnap() {
+    if (!overlay || overlay.hidden || scanStream === null) return;
+    if (ocrBusy) return;
+    var canv = captureCableOcrCropCanvas();
+    if (!canv) {
+      if (ocrTextHint && ocrMode === 'cable') {
+        ocrTextHint.textContent =
+          'Kamera ještě nenačetla obrázek — chvili počkejte, nebo zavřete a zkuste znovu. Pak klepněte „Přečíst řádek (OCR)“.';
+      } else if (ocrTextHint) {
+        ocrTextHint.textContent = 'Zkuste počkat na náhled, pak klepněte „Přečíst řádek (OCR)“.';
+      }
+      return;
+    }
+    ocrBusy = true;
+    setCableCaptureUiBusy(true);
+    ensureWorker()
+      .then(function (worker) {
+        if (!worker) {
+          ocrBusy = false;
+          setCableCaptureUiBusy(false);
+          if (ocrTextHint) {
+            ocrTextHint.textContent = 'Worker OCR nedostupný — obnovte stránku.';
+          }
+          return;
+        }
+        if (scanStream === null) {
+          ocrBusy = false;
+          setCableCaptureUiBusy(false);
+          return;
+        }
+        worker
+          .recognize(canv)
+          .then(function (res) {
+            if (scanStream === null) {
+              ocrBusy = false;
+              setCableCaptureUiBusy(false);
+              return;
+            }
+            var txt = res && res.data && res.data.text ? String(res.data.text) : '';
+            if (ocrMode === 'ps') {
+              var psVal = tryExtractPs(txt);
+              if (psVal) {
+                finishPsFromOcr(psVal);
+                return;
+              }
+              if (ocrTextHint) {
+                ocrTextHint.textContent =
+                  'Nepodařilo se přečíst číslo — lépe držte znaky PS v modrém pruhu a klepněte znovu.';
+              }
+            } else {
+              var clean = processOcrText(txt);
+              if (clean.length) {
+                afterRecognizedCable(clean);
+                return;
+              }
+              if (ocrTextHint) {
+                ocrTextHint.textContent =
+                  'Text je krátký nebo neúplný — posuňte kameru přesně na celý řádek značení a klepněte znovu „Přečíst řádek (OCR)“.';
+              }
+            }
+            ocrBusy = false;
+            setCableCaptureUiBusy(false);
+          })
+          .catch(function () {
+            if (scanStream === null) {
+              ocrBusy = false;
+              setCableCaptureUiBusy(false);
+              return;
+            }
+            if (ocrTextHint) {
+              ocrTextHint.textContent =
+                'OCR selhal — zkuste znovu (držte řádek v pruhu, dobré světlo) nebo zadejte ručně.';
+            }
+            ocrBusy = false;
+            setCableCaptureUiBusy(false);
+          });
+      })
+      .catch(function () {
+        ocrBusy = false;
+        setCableCaptureUiBusy(false);
+      });
   }
 
   function processOcrText(raw) {
@@ -760,93 +1055,6 @@
     } catch (ePs) {}
   }
 
-  function tickLoop() {
-    if (!ocrVideo || scanStream === null) return;
-    if (ocrVideo.readyState < 2) {
-      scanRaf = requestAnimationFrame(tickLoop);
-      return;
-    }
-
-    function scheduleNext() {
-      scanRaf = requestAnimationFrame(tickLoop);
-    }
-
-    var now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (ocrBusy) {
-      scheduleNext();
-      return;
-    }
-    if (now - ocrLastAt < OCR_INTERVAL_MS) {
-      scheduleNext();
-      return;
-    }
-
-    var vw = ocrVideo.videoWidth;
-    var vh = ocrVideo.videoHeight;
-    if (vw < 2 || vh < 2) {
-      scheduleNext();
-      return;
-    }
-
-    var sh = Math.max(12, Math.round(vh * CABLE_STRIP_FRAC));
-    var sy = Math.round((vh - sh) / 2);
-    var cw = Math.min(960, vw);
-    var ch = Math.max(12, Math.round(sh * (cw / vw)));
-    var canv = getCropCanvas();
-    if (canv.width !== cw || canv.height !== ch) {
-      canv.width = cw;
-      canv.height = ch;
-    }
-    var ctx = canv.getContext('2d');
-    ctx.drawImage(ocrVideo, 0, sy, vw, sh, 0, 0, cw, ch);
-
-    ocrBusy = true;
-    ocrLastAt = now;
-
-    ensureWorker()
-      .then(function (worker) {
-        if (!worker) {
-          ocrBusy = false;
-          ocrLastAt = now + 2500;
-          scheduleNext();
-          return;
-        }
-        if (scanStream === null) {
-          ocrBusy = false;
-          return;
-        }
-        worker
-          .recognize(canv)
-          .then(function (res) {
-            ocrBusy = false;
-            if (scanStream === null) return;
-            var txt = res && res.data && res.data.text ? String(res.data.text) : '';
-            if (ocrMode === 'ps') {
-              var psVal = tryExtractPs(txt);
-              if (psVal) {
-                finishPsFromOcr(psVal);
-                return;
-              }
-            } else {
-              var clean = processOcrText(txt);
-              if (clean.length) {
-                afterRecognizedCable(clean);
-                return;
-              }
-            }
-            scanRaf = requestAnimationFrame(tickLoop);
-          })
-          .catch(function () {
-            ocrBusy = false;
-            scanRaf = requestAnimationFrame(tickLoop);
-          });
-      })
-      .catch(function () {
-        ocrBusy = false;
-        scanRaf = requestAnimationFrame(tickLoop);
-      });
-  }
-
   function openOcr(kind) {
     ocrMode = kind === 'ps' ? 'ps' : 'cable';
     if (ocrMode === 'cable') {
@@ -872,14 +1080,20 @@
         return ocrVideo.play();
       })
       .then(function () {
-        ocrLastAt = 0;
         ocrBusy = false;
-        scanRaf = requestAnimationFrame(tickLoop);
+        setCableCaptureUiBusy(false);
+        ensureWorker();
       })
       .catch(function () {
         overlay.hidden = true;
         window.alert('Kamera není dostupná.');
       });
+  }
+
+  if (cableCaptureBtn) {
+    cableCaptureBtn.addEventListener('click', function () {
+      performCableOcrSnap();
+    });
   }
 
   if (ocrBtn) {
