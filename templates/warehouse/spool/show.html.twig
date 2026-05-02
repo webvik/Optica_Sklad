@@ -74,6 +74,74 @@
                 line-height: 1.25;
             }
         }
+        /* Doplnění typu na kartě cívky: horizontální scroll pro dlouhé řádky v listboxu (viz spool/form + __scroller) */
+        .assign-cable-type-hscroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            max-width: 100%;
+            min-width: 0;
+        }
+        .assign-cable-type-field-row { margin-bottom: 0.5rem; }
+        .assign-cable-type-field-row > label { display: inline-block; font-weight: 600; margin-bottom: 0.25rem; }
+        .assign-cable-type-hscroll select.cable-type-list {
+            max-width: none !important;
+            display: block;
+        }
+        .assign-cable-type-disclosure {
+            max-width: 40rem;
+            margin: 0.75rem 0 1.25rem;
+            border: 1px solid #c8c8c8;
+            border-radius: 6px;
+            background: #fafafa;
+            box-sizing: border-box;
+            font-size: 1.05rem;
+            line-height: 1.45;
+        }
+        .assign-cable-type-disclosure__summary {
+            list-style: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: clamp(1.08rem, 2.9vw, 1.22rem);
+            line-height: 1.35;
+            padding: 0.65rem 0.75rem;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .assign-cable-type-disclosure__summary::-webkit-details-marker { display: none; }
+        .assign-cable-type-disclosure__summary::marker { content: ''; }
+        .assign-cable-type-disclosure__summary:hover { background: #f2f2f2; border-radius: 5px 5px 0 0; }
+        .assign-cable-type-disclosure:not([open]) .assign-cable-type-disclosure__summary:hover { border-radius: 5px; }
+        .assign-cable-type-disclosure__chev { flex-shrink: 0; color: #444; font-size: 0.78em; transition: transform 0.15s ease; }
+        .assign-cable-type-disclosure[open] .assign-cable-type-disclosure__chev { transform: rotate(180deg); }
+        .assign-cable-type-disclosure__body {
+            padding: 0 0.75rem 0.85rem;
+            border-top: 1px solid #ddd;
+            background: #fff;
+            border-radius: 0 0 5px 5px;
+        }
+        .assign-cable-type-disclosure__lead { margin: 0.6rem 0 0.75rem; font-size: 1em; color: #333; text-align: left; }
+        .assign-cable-type-disclosure .assign-cable-type-field-row > label,
+        .assign-cable-type-disclosure .assign-cable-type-field-row { font-size: 1em; }
+        .assign-cable-type-disclosure .assign-cable-type-hscroll select.cable-type-list {
+            font-size: 1.08rem !important;
+            line-height: 1.38;
+        }
+        .assign-cable-type-disclosure .assign-cable-type-field-row p.form-text,
+        .assign-cable-type-disclosure .assign-cable-type-field-row p.help-text {
+            font-size: 0.98rem !important;
+            color: #444;
+            line-height: 1.4;
+            margin-top: 0.45rem;
+        }
+        #spool-assign-cable-form button[type="submit"] {
+            font-size: 1.05rem;
+            min-height: 2.65rem;
+            padding: 0.5rem 1.05rem;
+        }
     </style>
 {% endblock %}
 {% block body %}
@@ -82,12 +150,94 @@
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
     {% if assignCableForm is defined and assignCableForm %}
-        <h2 id="doplnit-typ">Doplnit typ kabelu</h2>
-        <p>Typ nebyl při zaevidování uveden; můžete ho vybrat z katalogu.</p>
-        {{ form_start(assignCableForm, { action: path('warehouse_spool_assign_cable', { id: spool.id }), method: 'post' }) }}
-            {{ form_row(assignCableForm.cableType) }}
-            <p><button type="submit">Uložit typ kabelu</button></p>
-        {{ form_end(assignCableForm) }}
+        <details class="assign-cable-type-disclosure" id="doplnit-typ">
+            <summary class="assign-cable-type-disclosure__summary">
+                <span>Doplnit typ kabelu</span>
+                <span class="assign-cable-type-disclosure__chev" aria-hidden="true">▼</span>
+            </summary>
+            <div class="assign-cable-type-disclosure__body">
+                <p class="assign-cable-type-disclosure__lead">Typ nebyl při zaevidování uveden; můžete ho vybrat z katalogu.</p>
+                {{ form_start(assignCableForm, {
+                    action: path('warehouse_spool_assign_cable', { id: spool.id }),
+                    method: 'post',
+                    attr: { id: 'spool-assign-cable-form' },
+                }) }}
+                    <div class="assign-cable-type-field-row">
+                        {{ form_label(assignCableForm.cableType) }}
+                        {{ form_errors(assignCableForm.cableType) }}
+                        <div class="assign-cable-type-hscroll">
+                            {{ form_widget(assignCableForm.cableType) }}
+                        </div>
+                        {{ form_help(assignCableForm.cableType) }}
+                    </div>
+                    <p><button type="submit">Uložit typ kabelu</button></p>
+                {{ form_end(assignCableForm) }}
+            </div>
+        </details>
+        <script>
+(function () {
+  var form = document.getElementById('spool-assign-cable-form');
+  if (!form) return;
+  var cableSel = form.querySelector('select.cable-type-list');
+  var scroller = form.querySelector('.assign-cable-type-hscroll');
+  if (!cableSel || !scroller) return;
+  var details = document.getElementById('doplnit-typ');
+  var mobileMq = window.matchMedia('(max-width: 41.99rem)');
+  var sizeListT = null;
+  function sizeCableTypeListbox() {
+    var measure = document.createElement('div');
+    measure.setAttribute('aria-hidden', 'true');
+    measure.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;pointer-events:none;';
+    var cs = window.getComputedStyle(cableSel);
+    measure.style.font = cs.font;
+    measure.style.letterSpacing = cs.letterSpacing;
+    measure.style.textTransform = cs.textTransform;
+    document.body.appendChild(measure);
+    var maxW = 0;
+    var k;
+    for (k = 0; k < cableSel.options.length; k++) {
+      measure.textContent = cableSel.options[k].text || ' ';
+      maxW = Math.max(maxW, measure.offsetWidth);
+    }
+    document.body.removeChild(measure);
+    var pad = mobileMq.matches ? 40 : 36;
+    var cw = scroller.clientWidth;
+    if (cw < 2) {
+      cw = mobileMq.matches ? (window.innerWidth || 400) : 300;
+    }
+    var need = Math.max(cw, maxW + pad);
+    cableSel.style.minWidth = need + 'px';
+    cableSel.style.width = need + 'px';
+  }
+  function scheduleSizeCableTypeListbox() {
+    if (sizeListT) { clearTimeout(sizeListT); }
+    sizeListT = setTimeout(function () {
+      sizeListT = null;
+      sizeCableTypeListbox();
+    }, 50);
+  }
+  function scheduleIfAssignableVisible() {
+    if (details && !details.open) return;
+    scheduleSizeCableTypeListbox();
+  }
+  scheduleIfAssignableVisible();
+  if (mobileMq.addEventListener) mobileMq.addEventListener('change', scheduleIfAssignableVisible);
+  else if (mobileMq.addListener) mobileMq.addListener(scheduleIfAssignableVisible);
+  window.addEventListener('resize', scheduleIfAssignableVisible);
+  window.addEventListener('pageshow', scheduleIfAssignableVisible);
+  if (details) {
+    details.addEventListener('toggle', function () {
+      if (details.open) scheduleSizeCableTypeListbox();
+    });
+    try {
+      if (window.location.hash === '#doplnit-typ') {
+        details.open = true;
+        scheduleSizeCableTypeListbox();
+      }
+    } catch (e) {}
+  }
+})();
+        </script>
     {% endif %}
     <h2>Nová událost</h2>
     {{ form_start(form, { attr: {

@@ -57,11 +57,11 @@ final class CableTypeFormType extends AbstractType
             ->add('diameterMm', NumberType::class, [
                 'label' => 'Průměr (mm)',
                 'scale' => 1,
-                'html5' => true,
+                /** false → čárku i tečku zpracuje NumberFormatter jako u cívky (Ø mm) */
+                'html5' => false,
                 'required' => false,
                 'attr' => [
-                    'step' => 'any',
-                    'min' => '0',
+                    'placeholder' => 'např. 9,9 nebo 9.9',
                 ],
             ])
             ->add('isActive', CheckboxType::class, [

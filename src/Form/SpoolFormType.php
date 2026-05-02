@@ -90,11 +90,11 @@ final class SpoolFormType extends AbstractType
             ->add('diameterMm', NumberType::class, [
                 'label' => 'Ø (mm)',
                 'scale' => 1,
-                'html5' => true,
+                /** false → textové pole (+ inputmode decimal), čárku i tečku dorovná NumberFormatter v NumberToLocalizedStringTransformer */
+                'html5' => false,
                 'required' => false,
                 'attr' => [
-                    'step' => 'any',
-                    'min' => '0',
+                    'placeholder' => 'např. 9,9 nebo 9.9',
                 ],
             ])
             ->add('status', EnumType::class, [
