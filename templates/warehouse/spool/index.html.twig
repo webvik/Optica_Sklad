@@ -817,6 +817,7 @@
     if (r == null || r === '') r = det.value;
     return String(r == null ? '' : r).trim();
   }
+  /** Pro sken Číslo saře: na štítku bývá kromě evid. čísla i délka kabelu (vždy jen ≤4 číslice podle výroby).
    *  Takové čistě číselné hodnoty 1–4 znaků jako saři nebereme (přeskočíme a zkusíme jiného kandidáta / další frame). */
   function sareDecodedLooksLikeCableLengthMeters(raw) {
     var s = String(raw == null ? '' : raw).trim();
