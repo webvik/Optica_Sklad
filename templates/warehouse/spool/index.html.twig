@@ -738,6 +738,25 @@
       hint.textContent = 'Čtečka: jedno číslo → Běžný stav. Formát dva údaje: 7843;zakázka nebo 7843|zakázka nebo tab. Jinak zadejte ručně.';
     }
   }
+  /** Pro sken Číslo saře: na štítku bývá kromě evid. čísla i délka kabelu (vždy jen ≤4 číslice podle výroby).
+   *  Takové čistě číselné hodnoty 1–4 znaků jako saři nebereme (přeskočíme a zkusíme jiného kandidáta / další frame). */
+  function sareDecodedLooksLikeCableLengthMeters(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    return /^\d{1,4}$/.test(s);
+  }
+  /** Z výsledku BarcodeDetector vybere první řetězec, který není pravděpodobně jen délka (m). */
+  function pickSareBarcodeFromDetections(codes) {
+    if (!codes || !codes.length) return '';
+    for (var i = 0; i < codes.length; i++) {
+      var rv = codes[i].rawValue;
+      if (rv == null || rv === '') continue;
+      var v = String(rv).trim();
+      if (!v.length) continue;
+      if (!sareDecodedLooksLikeCableLengthMeters(v)) return v;
+    }
+    return '';
+  }
+
   function onBarcodeValueSare(val) {
     if (!val || !qIn) return;
     qIn.value = String(val).trim();
@@ -845,12 +864,12 @@
           }
           function decodeFrom(src) {
             detector.detect(src).then(function (codes) {
-              if (codes && codes.length && codes[0].rawValue) {
-                var val = String(codes[0].rawValue).trim();
-                if (val.length) {
-                  onScanDecoded(val);
-                  return;
-                }
+              var val = '';
+              if (scanMode === 'sare') val = pickSareBarcodeFromDetections(codes);
+              else if (codes && codes.length && codes[0].rawValue) val = String(codes[0].rawValue).trim();
+              if (val.length) {
+                onScanDecoded(val);
+                return;
               }
               scanRaf = requestAnimationFrame(tick);
             }).catch(function () { scanRaf = requestAnimationFrame(tick); });
