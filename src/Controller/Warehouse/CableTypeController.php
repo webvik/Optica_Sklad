@@ -8,6 +8,7 @@ use App\Form\CableTypeFormType;
 use App\Repository\CableFamilyRepository;
 use App\Repository\CableTypeRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
+use App\Service\Warehouse\InventuraBriefGroupLabel;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,12 +35,16 @@ final class CableTypeController extends AbstractController
         EntityManagerInterface $em,
         CableTypeOcrMatcher $matcher,
         CableFamilyRepository $cableFamilyRepository,
+        CableTypeRepository $cableTypeRepository,
     ): Response {
         $c = new CableType();
         $this->consumeOcrPrefillFromSessionIfAny($request, $matcher, $c, $cableFamilyRepository);
 
         $form = $this->createForm(CableTypeFormType::class, $c);
         $form->handleRequest($request);
+        if ($form->isSubmitted()) {
+            $this->synchronizeCableTypeListName($c);
+        }
         if ($form->isSubmitted() && $form->isValid()) {
             $u = $this->getUser();
             if ($u instanceof User) {
@@ -56,6 +61,70 @@ final class CableTypeController extends AbstractController
         return $this->render('warehouse/cable_type/form.html.twig', [
             'form' => $form,
             'title' => 'Nový typ kabelu',
+            'cableListLabelPreview' => InventuraBriefGroupLabel::forCableType($c),
+            'codeFieldPlaceholder' => $cableTypeRepository->findExampleStockCode(),
+        ]);
+    }
+
+    /**
+     * Text štítku (z klienta) → jen heuristické pole pro formulář; bez párování s katalogem.
+     */
+    #[Route('/label-ocr-suggest', name: 'label_ocr_suggest', methods: ['POST'])]
+    public function labelOcrSuggest(
+        Request $request,
+        CableTypeOcrMatcher $matcher,
+        CableFamilyRepository $cableFamilyRepository,
+    ): JsonResponse {
+        $payload = json_decode((string) $request->getContent(), true);
+        if (!\is_array($payload)) {
+            return new JsonResponse(['ok' => false], 400);
+        }
+        $csrf = (string) ($payload['csrf'] ?? '');
+        if (!$this->isCsrfTokenValid('cable_type_label_ocr_suggest', $csrf)) {
+            return new JsonResponse(['ok' => false, 'error' => 'csrf'], 403);
+        }
+
+        $text = \trim((string) ($payload['text'] ?? ''));
+        if ('' === $text || \mb_strlen($text) > 12000 || \strlen($text) > 65535) {
+            return new JsonResponse(['ok' => false, 'error' => 'text'], 400);
+        }
+
+        $h = $matcher->extractSuggestedFields($text);
+        /** @var array<string, scalar> $suggested */
+        $suggested = [];
+
+        $full = \trim((string) ($h['fullText'] ?? ''));
+        if ('' !== $full) {
+            $suggested['fullDescription'] = $full;
+        }
+
+        if (isset($h['fiberCount'])) {
+            $n = (int) $h['fiberCount'];
+            if ($n > 0 && $n < 2000) {
+                $suggested['fiberCount'] = $n;
+            }
+        }
+
+        $diamSrc = \trim(\str_replace(' ', '', (string) ($h['diameterMm'] ?? '')));
+        $diamSrc = \str_replace(',', '.', $diamSrc);
+        if ('' !== $diamSrc && \is_numeric($diamSrc)) {
+            /** Pro HTML NumberType s českým formátem */
+            $suggested['diameterMm'] = \str_replace('.', ',', (string) $diamSrc);
+        }
+
+        $cc = \trim((string) ($h['constructionCode'] ?? ''));
+        if ('' !== $cc) {
+            $suggested['constructionCode'] = \mb_substr($cc, 0, 31);
+        }
+
+        $fam = \trim((string) ($h['familyCode'] ?? ''));
+        if ('' !== $fam && null !== $cableFamilyRepository->findOneBy(['code' => $fam, 'isActive' => true])) {
+            $suggested['familyCode'] = $fam;
+        }
+
+        return new JsonResponse([
+            'ok' => true,
+            'suggested' => $suggested,
         ]);
     }
 
@@ -85,10 +154,13 @@ final class CableTypeController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
-    public function edit(Request $request, CableType $cableType, EntityManagerInterface $em): Response
+    public function edit(Request $request, CableType $cableType, EntityManagerInterface $em, CableTypeRepository $cableTypeRepository): Response
     {
         $form = $this->createForm(CableTypeFormType::class, $cableType);
         $form->handleRequest($request);
+        if ($form->isSubmitted()) {
+            $this->synchronizeCableTypeListName($cableType);
+        }
         if ($form->isSubmitted() && $form->isValid()) {
             $u = $this->getUser();
             if ($u instanceof User) {
@@ -103,6 +175,8 @@ final class CableTypeController extends AbstractController
         return $this->render('warehouse/cable_type/form.html.twig', [
             'form' => $form,
             'title' => 'Upravit: '.$cableType->getCode(),
+            'cableListLabelPreview' => InventuraBriefGroupLabel::forCableType($cableType),
+            'codeFieldPlaceholder' => $cableTypeRepository->findExampleStockCode($cableType->getCode()),
         ]);
     }
 
@@ -124,9 +198,6 @@ final class CableTypeController extends AbstractController
         }
 
         $hints = $matcher->extractSuggestedFields($bag['raw']);
-        if ('' !== ($hints['name'] ?? '')) {
-            $cable->setName($hints['name']);
-        }
         if ('' !== ($hints['fullText'] ?? '')) {
             $cable->setFullDescription($hints['fullText']);
         }
@@ -151,7 +222,14 @@ final class CableTypeController extends AbstractController
         $sess->remove(self::SESSION_OCR_PREFILL);
         $this->addFlash(
             'info',
-            'Předběžné údaje načteny ze skenu štítku (OCR). Doplňte kód zásoby, zkontrolujte řadu a počet vláken, poté uložte.'
+            'Předběžné údaje ze štítku (OCR): plný popis a strukturální pole — krátký název v seznamech se dopo uložení dopočítá z vláken · řady · Ø jako ve sloupci Skupina v inventuře. Doplňte kód zásoby a zkontrolujte údaje.'
         );
+    }
+
+    /** Stejný text jako sloupec „Skupina“ v krátké inventuře (název pro seznamy a cívky). */
+    private function synchronizeCableTypeListName(CableType $cableType): void
+    {
+        $label = InventuraBriefGroupLabel::forCableType($cableType);
+        $cableType->setName(\mb_substr($label, 0, 255));
     }
 }

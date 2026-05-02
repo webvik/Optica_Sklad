@@ -7,6 +7,7 @@ use App\Entity\Spool;
 use App\Enum\SpoolStatus;
 use App\Repository\CableTypeRepository;
 use App\Repository\SpoolRepository;
+use App\Service\Warehouse\InventuraBriefGroupLabel;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -238,11 +239,6 @@ final class ImportSpoolsFromXlsxCommand extends Command
     ): CableType {
         $ct = new CableType();
         $ct->setCode($code);
-        $name = $nazev;
-        if (\strlen($name) > 255) {
-            $name = \substr($name, 0, 252).'...';
-        }
-        $ct->setName('' === $name ? $code : $name);
         $ct->setFullDescription('' === $nazev ? null : $nazev);
         $ct->setFamily('' === $family ? 'unknown' : $family);
         $ct->setFiberCount($fiberCount);
@@ -254,6 +250,11 @@ final class ImportSpoolsFromXlsxCommand extends Command
             $ct->setDiameterMm($d);
         }
         $ct->setIsActive(true);
+        $short = \mb_substr(InventuraBriefGroupLabel::forCableType($ct), 0, 255);
+        if ('' === \trim($short)) {
+            $short = $code;
+        }
+        $ct->setName($short);
 
         return $ct;
     }

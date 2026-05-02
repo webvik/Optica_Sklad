@@ -46,4 +46,44 @@ class CableTypeRepository extends ServiceEntityRepository
 
         return $list;
     }
+
+    /**
+     * Jedna ukázka kódu zásoby pro šedý placeholder ve formuláři (aktivní řádky).
+     * Volitelně vynechá $excludeCode (např. aktuální při úpravě — ukáže jiný existující kód).
+     */
+    public function findExampleStockCode(?string $excludeCode = null): ?string
+    {
+        $first = $this->fetchExampleStockCodeQuery($excludeCode);
+        if (null !== $first && '' !== $first) {
+            return $first;
+        }
+
+        return $this->fetchExampleStockCodeQuery(null);
+    }
+
+    /**
+     * @return non-empty-string|null
+     */
+    private function fetchExampleStockCodeQuery(?string $excludeCode): ?string
+    {
+        $qb = $this->createQueryBuilder('c')
+            ->select('c.code')
+            ->andWhere('c.isActive = :a')
+            ->setParameter('a', true)
+            ->orderBy('c.code', 'ASC')
+            ->setMaxResults(1);
+        if (null !== $excludeCode && '' !== $excludeCode) {
+            $qb->andWhere('c.code != :nx')->setParameter('nx', $excludeCode);
+        }
+
+        $col = $qb->getQuery()->getSingleColumnResult();
+
+        if ([] === $col) {
+            return null;
+        }
+
+        $code = (string) $col[0];
+
+        return '' === \trim($code) ? null : $code;
+    }
 }

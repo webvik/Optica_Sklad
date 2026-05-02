@@ -32,10 +32,6 @@ final class CableTypeFormType extends AbstractType
                 'label' => 'Kód zásoby',
                 'constraints' => [new NotBlank()],
             ])
-            ->add('name', TextType::class, [
-                'label' => 'Stručný název',
-                'constraints' => [new NotBlank()],
-            ])
             ->add('fullDescription', TextareaType::class, [
                 'label' => 'Plný popis',
                 'required' => false,
