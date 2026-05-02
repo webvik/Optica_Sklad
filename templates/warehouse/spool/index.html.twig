@@ -406,6 +406,36 @@
   var lastSpoolsList = [];
   var workTopArea = document.getElementById('work-top-area');
   var expandSearchBtn = document.getElementById('work-search-expand-btn');
+  /** Telemetrie skenu (mobil bez konzole): na stránce přidej ?scanDbg=1, logy v Monologu [work-scan-client]. */
+  var workScanLogCfg = {% if work_scan_client_log|default(false) %}{{ { url: path('warehouse_spool_client_scan_log'), csrf: csrf_token('work_scan_client') }|json_encode|raw }}{% else %}null{% endif %};
+  var workScanLogDetectThrottleMs = 550;
+  var workScanLogLastDetectTs = 0;
+  function workScanClientLog(payload) {
+    if (!workScanLogCfg || !workScanLogCfg.url) return;
+    try {
+      var ev = payload && payload.event;
+      if (ev === 'detect') {
+        var t = Date.now();
+        if (t - workScanLogLastDetectTs < workScanLogDetectThrottleMs) return;
+        workScanLogLastDetectTs = t;
+      }
+      var body = {
+        event: payload.event,
+        ui: payload.ui,
+        sareMode: payload.sareMode,
+        codesCount: payload.codesCount,
+        fmtTier: payload.fmtTier,
+        pickedLen: payload.pickedLen,
+        csrf: workScanLogCfg.csrf,
+      };
+      fetch(workScanLogCfg.url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(body),
+      }).catch(function () {});
+    } catch (eLog) {}
+  }
 
   function setSearchFormCollapsed(c) {
     if (workTopArea) {
@@ -915,6 +945,11 @@
     setScanOverlayCopy();
     syncScanOverlayLayout();
     scanOverlay.hidden = false;
+    workScanClientLog({
+      event: 'open_overlay',
+      ui: scanMode === 'record' ? 'record' : 'sare',
+      sareMode: scanMode === 'sare' ? sareOverlayReadMode : undefined,
+    });
     if (scanMode === 'sare' && sareModeRow) sareModeRow.removeAttribute('hidden');
     else if (sareModeRow) sareModeRow.setAttribute('hidden', '');
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
@@ -980,10 +1015,12 @@
           if (sareOverlayReadMode === 'number') {
             sareFmtTier = 1;
             detector = makeSareNumberDetector();
+            workScanClientLog({ event: 'rebuild_detector', ui: 'sare', sareMode: 'number', fmtTier: sareFmtTier });
             return;
           }
           sareFmtTier = sarePhase2Immediate ? 1 : 0;
           detector = makeSareBarcodeDetector(sareFmtTier === 1);
+          workScanClientLog({ event: 'rebuild_detector', ui: 'sare', sareMode: 'barcode', fmtTier: sareFmtTier });
         }
         if (scanMode === 'sare') {
           sareScanLive = { rebuild: rebuildSareScanEngine };
@@ -1016,10 +1053,24 @@
           function decodeFrom(src) {
             detector.detect(src).then(function (codes) {
               if (!codes) codes = [];
+              workScanClientLog({
+                event: 'detect',
+                ui: scanMode === 'record' ? 'record' : 'sare',
+                sareMode: scanMode === 'sare' ? sareOverlayReadMode : undefined,
+                codesCount: codes.length,
+                fmtTier: scanMode === 'sare' ? sareFmtTier : undefined,
+              });
               var val = '';
               if (scanMode === 'sare') val = pickSareBarcodeFromDetections(codes);
               else if (codes.length) val = sareDetectionRaw(codes[0]);
               if (val.length) {
+                workScanClientLog({
+                  event: 'picked',
+                  ui: scanMode === 'record' ? 'record' : 'sare',
+                  sareMode: scanMode === 'sare' ? sareOverlayReadMode : undefined,
+                  fmtTier: scanMode === 'sare' ? sareFmtTier : undefined,
+                  pickedLen: val.length,
+                });
                 onScanDecoded(val);
                 return;
               }
@@ -1069,6 +1120,7 @@
       ev.preventDefault();
       if (sareOverlayReadMode === 'barcode') return;
       sareOverlayReadMode = 'barcode';
+      workScanClientLog({ event: 'sare_mode', ui: 'sare', sareMode: 'barcode' });
       syncSareOverlayModeButtons();
       setScanOverlayCopy();
       if (sareScanLive && typeof sareScanLive.rebuild === 'function') sareScanLive.rebuild();
@@ -1080,6 +1132,7 @@
       ev.preventDefault();
       if (sareOverlayReadMode === 'number') return;
       sareOverlayReadMode = 'number';
+      workScanClientLog({ event: 'sare_mode', ui: 'sare', sareMode: 'number' });
       syncSareOverlayModeButtons();
       setScanOverlayCopy();
       if (sareScanLive && typeof sareScanLive.rebuild === 'function') sareScanLive.rebuild();

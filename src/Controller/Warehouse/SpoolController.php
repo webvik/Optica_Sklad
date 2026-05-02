@@ -16,6 +16,7 @@ use App\Repository\SpoolRepository;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -55,7 +56,42 @@ final class SpoolController extends AbstractController
             'spools' => $spools,
             'spoolRemaining' => $spoolRemaining,
             'spoolsLookupJson' => $spoolsLookupJson,
+            /** Diagnostika skenu kamery na mobilu — přidej ?scanDbg=1 na URL „Práce s optikou“. */
+            'work_scan_client_log' => $request->query->getBoolean('scanDbg'),
         ]);
+    }
+
+    /** Telemetrie z klienta (BarcodeDetector je jen v prohlížeči). Bez raw hodnot čárového kódu kvůli citlivosti údajů. */
+    #[Route('/client-scan-log', name: 'client_scan_log', methods: ['POST'])]
+    public function clientScanLog(Request $request, LoggerInterface $logger): JsonResponse
+    {
+        $payload = json_decode((string) $request->getContent(), true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['ok' => false], 400);
+        }
+        $csrf = (string) ($payload['csrf'] ?? '');
+        unset($payload['csrf']);
+        if (!$this->isCsrfTokenValid('work_scan_client', $csrf)) {
+            return new JsonResponse(['ok' => false, 'error' => 'csrf'], 403);
+        }
+        foreach (array_keys($payload) as $key) {
+            if (!in_array($key, ['event', 'sareMode', 'codesCount', 'fmtTier', 'pickedLen', 'ui'], true)) {
+                unset($payload[$key]);
+            }
+        }
+        $user = $this->getUser();
+        $logger->info('[work-scan-client]', [
+            'event' => $payload['event'] ?? null,
+            'sareMode' => $payload['sareMode'] ?? null,
+            'codesCount' => $payload['codesCount'] ?? null,
+            'fmtTier' => $payload['fmtTier'] ?? null,
+            'pickedLen' => $payload['pickedLen'] ?? null,
+            'ui' => $payload['ui'] ?? null,
+            'ip' => $request->getClientIp(),
+            'user' => $user instanceof User ? $user->getUserIdentifier() : null,
+        ]);
+
+        return new JsonResponse(['ok' => true]);
     }
 
     /** Úplný seznam cívek (dříve na úvodní stránce sekce). */
