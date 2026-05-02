@@ -60,10 +60,10 @@
             background: #111;
             border-radius: 6px;
         }
-        /* Sken čísla saře: nízký pruh (≈ řádek štítku), rozpoznává se jen prostředek snímku */
+        /* Sken čísla saře: nízký pruh — šířka výběru v JS: sareStripFrac (sladit při změně) */
         .work-scan-overlay--sare-strip #work-scan-video-wrap.work-scan-video-wrap--sare-strip {
             width: min(100%, 34rem);
-            height: clamp(5.75rem, 16vh, 8.75rem);
+            height: clamp(4.25rem, 11.5vh, 6.25rem);
             overflow: hidden;
             border-radius: 8px;
             border: 2px solid rgba(85, 220, 175, 0.9);
@@ -1161,8 +1161,8 @@
           if (!scanCropCanvas) scanCropCanvas = document.createElement('canvas');
           return scanCropCanvas;
         }
-        /** Středový horizontální pás kamery → méně falešných čtení z okolí; viz CSS pruh „sare“. */
-        var sareStripFrac = 0.26;
+        /** Středový horizontální pás kamery → méně „sousedních“ čísel; stejné pro čárovek i OCR (viz CSS výška pruhu). */
+        var sareStripFrac = 0.17;
         function tick() {
           if (!scanVideo || scanStream === null) return;
           if (scanVideo.readyState < 2) {
