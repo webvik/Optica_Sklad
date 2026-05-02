@@ -3,6 +3,7 @@
 namespace App\Controller\Warehouse;
 
 use App\Entity\CableFamily;
+use App\Entity\CableType;
 use App\Entity\Spool;
 use App\Entity\SpoolEvent;
 use App\Entity\User;
@@ -13,6 +14,7 @@ use App\Form\SpoolEventFormType;
 use App\Form\SpoolFormType;
 use App\Repository\CableFamilyRepository;
 use App\Repository\SpoolRepository;
+use App\Service\Warehouse\CableTypeOcrMatcher;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -92,6 +94,44 @@ final class SpoolController extends AbstractController
         ]);
 
         return new JsonResponse(['ok' => true]);
+    }
+
+    /** OCR štítek typu → nejlepší shoda z katalogu nebo prázdno (bez uložení těla v logech). */
+    #[Route('/cable-type-ocr-match', name: 'cable_type_ocr_match', methods: ['POST'])]
+    public function cableTypeOcrMatch(Request $request, CableTypeOcrMatcher $matcher): JsonResponse
+    {
+        $payload = json_decode((string) $request->getContent(), true);
+        if (!is_array($payload)) {
+            return new JsonResponse(['ok' => false], 400);
+        }
+        $csrf = (string) ($payload['csrf'] ?? '');
+        if (!$this->isCsrfTokenValid('spool_cable_type_ocr_match', $csrf)) {
+            return new JsonResponse(['ok' => false, 'error' => 'csrf'], 403);
+        }
+        $text = trim((string) ($payload['text'] ?? ''));
+        if (\mb_strlen($text) < 2) {
+            return new JsonResponse(['ok' => false, 'error' => 'text'], 400);
+        }
+
+        $r = $matcher->matchBest($text);
+        $bt = $r['cableType'];
+        if ($r['matched'] && $bt instanceof CableType) {
+            return new JsonResponse([
+                'ok' => true,
+                'matched' => true,
+                'score' => round($r['score'], 1),
+                'margin' => round($r['margin'], 2),
+                'cableType' => $this->cableTypeToOcrMatchArray($bt),
+            ]);
+        }
+
+        return new JsonResponse([
+            'ok' => true,
+            'matched' => false,
+            'score' => round($r['score'], 1),
+            'margin' => round($r['margin'], 2),
+            'normalizedQuery' => \mb_substr((string) $r['normalizedQuery'], 0, 480),
+        ]);
     }
 
     /** Úplný seznam cívek (dříve na úvodní stránce sekce). */
@@ -425,6 +465,22 @@ final class SpoolController extends AbstractController
             'statusLabel' => $this->spoolStatusLabel($s->getStatus()),
             'family' => $s->getFamily(),
             'lastEvents' => $eventsOut,
+        ];
+    }
+
+    private function cableTypeToOcrMatchArray(CableType $c): array
+    {
+        $d = $c->getDiameterMm();
+
+        return [
+            'id' => $c->getId(),
+            'code' => $c->getCode(),
+            'name' => $c->getName(),
+            'family' => $c->getFamily(),
+            'fiberCount' => $c->getFiberCount(),
+            'diameterMm' => (null !== $d && '' !== (string) $d) ? (string) $d : null,
+            'constructionCode' => $c->getConstructionCode(),
+            'fullDescription' => $c->getFullDescription(),
         ];
     }
 

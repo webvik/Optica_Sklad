@@ -12,13 +12,51 @@
             margin: 0 0 0.75rem;
             align-items: start;
         }
-        .spool-form__field > label, .spool-form__field > .spool-form__static-label {
+        .spool-form__field > label,
+        .spool-form__field > .spool-form__static-label,
+        .spool-form__field > .spool-form__label-scan {
             font-weight: 600;
             font-size: 0.84rem;
             line-height: 1.25;
             padding-top: 0.28rem;
             word-break: break-word;
             hyphens: auto;
+        }
+        .spool-form__label-scan {
+            box-sizing: border-box;
+            margin: 0;
+            justify-self: start;
+            align-self: start;
+            max-width: 100%;
+            text-align: left;
+            font: inherit;
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.25;
+            color: inherit;
+            cursor: pointer;
+            padding: 0.28rem 0.45rem;
+            border: 1px solid rgba(0, 0, 0, 0.26);
+            background: rgba(250, 250, 250, 0.65);
+            border-radius: 4px;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
+            word-break: break-word;
+            hyphens: auto;
+            min-height: 2rem;
+            display: inline-block;
+            vertical-align: top;
+        }
+        .spool-form__label-scan:hover {
+            border-color: rgba(0, 0, 0, 0.42);
+            background: rgba(0, 0, 0, 0.04);
+        }
+        .spool-form__label-scan:active {
+            background: rgba(0, 0, 0, 0.07);
+            border-color: rgba(0, 0, 0, 0.48);
+        }
+        .spool-form__label-scan:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
         }
         .spool-form__readout { margin: 0; font-size: 0.88rem; line-height: 1.35; color: #333; }
         .spool-form__value { min-width: 0; text-align: left; }
@@ -33,8 +71,13 @@
         @media (min-width: 42rem) {
             .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
             .spool-form__row--actions { grid-template-columns: 12.5rem 1fr; }
-            .spool-form__field > label, .spool-form__field > .spool-form__static-label { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; }
-            .spool-form__value > input, .spool-form__value > select, .spool-form__value > textarea { max-width: 24rem; margin-left: auto; display: block; }
+            .spool-form__field > label,
+            .spool-form__field > .spool-form__static-label,
+            .spool-form__field > .spool-form__label-scan { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; min-height: 0; }
+            .spool-form__value > input, .spool-form__value > select, .spool-form__value > textarea {
+                max-width: 24rem;
+            }
+            .spool-form__value > input, .spool-form__value > select, .spool-form__value > textarea { margin-left: auto; display: block; }
             .spool-form__value p.form-text, .spool-form__value p.help-text { max-width: 24rem; margin-left: auto; }
             .spool-form__value--actions .spool-form__actions { max-width: 24rem; margin-left: auto; }
             .spool-form__value > ul, .spool-form__value .form-error { text-align: left; margin-left: auto; max-width: 24rem; }
@@ -42,8 +85,16 @@
         @media (max-width: 41.99rem) {
             .spool-form__row--action-spacer { display: none !important; }
             .spool-form__row--actions .spool-form__value--actions { grid-column: 1 / -1; }
+            .spool-form__label-scan {
+                min-height: 2.75rem;
+                padding-top: 0.45rem;
+                padding-bottom: 0.45rem;
+                display: flex;
+                align-items: center;
+            }
         }
         .spool-form__actions { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; }
+        .spool-form__actions--submit-only { justify-content: flex-end; }
         @media (min-width: 42rem) {
             .spool-form__row--actions .spool-form__value--actions { width: 100%; }
         }
@@ -64,6 +115,44 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1rem;
         }
         #spool-form-scan-video { max-width: min(100%, 640px); max-height: 50vh; background: #111; border-radius: 6px; }
+        #spool-cable-ocr-overlay[hidden] { display: none !important; }
+        #spool-cable-ocr-overlay {
+            position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0, 0, 0, 0.76);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.85rem;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        #spool-cable-ocr-overlay-text {
+            color: #fff;
+            margin: 0;
+            text-align: center;
+            max-width: 38rem;
+            font-size: 0.93rem;
+            line-height: 1.42;
+            padding: 0 0.35rem;
+        }
+        #spool-cable-ocr-video-wrap {
+            width: min(100%, 28rem);
+            height: clamp(4.75rem, 14vh, 7rem);
+            overflow: hidden;
+            border-radius: 8px;
+            border: 2px solid rgba(95, 200, 255, 0.85);
+            background: #111;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        #spool-cable-ocr-video {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+        }
         {% include 'warehouse/_cable_type_picker_core_styles.html.twig' %}
         @media (min-width: 42rem) {
             .spool-form__value--cable .cable-type-mobile-picker {
@@ -140,10 +229,19 @@
     {% endfor %}
     <script type="application/json" id="cable-type-meta-json">{{ cable_type_meta|json_encode|raw }}</script>
     <script type="application/json" id="spool-cable-family-labels-json">{{ cable_family_labels_json|default('{}')|raw }}</script>
+    <script type="application/json" id="spool-cable-ocr-api-json">{{ {
+        matchUrl: path('warehouse_spool_cable_type_ocr_match'),
+        stashUrl: path('warehouse_cable_type_ocr_prefill_stash'),
+        newCableUrl: path('warehouse_cable_type_new'),
+        csrfMatch: csrf_token('spool_cable_type_ocr_match'),
+        csrfStash: csrf_token('cable_type_ocr_stash'),
+    }|json_encode(256)|raw }}</script>
     {{ form_start(form, { attr: { class: 'spool-form', id: 'spool-new-form' } }) }}
         <div class="cable-type-hover-group" id="cable-type-hover-zone">
         <div class="spool-form__field spool-form__field--cable">
-            {{ form_label(form.cableType) }}
+            <button type="button" class="spool-form__label-scan" id="spool-form-cable-ocr" title="OCR řádku se značením kabelu → výběr typu z katalogu nebo nový typ">
+                {{- form.cableType.vars.label -}}
+            </button>
             <div class="spool-form__value spool-form__value--cable">
                 <div class="cable-type-mobile-picker" id="cable-type-mobile-picker">
                     <button type="button" class="cable-type-mobile-picker__toggle" id="cable-type-mobile-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="cable-type-mobile-panel">
@@ -157,7 +255,7 @@
                             <button type="button" class="cable-type-mobile-picker__close" id="cable-type-mobile-close" aria-label="Zavřít">×</button>
                         </div>
                         <div class="cable-type-mobile-picker__scroller">
-                            {{ form_widget(form.cableType) }}
+                            {{ form_widget(form.cableType, { attr: { 'aria-label': form.cableType.vars.label } }) }}
                         </div>
                         <div class="cable-type-mobile-picker__full-desc" id="cable-type-full-desc-in-panel" role="region" aria-label="Plný popis kabelu"></div>
                     </div>
@@ -178,23 +276,29 @@
             </div>
         </div>
         <div class="spool-form__field">
-            {{ form_label(form.reelNumber) }}
+            <button type="button" class="spool-form__label-scan" id="spool-reel-barcode-scan" title="Skenovat čárový kód čísla saře">
+                {{- form.reelNumber.vars.label -}}
+            </button>
             <div class="spool-form__value">
-                {{ form_widget(form.reelNumber) }}
+                {{ form_widget(form.reelNumber, { attr: { 'aria-label': form.reelNumber.vars.label } }) }}
                 {{ form_errors(form.reelNumber) }}
             </div>
         </div>
         <div class="spool-form__field">
-            {{ form_label(form.totalLengthM) }}
+            <button type="button" class="spool-form__label-scan" id="spool-length-barcode-scan" title="Skenovat čárový kód délky (m)">
+                {{- form.totalLengthM.vars.label -}}
+            </button>
             <div class="spool-form__value">
-                {{ form_widget(form.totalLengthM) }}
+                {{ form_widget(form.totalLengthM, { attr: { 'aria-label': form.totalLengthM.vars.label } }) }}
                 {{ form_errors(form.totalLengthM) }}
             </div>
         </div>
         <div class="spool-form__field">
-            {{ form_label(form.initialVisibleM) }}
+            <button type="button" class="spool-form__label-scan" id="spool-ps-ocr-scan" title="OCR čísla PS (viditelných metrů) na štítku — bez čárového kódu">
+                {{- form.initialVisibleM.vars.label -}}
+            </button>
             <div class="spool-form__value">
-                {{ form_widget(form.initialVisibleM) }}
+                {{ form_widget(form.initialVisibleM, { attr: { 'aria-label': form.initialVisibleM.vars.label } }) }}
                 {{ form_errors(form.initialVisibleM) }}
             </div>
         </div>
@@ -236,8 +340,7 @@
         <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
             <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
             <div class="spool-form__value spool-form__value--actions">
-                <div class="spool-form__actions" role="group" aria-label="Akce">
-                    <button type="button" class="spool-form__btn" id="spool-form-scan" title="Sken kódu saře do pole Číslo saře">Sken</button>
+                <div class="spool-form__actions spool-form__actions--submit-only" role="group" aria-label="Akce">
                     <button type="submit" class="spool-form__btn">Uložit</button>
                 </div>
             </div>
@@ -250,6 +353,11 @@
         <video id="spool-form-scan-video" playsinline autoplay muted></video>
         <button type="button" id="spool-form-scan-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
     </div>
+    <div id="spool-cable-ocr-overlay" hidden role="dialog" aria-label="Sken štítku typu kabelu (OCR)">
+        <p id="spool-cable-ocr-overlay-text"></p>
+        <div id="spool-cable-ocr-video-wrap"><video id="spool-cable-ocr-video" playsinline autoplay muted></video></div>
+        <button type="button" id="spool-cable-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
+    </div>
     <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
         <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
             <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a>
@@ -259,18 +367,59 @@
 {% endblock %}
 {% block javascripts %}
     {{ parent() }}
+    <script crossorigin referrerpolicy="no-referrer" src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>
 (function () {
   var reelIn = document.getElementById({{ form.reelNumber.vars.id|json_encode|raw }});
-  var scanBtn = document.getElementById('spool-form-scan');
+  var lengthIn = document.getElementById({{ form.totalLengthM.vars.id|json_encode|raw }});
+  var reelScanBtn = document.getElementById('spool-reel-barcode-scan');
+  var lengthScanBtn = document.getElementById('spool-length-barcode-scan');
   var scanOverlay = document.getElementById('spool-form-scan-overlay');
   var scanVideo = document.getElementById('spool-form-scan-video');
   var scanCancel = document.getElementById('spool-form-scan-cancel');
   var scanOverlayText = document.getElementById('spool-form-scan-overlay-text');
   var scanRaf = null, scanStream = null;
+  /** @type {'reel'|'length'} */
+  var scanTarget = 'reel';
+  function longestDigitRun(s) {
+    var m = String(s || '').match(/\d+/g);
+    if (!m || !m.length) return '';
+    return m.reduce(function (a, b) { return b.length > a.length ? b : a; }, '');
+  }
+  function pickDecodedRaw(codes) {
+    if (!codes || !codes.length) return '';
+    if (scanTarget === 'length') {
+      var i, rv, run, pure = [];
+      for (i = 0; i < codes.length; i++) {
+        rv = String(codes[i].rawValue || '').trim();
+        if (!rv.length) continue;
+        if (/^\d+$/.test(rv)) pure.push(rv);
+      }
+      if (pure.length) {
+        return pure.reduce(function (a, b) { return b.length > a.length ? b : a; });
+      }
+      var bestRun = '';
+      for (i = 0; i < codes.length; i++) {
+        rv = String(codes[i].rawValue || '').trim();
+        run = longestDigitRun(rv);
+        if (run.length > bestRun.length) bestRun = run;
+      }
+      return bestRun || String(codes[0].rawValue || '').trim();
+    }
+    return String(codes[0].rawValue || '').trim();
+  }
+  function normalizeLengthBarcode(raw) {
+    var run = longestDigitRun(raw);
+    if (!run.length) return '';
+    var n = parseInt(run, 10);
+    return isFinite(n) && n >= 0 ? String(n) : '';
+  }
   function setScanText() {
     if (scanOverlayText) {
-      scanOverlayText.textContent = 'Sken saře: po rozpoznání se vyplní pole Číslo saře (případně doplňte a uložte).';
+      scanOverlayText.textContent =
+        scanTarget === 'length'
+          ? 'Sken délky: po rozpoznání se vyplní pole Délka L (m); při potížích zadejte ručně.'
+          : 'Sken čísla saře: po rozpoznání se vyplní pole Číslo saře (případně doplňte a uložte).';
     }
   }
   function stopBarcodeScan() {
@@ -288,14 +437,31 @@
       try { reelIn.select(); } catch (e) {}
     }
   }
+  function focusLength() {
+    if (lengthIn) {
+      lengthIn.focus();
+      try { lengthIn.select(); } catch (e1) {}
+    }
+  }
+  function focusScanTargetField() {
+    if (scanTarget === 'length') focusLength();
+    else focusSare();
+  }
   function onScanDecoded(v) {
     v = String(v).trim();
     if (!v.length) return;
     stopBarcodeScan();
-    if (reelIn) reelIn.value = v;
+    if (scanTarget === 'length') {
+      if (lengthIn) {
+        var n = normalizeLengthBarcode(v);
+        lengthIn.value = n || v;
+      }
+    } else if (reelIn) {
+      reelIn.value = v;
+    }
   }
   function startBarcodeScan() {
-    if (!scanOverlay || !scanVideo) { focusSare(); return; }
+    if (!scanOverlay || !scanVideo) { focusScanTargetField(); return; }
     setScanText();
     scanOverlay.hidden = false;
     navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
@@ -307,7 +473,7 @@
       .then(function () {
         if (typeof window.BarcodeDetector === 'undefined') {
           stopBarcodeScan();
-          focusSare();
+          focusScanTargetField();
           return;
         }
         var detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
@@ -318,8 +484,9 @@
             return;
           }
           detector.detect(scanVideo).then(function (codes) {
-            if (codes && codes.length && codes[0].rawValue) {
-              onScanDecoded(codes[0].rawValue);
+            var raw = pickDecodedRaw(codes);
+            if (raw) {
+              onScanDecoded(raw);
               return;
             }
             scanRaf = requestAnimationFrame(tick);
@@ -329,18 +496,414 @@
       })
       .catch(function () {
         stopBarcodeScan();
-        focusSare();
+        focusScanTargetField();
       });
   }
-  if (scanBtn) {
-    scanBtn.addEventListener('click', function () {
+  function wireScanButton(btn, target) {
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      scanTarget = target;
       if (typeof window.BarcodeDetector !== 'undefined') startBarcodeScan();
-      else focusSare();
+      else focusScanTargetField();
     });
   }
+  wireScanButton(reelScanBtn, 'reel');
+  wireScanButton(lengthScanBtn, 'length');
   if (scanCancel) scanCancel.addEventListener('click', function () { stopBarcodeScan(); });
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape' && scanOverlay && !scanOverlay.hidden) { ev.preventDefault(); stopBarcodeScan(); }
+  });
+})();
+(function () {
+  var cfgEl = document.getElementById('spool-cable-ocr-api-json');
+  var cfg = {};
+  try { cfg = cfgEl ? JSON.parse(cfgEl.textContent) : {}; } catch (eCf) {}
+
+  var ocrBtn = document.getElementById('spool-form-cable-ocr');
+  var psOcrBtn = document.getElementById('spool-ps-ocr-scan');
+  var overlay = document.getElementById('spool-cable-ocr-overlay');
+  var ocrVideo = document.getElementById('spool-cable-ocr-video');
+  var ocrCancel = document.getElementById('spool-cable-ocr-cancel');
+  var ocrTextHint = document.getElementById('spool-cable-ocr-overlay-text');
+  var cableSelOcr = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
+  var famSelOcr = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
+  var psIn = document.getElementById({{ form.initialVisibleM.vars.id|json_encode|raw }});
+
+  var scanRaf = null;
+  var scanStream = null;
+  var ocrBusy = false;
+  var ocrLastAt = 0;
+  var ocrCropCanvas = null;
+  var CABLE_STRIP_FRAC = 0.2;
+  var OCR_INTERVAL_MS = 820;
+  var MIN_CHARS = 10;
+  var tessWorkerPromise = null;
+  var tessWorker = null;
+
+  /** @type {'cable'|'ps'} */
+  var ocrMode = 'cable';
+
+  var cableReady = !!(ocrBtn && cableSelOcr && cfg.matchUrl && cfg.stashUrl);
+  var psReady = !!(psOcrBtn && psIn);
+
+  if (!overlay || !ocrVideo || (!cableReady && !psReady)) {
+    return;
+  }
+
+  function longestDigitRunOcr(s) {
+    var m = String(s || '').match(/\d+/g);
+    if (!m || !m.length) return '';
+    return m.reduce(function (a, b) { return b.length > a.length ? b : a; }, '');
+  }
+
+  function parsePositiveIntDigits(run) {
+    if (!run || !run.length) return '';
+    var n = parseInt(run, 10);
+    if (!isFinite(n) || n < 1) return '';
+    return String(n);
+  }
+
+  /** OCR text z PS řádku na štítku (bez čárového kódu): nejdříve „PS … číslo“, jinak nejdelší číselnou řadu ≥2 znaky */
+  function tryExtractPs(raw) {
+    var s = String(raw || '').replace(/\u00a0/g, ' ');
+    var mPs = /\bPS\b\s*[.:]?\s*(\d{1,8})\b/i.exec(s);
+    if (mPs && mPs[1]) {
+      var nz = parsePositiveIntDigits(mPs[1]);
+      if (nz.length) return nz;
+    }
+    var run = longestDigitRunOcr(s);
+    if (run.length < 2) return '';
+    return parsePositiveIntDigits(run);
+  }
+
+  function applyHintCable() {
+    if (ocrTextHint) {
+      ocrTextHint.textContent =
+        typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function'
+          ? 'OCR se nenačetla — zkuste obnovit stránku.'
+          : 'Držte řádek se značením kabelu ve světlém pruhu. Po přečtení se porovná katalog.';
+    }
+  }
+
+  function applyHintPs() {
+    if (ocrTextHint) {
+      ocrTextHint.textContent =
+        typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function'
+          ? 'OCR se nenačetla — zkuste obnovit stránku.'
+          : 'Na štítku chybí čárový kód PS — držte číslo viditelných metrů (PS / délky na vinutí) ve světlém pruhu.';
+    }
+  }
+
+  function terminateTessLocal() {
+    tessWorkerPromise = null;
+    var w = tessWorker;
+    tessWorker = null;
+    if (!w) return;
+    try { Promise.resolve(w.terminate()).catch(function () {}); } catch (eT) {}
+  }
+
+  function stopCableOcr() {
+    ocrBusy = false;
+    if (scanRaf != null) {
+      try { window.cancelAnimationFrame(scanRaf); } catch (eRaf) {}
+      try { window.clearTimeout(scanRaf); } catch (eTo) {}
+      scanRaf = null;
+    }
+    if (scanStream) {
+      scanStream.getTracks().forEach(function (t) { t.stop(); });
+      scanStream = null;
+    }
+    if (ocrVideo) ocrVideo.srcObject = null;
+    overlay.hidden = true;
+  }
+
+  function ensureWorker() {
+    if (typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function') {
+      return Promise.resolve(null);
+    }
+    if (tessWorker) return Promise.resolve(tessWorker);
+    if (!tessWorkerPromise) {
+      tessWorkerPromise = window.Tesseract.createWorker('eng', 1, { logger: function () {} })
+        .then(function (worker) {
+          return worker
+            .setParameters({ tessedit_pageseg_mode: '6' })
+            .then(function () {
+              tessWorker = worker;
+              tessWorkerPromise = null;
+              return worker;
+            });
+        })
+        .catch(function () {
+          tessWorkerPromise = null;
+          return null;
+        });
+    }
+    return tessWorkerPromise;
+  }
+
+  function getCropCanvas() {
+    if (!ocrCropCanvas) ocrCropCanvas = document.createElement('canvas');
+    return ocrCropCanvas;
+  }
+
+  function processOcrText(raw) {
+    var t = String(raw || '').trim();
+    t = t.replace(/\s+/g, ' ').trim();
+    return t.length >= MIN_CHARS ? t : '';
+  }
+
+  function postMatch(text, cbOk, cbErr) {
+    fetch(cfg.matchUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ text: text, csrf: cfg.csrfMatch }),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j.ok) cbErr(j);
+        else cbOk(j);
+      })
+      .catch(function () {
+        cbErr({});
+      });
+  }
+
+  function stashThenGo(text) {
+    fetch(cfg.stashUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ text: text, csrf: cfg.csrfStash }),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (j) {
+        if (!j.ok) window.alert('Uložení textu před formulářem typu selhalo.');
+        else window.location.href = cfg.newCableUrl;
+      })
+      .catch(function () {
+        window.alert('Bez síťové odpovědi nelze otevřít nový typ s textem OCR.');
+      });
+  }
+
+  function applyCableFromMatch(ct) {
+    if (!ct || ct.id == null) return false;
+    if (famSelOcr) {
+      famSelOcr.removeAttribute('hidden');
+      famSelOcr.value = '';
+      try {
+        famSelOcr.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (eCf) {}
+    }
+    cableSelOcr.value = String(ct.id);
+    try {
+      cableSelOcr.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (eCc) {}
+    try {
+      cableSelOcr.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (eCi) {}
+    window.alert(
+      'Vybrán typ z katalogu: ' +
+        String(ct.code || '') +
+        ' — ' +
+        String(ct.name || '') +
+        '. Zkontrolujte řádek „Typ kabelu“ / vlákna / průměr a uložte.'
+    );
+    return true;
+  }
+
+  function afterRecognizedCable(fullText) {
+    stopCableOcr();
+    terminateTessLocal();
+    postMatch(
+      fullText,
+      function (j) {
+        if (j.matched && j.cableType) {
+          applyCableFromMatch(j.cableType);
+          return;
+        }
+        window.alert(
+          'Žádná dostatečná shoda v katalogu (nejlepší skóre „' +
+            String(j.score != null ? j.score : '—') +
+            '“). Otevřu formulář nového typu s předvyplněným textem.'
+        );
+        stashThenGo(fullText);
+      },
+      function () {
+        window.alert('Službu porovnání se nepodařilo zavolat (relace/síť).');
+      }
+    );
+  }
+
+  function finishPsFromOcr(valueStr) {
+    stopCableOcr();
+    terminateTessLocal();
+    psIn.value = valueStr;
+    try {
+      psIn.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (ePv) {}
+    try {
+      psIn.focus();
+      psIn.select();
+    } catch (ePs) {}
+  }
+
+  function tickLoop() {
+    if (!ocrVideo || scanStream === null) return;
+    if (ocrVideo.readyState < 2) {
+      scanRaf = requestAnimationFrame(tickLoop);
+      return;
+    }
+
+    function scheduleNext() {
+      scanRaf = requestAnimationFrame(tickLoop);
+    }
+
+    var now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (ocrBusy) {
+      scheduleNext();
+      return;
+    }
+    if (now - ocrLastAt < OCR_INTERVAL_MS) {
+      scheduleNext();
+      return;
+    }
+
+    var vw = ocrVideo.videoWidth;
+    var vh = ocrVideo.videoHeight;
+    if (vw < 2 || vh < 2) {
+      scheduleNext();
+      return;
+    }
+
+    var sh = Math.max(12, Math.round(vh * CABLE_STRIP_FRAC));
+    var sy = Math.round((vh - sh) / 2);
+    var cw = Math.min(960, vw);
+    var ch = Math.max(12, Math.round(sh * (cw / vw)));
+    var canv = getCropCanvas();
+    if (canv.width !== cw || canv.height !== ch) {
+      canv.width = cw;
+      canv.height = ch;
+    }
+    var ctx = canv.getContext('2d');
+    ctx.drawImage(ocrVideo, 0, sy, vw, sh, 0, 0, cw, ch);
+
+    ocrBusy = true;
+    ocrLastAt = now;
+
+    ensureWorker()
+      .then(function (worker) {
+        if (!worker) {
+          ocrBusy = false;
+          ocrLastAt = now + 2500;
+          scheduleNext();
+          return;
+        }
+        if (scanStream === null) {
+          ocrBusy = false;
+          return;
+        }
+        worker
+          .recognize(canv)
+          .then(function (res) {
+            ocrBusy = false;
+            if (scanStream === null) return;
+            var txt = res && res.data && res.data.text ? String(res.data.text) : '';
+            if (ocrMode === 'ps') {
+              var psVal = tryExtractPs(txt);
+              if (psVal) {
+                finishPsFromOcr(psVal);
+                return;
+              }
+            } else {
+              var clean = processOcrText(txt);
+              if (clean.length) {
+                afterRecognizedCable(clean);
+                return;
+              }
+            }
+            scanRaf = requestAnimationFrame(tickLoop);
+          })
+          .catch(function () {
+            ocrBusy = false;
+            scanRaf = requestAnimationFrame(tickLoop);
+          });
+      })
+      .catch(function () {
+        ocrBusy = false;
+        scanRaf = requestAnimationFrame(tickLoop);
+      });
+  }
+
+  function openOcr(kind) {
+    ocrMode = kind === 'ps' ? 'ps' : 'cable';
+    if (ocrMode === 'cable') {
+      applyHintCable();
+      if (!cableReady) {
+        window.alert('Konfigurace OCR typu kabelu chybí.');
+        return;
+      }
+    } else {
+      applyHintPs();
+      if (!psIn) return;
+    }
+    if (typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function') {
+      window.alert('Biblioteka OCR se nenačetla.');
+      return;
+    }
+    overlay.hidden = false;
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
+      .then(function (stream) {
+        scanStream = stream;
+        ocrVideo.srcObject = stream;
+        return ocrVideo.play();
+      })
+      .then(function () {
+        ocrLastAt = 0;
+        ocrBusy = false;
+        scanRaf = requestAnimationFrame(tickLoop);
+      })
+      .catch(function () {
+        overlay.hidden = true;
+        window.alert('Kamera není dostupná.');
+      });
+  }
+
+  if (ocrBtn) {
+    ocrBtn.addEventListener('click', function () {
+      openOcr('cable');
+    });
+  }
+  if (psOcrBtn) {
+    psOcrBtn.addEventListener('click', function () {
+      openOcr('ps');
+    });
+  }
+  if (ocrCancel) {
+    ocrCancel.addEventListener('click', function () {
+      stopCableOcr();
+      terminateTessLocal();
+    });
+  }
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && overlay && !overlay.hidden) {
+      ev.preventDefault();
+      stopCableOcr();
+      terminateTessLocal();
+    }
   });
 })();
 (function () {

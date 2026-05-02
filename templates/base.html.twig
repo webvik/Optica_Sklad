@@ -117,6 +117,18 @@
                 textarea {
                     min-height: 5.75rem;
                 }
+                .app-menu__top-row--admin {
+                    flex-wrap: nowrap;
+                    gap: 0.45rem;
+                }
+                .app-menu__top-row--admin .warehouse-pill {
+                    flex: 1 1 0;
+                    min-width: 0;
+                    font-size: 0.98rem;
+                    padding-left: 0.4rem;
+                    padding-right: 0.4rem;
+                    line-height: 1.2;
+                }
             }
             .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
             .table-scroll > table { min-width: 100%; }
@@ -148,6 +160,7 @@
             .flash-stack { position: sticky; top: 0; z-index: 1000; margin: 0; padding: 0; }
             .flashes p { margin: .5rem 0; padding: .65rem 1rem; border-radius: 4px; max-width: min(52rem, 100%); }
             .flashes .success { background: #efe; color: #060; border: 1px solid #b8d4b8; }
+            .flashes .flash-info { background: #e8f3ff; color: #036; border: 1px solid #9cc2e6; }
             .error-modal-overlay {
                 position: fixed; inset: 0; z-index: 20000; display: flex; align-items: center; justify-content: center;
                 padding: 1rem; background: rgba(0,0,0,.45); box-sizing: border-box;
@@ -268,6 +281,9 @@
         <div class="flash-stack" id="global-flash-stack">
         {% for message in app.flashes('success') %}
             <div class="flashes" role="status" data-flash-severity="success"><p class="success">{{ message }}</p></div>
+        {% endfor %}
+        {% for message in app.flashes('info') %}
+            <div class="flashes" role="status" data-flash-severity="info"><p class="flash-info">{{ message }}</p></div>
         {% endfor %}
         </div>
         {% set error_flash_list = app.flashes('error') %}
