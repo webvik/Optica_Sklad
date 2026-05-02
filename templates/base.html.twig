@@ -73,10 +73,26 @@
                 }
                 a.app-menu__nav-link {
                     width: 100%;
-                    min-height: 2.85rem;
-                    padding: 0.5rem 0.65rem;
-                    font-size: 1rem;
+                    min-height: 2.9rem;
+                    padding: 0.52rem 0.65rem;
+                    font-size: 1.1rem;
+                    line-height: 1.28;
+                }
+                a.warehouse-pill,
+                button.warehouse-pill {
+                    font-size: 1.1rem;
                     line-height: 1.25;
+                }
+                input[type="submit"],
+                input[type="button"]:not(.error-modal-x):not(.success-modal-x):not(.beta-welcome-x),
+                input[type="reset"],
+                button:not(.error-modal-x):not(.success-modal-x):not(.beta-welcome-x):not(.warehouse-pill) {
+                    font-size: 1.05rem;
+                }
+                .error-modal-ok,
+                .success-modal-ok,
+                .beta-welcome-ok {
+                    font-size: 1.05rem;
                 }
             }
             .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
@@ -86,7 +102,7 @@
             @media (max-width: 36rem) {
                 .browse-filters { flex-direction: column; align-items: stretch; }
                 .browse-filters p { width: 100%; margin: 0; }
-                .browse-filters select, .browse-filters button { width: 100%; min-height: 2.75rem; font-size: 1rem; }
+                .browse-filters select, .browse-filters button { width: 100%; min-height: 2.75rem; font-size: 1.06rem; }
                 .browse-filters select.cable-type-list { min-height: unset; }
             }
             /* Long cable-type list: listbox + scroll (native dropdown is often not scrollable on mobile) */
