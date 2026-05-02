@@ -385,6 +385,8 @@
 {% endblock %}
 {% block javascripts %}
     {{ parent() }}
+    {# OCR pro režim „Číslo“ (tištěné číslice); čárové kódy neřeší. #}
+    <script crossorigin referrerpolicy="no-referrer" src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>
 (function () {
   var form = document.getElementById('work-search-form');
@@ -753,6 +755,10 @@
    *   (zatím NEIMPLEMENTOVÁNO; držet flag výše „false“, až doplníme logiku vedle decodeFrom/tick).
    */
   var WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS = true;
+  /** Min. počet číslic u OCR výsledku před automatickým potvrzením. */
+  var WORK_SARE_OCR_MIN_CONFIRM_LEN = 5;
+  /** Pausa mezi OCR pokusy (Tesseract je těžký na mobilu). */
+  var WORK_SARE_OCR_INTERVAL_MS = 780;
 
   var scanBtn = document.getElementById('work-scan-btn');
   var scanRecordBtn = document.getElementById('work-record-scan-btn');
@@ -766,13 +772,128 @@
   var sareModeNumberBtn = document.getElementById('work-scan-mode-number');
   /** V otevřeném overlay pouze pro saře: 'barcode' | 'number' */
   var sareOverlayReadMode = 'barcode';
-  /** Nastaveno během běžícího streamu skenu saře — přepnutí tlačítek znovu sestaví BarcodeDetector. */
+  /** Během streamu saře: přepnutí znovu sestaví BarcodeDetector (čárový kód) nebo OCR (číslo). */
   var sareScanLive = null;
   var scanRaf = null;
   var scanStream = null;
   var scanCropCanvas = null;
   /** 'sare' = pole vyhledávání; 'record' = Běžný stav + Objekt / zakázka */
   var scanMode = 'sare';
+  var sareOcrBusy = false;
+  var sareOcrLastAt = 0;
+  var sareTessWorker = null;
+  var sareTessWorkerPromise = null;
+
+  function terminateSareOcrWorker() {
+    sareTessWorkerPromise = null;
+    var w = sareTessWorker;
+    sareTessWorker = null;
+    if (!w) return;
+    try {
+      Promise.resolve(w.terminate()).catch(function () {});
+    } catch (eTerm) {}
+  }
+  /** Samostatný text z pruhu (Tesseract), nejvíc čísla saře; BarcodeDetector v tomto režimu neběží. */
+  function pickReelDigitsFromOcrText(text) {
+    var raw = String(text == null ? '' : text).replace(/\r/g, ' ').replace(/\n+/g, ' ');
+    raw = raw.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1').replace(/\s+/g, ' ');
+    var tokens = raw.split(/[^\d]+/).filter(function (x) {
+      var d = String(x || '').replace(/\D/g, '');
+      return d.length > 0;
+    });
+    var bestSkip = '';
+    var bestAny = '';
+    var i;
+    for (i = 0; i < tokens.length; i++) {
+      var t = String(tokens[i]).replace(/\D/g, '');
+      if (!t.length) continue;
+      if (t.length > bestAny.length) bestAny = t;
+      if (WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS && /^\d{1,4}$/.test(t)) continue;
+      if (t.length > bestSkip.length) bestSkip = t;
+    }
+    if (bestSkip.length >= WORK_SARE_OCR_MIN_CONFIRM_LEN) return bestSkip;
+    if (bestAny.length >= WORK_SARE_OCR_MIN_CONFIRM_LEN) return bestAny;
+    return '';
+  }
+  function ensureSareTesseractWorker() {
+    if (typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function') {
+      return Promise.resolve(null);
+    }
+    if (sareTessWorker) return Promise.resolve(sareTessWorker);
+    if (!sareTessWorkerPromise) {
+      sareTessWorkerPromise = window.Tesseract.createWorker('eng', 1, {
+        logger: function () {},
+      }).then(function (worker) {
+        return worker.setParameters({
+          tessedit_char_whitelist: '0123456789',
+          tessedit_pageseg_mode: '7',
+        }).then(function () {
+          sareTessWorker = worker;
+          sareTessWorkerPromise = null;
+          return worker;
+        });
+      }).catch(function () {
+        sareTessWorkerPromise = null;
+        return null;
+      });
+    }
+    return sareTessWorkerPromise;
+  }
+  function runSareOcrCropCanvas(canv, scheduleNext) {
+    var now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (sareOcrBusy) {
+      scheduleNext();
+      return;
+    }
+    if (now - sareOcrLastAt < WORK_SARE_OCR_INTERVAL_MS) {
+      scheduleNext();
+      return;
+    }
+    sareOcrBusy = true;
+    sareOcrLastAt = now;
+    ensureSareTesseractWorker().then(function (worker) {
+      if (!worker) {
+        sareOcrBusy = false;
+        sareOcrLastAt = now + 2200;
+        scheduleNext();
+        return;
+      }
+      if (scanStream === null || sareOverlayReadMode !== 'number' || scanMode !== 'sare') {
+        sareOcrBusy = false;
+        scheduleNext();
+        return;
+      }
+      return worker.recognize(canv).then(function (res) {
+        sareOcrBusy = false;
+        if (scanStream === null || sareOverlayReadMode !== 'number') {
+          scheduleNext();
+          return;
+        }
+        var txt = res && res.data && res.data.text ? String(res.data.text) : '';
+        var val = pickReelDigitsFromOcrText(txt);
+        workScanClientLog({
+          event: 'detect',
+          ui: 'sare',
+          sareMode: 'number',
+          codesCount: val.length ? 1 : 0,
+          fmtTier: undefined,
+        });
+        if (val.length >= WORK_SARE_OCR_MIN_CONFIRM_LEN) {
+          workScanClientLog({ event: 'picked', ui: 'sare', sareMode: 'number', pickedLen: val.length });
+          onScanDecoded(val);
+          return;
+        }
+        scheduleNext();
+      }).catch(function () {
+        sareOcrBusy = false;
+        scheduleNext();
+      });
+    }).catch(function () {
+      sareOcrBusy = false;
+      scheduleNext();
+    });
+  }
+
   function syncSareOverlayModeButtons() {
     if (!sareModeBarcodeBtn || !sareModeNumberBtn) return;
     var bc = sareOverlayReadMode === 'barcode';
@@ -792,7 +913,10 @@
     if (scanMode === 'sare') {
       var tierNote = '';
       if (sareOverlayReadMode === 'number') {
-        tierNote = ' Režim Číslo: stejné typy čárovek jako plná fáze (včetně Code128); preferuje krátké číslice; bez přeskakování 1–4 znaků.';
+        tierNote = ' Režim Číslo: OCR (tištěné číslice v pruhu), ne čárový kód — na slabším mobilu pomalejší; držte štítek ostře. Potvrzení po min. ' + WORK_SARE_OCR_MIN_CONFIRM_LEN + ' číslicích.';
+        if (typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function') {
+          tierNote += ' OCR knihovna se nenačetla — zkuste síť/VPN nebo obnovte stránku.';
+        }
       } else if (Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) && WORK_SARE_SCAN_PHASE2_AFTER_MS === 0) {
         tierNote = ' Používají se hned všechny čárové typy výchozí sady (bez QR/DM).';
       } else if (Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) && WORK_SARE_SCAN_PHASE2_AFTER_MS > 0 && WORK_SARE_SCAN_PHASE2_AFTER_MS < 1e12) {
@@ -808,7 +932,13 @@
     }
   }
   function stopBarcodeScan() {
-    if (scanRaf) { cancelAnimationFrame(scanRaf); scanRaf = null; }
+    sareOcrBusy = false;
+    terminateSareOcrWorker();
+    if (scanRaf != null) {
+      try { window.cancelAnimationFrame(scanRaf); } catch (eRaf) {}
+      try { window.clearTimeout(scanRaf); } catch (eTo) {}
+      scanRaf = null;
+    }
     if (scanStream) {
       scanStream.getTracks().forEach(function (t) { t.stop(); });
       scanStream = null;
@@ -847,29 +977,14 @@
     if (r == null || r === '') r = det.value;
     return String(r == null ? '' : r).trim();
   }
-  /** Pro sken Číslo saře: na štítku bývá kromě evid. čísla i délka kabelu (vždy jen ≤4 číslice podle výroby).
-   *  Takové čistě číselné hodnoty 1–4 znaků jako saři nebereme (přeskočíme a zkusíme jiného kandidáta / další frame). */
+  /** U čárovek na štítku: hodnoty 1–4 číslice často délka kabelu (m). */
   function sareDecodedLooksLikeCableLengthMeters(raw) {
     var s = String(raw == null ? '' : raw).trim();
     return /^\d{1,4}$/.test(s);
   }
-  /** Číslo = preferovat krátké číslice; vždy když detektor něco našel, nepoztrácet hodnotu (fallback = první řádek). */
+  /** Čárový kód jen v režimu „Čárový kód“ (ne OCR). */
   function pickSareBarcodeFromDetections(codes) {
     if (!codes || !codes.length) return '';
-    if (sareOverlayReadMode === 'number') {
-      var i;
-      var firstAny = '';
-      for (i = 0; i < codes.length; i++) {
-        var v0 = sareDetectionRaw(codes[i]);
-        if (!firstAny.length && v0.length) firstAny = v0;
-        if (/^\d{1,4}$/.test(v0)) return v0;
-      }
-      for (i = 0; i < codes.length; i++) {
-        var v2 = sareDetectionRaw(codes[i]);
-        if (/^\d+$/.test(v2)) return v2;
-      }
-      return firstAny;
-    }
     if (!WORK_SARE_USE_LENGTH_HEURISTIC_REJECT_1TO4_DIGITS) {
       return sareDetectionRaw(codes[0]);
     }
@@ -987,23 +1102,21 @@
           var fmts = wideTier ? narrowLin.concat(extraLin) : narrowLin.slice();
           return trySareLinearDetector(fmts);
         }
-        /**
-         * Režim „Číslo“: na štítku je délka často v Code128 (čisté číslice) — musí být ve stejné sadě jako „čárový kód“.
-         * Rozdíl je jen ve výběru z více detekcí (preferovat krátké číslice) a bez přeskakování 1–4 znaků.
-         */
-        function makeSareNumberDetector() {
-          var narrowLin = ['code_128', 'code_39', 'code_93', 'itf'];
-          var extraLin = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
-          return trySareLinearDetector(narrowLin.concat(extraLin));
-        }
         var sarePhase2Immediate = WORK_SARE_SCAN_PHASE2_AFTER_MS <= 0;
         var sareScanOpenedAtMs = scanMode === 'sare' ? performance.now() : 0;
         var sareFmtTier = 1;
         var detector;
+        if (scanMode === 'sare' && sareOverlayReadMode === 'barcode' && typeof window.BarcodeDetector === 'undefined') {
+          stopBarcodeScan();
+          focusSareForHardwareScan();
+          if (hint) hint.textContent = 'Čárové kódy v tomto prohlížeči nejdou — použijte režim Číslo (OCR) nebo čtečku do pole Číslo saře.';
+          return;
+        }
         if (scanMode !== 'sare') {
           detector = makeRecordDetector();
         } else if (sareOverlayReadMode === 'number') {
-          detector = makeSareNumberDetector();
+          detector = null;
+          sareFmtTier = 1;
         } else {
           sareFmtTier = sarePhase2Immediate ? 1 : 0;
           detector = makeSareBarcodeDetector(sareFmtTier === 1);
@@ -1013,9 +1126,15 @@
           sareScanOpenedAtMs = performance.now();
           setScanOverlayCopy();
           if (sareOverlayReadMode === 'number') {
+            detector = null;
             sareFmtTier = 1;
-            detector = makeSareNumberDetector();
-            workScanClientLog({ event: 'rebuild_detector', ui: 'sare', sareMode: 'number', fmtTier: sareFmtTier });
+            sareOcrBusy = false;
+            workScanClientLog({ event: 'rebuild_detector', ui: 'sare', sareMode: 'number' });
+            return;
+          }
+          terminateSareOcrWorker();
+          if (typeof window.BarcodeDetector === 'undefined') {
+            if (hint) hint.textContent = 'Čárové kódy v tomto prohlížeči nejdou — zvolte Číslo (OCR) nebo HW čtečku.';
             return;
           }
           sareFmtTier = sarePhase2Immediate ? 1 : 0;
@@ -1051,6 +1170,10 @@
             return;
           }
           function decodeFrom(src) {
+            if (!detector || typeof detector.detect !== 'function') {
+              scanRaf = window.setTimeout(function () { scanRaf = requestAnimationFrame(tick); }, 450);
+              return;
+            }
             detector.detect(src).then(function (codes) {
               if (!codes) codes = [];
               workScanClientLog({
@@ -1096,6 +1219,10 @@
             }
             var ctx = canv.getContext('2d');
             ctx.drawImage(scanVideo, 0, sy, vw, sh, 0, 0, cw, ch);
+            if (sareOverlayReadMode === 'number') {
+              runSareOcrCropCanvas(canv, function () { scanRaf = requestAnimationFrame(tick); });
+              return;
+            }
             decodeFrom(canv);
           } else {
             decodeFrom(scanVideo);
@@ -1146,9 +1273,11 @@
     if (!btn) return;
     btn.addEventListener('click', function () {
       scanMode = btn.getAttribute('data-work-scan-mode') === 'record' ? 'record' : 'sare';
-      if (typeof window.BarcodeDetector !== 'undefined') startBarcodeScan();
-      else if (scanMode === 'sare') focusSareForHardwareScan();
-      else focusRecordForHardwareScan();
+      if (scanMode === 'record' && typeof window.BarcodeDetector === 'undefined') {
+        focusRecordForHardwareScan();
+        return;
+      }
+      startBarcodeScan();
     });
   }
   wireScanButton(scanBtn);
