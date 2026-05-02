@@ -226,6 +226,71 @@
             cursor: progress;
             pointer-events: none;
         }
+        #spool-cable-ocr-cable-editor[hidden] { display: none !important; }
+        #spool-cable-ocr-cable-editor {
+            width: min(100%, 28rem);
+            box-sizing: border-box;
+        }
+        #spool-cable-ocr-draft-label {
+            display: block;
+            color: rgba(255, 255, 255, 0.92);
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin: 0 0 0.35rem;
+            text-align: center;
+        }
+        #spool-cable-ocr-text-draft {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 5rem;
+            max-height: min(28vh, 14rem);
+            padding: 0.5rem 0.6rem;
+            font: inherit;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            border-radius: 6px;
+            border: 1px solid rgba(180, 220, 255, 0.55);
+            background: rgba(18, 22, 28, 0.95);
+            color: #f2f6fa;
+            resize: vertical;
+        }
+        #spool-cable-ocr-text-draft::placeholder {
+            color: rgba(255, 255, 255, 0.38);
+        }
+        #spool-cable-ocr-match-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            align-items: stretch;
+            justify-content: center;
+            margin-top: 0.65rem;
+            width: 100%;
+        }
+        #spool-cable-ocr-match {
+            flex: 1 1 auto;
+            min-width: min(100%, 14rem);
+            min-height: 2.6rem;
+            box-sizing: border-box;
+            padding: 0.5rem 1rem;
+            font: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 2px solid rgba(120, 200, 140, 0.95);
+            background: rgba(40, 110, 65, 0.95);
+        }
+        #spool-cable-ocr-match:hover:not(:disabled) {
+            background: rgba(50, 135, 78, 1);
+            border-color: rgba(150, 235, 175, 1);
+        }
+        #spool-cable-ocr-match:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
         #spool-cable-ocr-video {
             display: block;
             width: 100%;
@@ -440,6 +505,13 @@
         <div id="spool-cable-ocr-video-wrap"><video id="spool-cable-ocr-video" playsinline autoplay muted></video></div>
         <div id="spool-cable-ocr-capture-row" role="presentation">
             <button type="button" id="spool-cable-ocr-capture">Přečíst řádek (OCR)</button>
+        </div>
+        <div id="spool-cable-ocr-cable-editor" hidden>
+            <label id="spool-cable-ocr-draft-label" for="spool-cable-ocr-text-draft">Text ze štítku (upravte)</label>
+            <textarea id="spool-cable-ocr-text-draft" placeholder="Po „Přečíst řádek“ se doplní OCR; můžete dopsat nebo opravit a pak „Porovnat s katalogem“." rows="4" autocomplete="off" spellcheck="true"></textarea>
+            <div id="spool-cable-ocr-match-row" role="presentation">
+                <button type="button" id="spool-cable-ocr-match">Porovnat s katalogem</button>
+            </div>
         </div>
         <button type="button" id="spool-cable-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
     </div>
@@ -710,6 +782,9 @@
   var ocrVideo = document.getElementById('spool-cable-ocr-video');
   var ocrCancel = document.getElementById('spool-cable-ocr-cancel');
   var cableCaptureBtn = document.getElementById('spool-cable-ocr-capture');
+  var cableEditorBlock = document.getElementById('spool-cable-ocr-cable-editor');
+  var cableTextDraft = document.getElementById('spool-cable-ocr-text-draft');
+  var cableMatchBtn = document.getElementById('spool-cable-ocr-match');
   var ocrTextHint = document.getElementById('spool-cable-ocr-overlay-text');
   var cableSelOcr = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
   var famSelOcr = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
@@ -718,6 +793,7 @@
   var scanRaf = null;
   var scanStream = null;
   var ocrBusy = false;
+  var cableMatchBusy = false;
   var ocrCropCanvas = null;
   var CABLE_STRIP_FRAC = 0.2;
   var MIN_CHARS = 10;
@@ -727,7 +803,7 @@
   /** @type {'cable'|'ps'} */
   var ocrMode = 'cable';
 
-  var cableReady = !!(ocrBtn && cableSelOcr && cfg.matchUrl && cfg.stashUrl);
+  var cableReady = !!(ocrBtn && cableSelOcr && cfg.matchUrl);
   var psReady = !!(psOcrBtn && psIn);
 
   if (!overlay || !ocrVideo || (!cableReady && !psReady)) {
@@ -765,7 +841,7 @@
       ocrTextHint.textContent =
         typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function'
           ? 'OCR se nenačetla — zkuste obnovit stránku.'
-          : 'Držte text značení kabelu v modrém pruhu. Až řádek sedí přesně, klepněte na „Přečíst řádek (OCR)“. Opakujte, pokud je text neúplný.';
+          : 'Namiřte řádek značení do modrého pruhu → „Přečíst řádek (OCR)“ → v poli níže text upravte → „Porovnat s katalogem“. Opakujte OCR, pokud je text neúplný.';
     }
   }
 
@@ -785,6 +861,29 @@
     else cableCaptureBtn.removeAttribute('aria-busy');
   }
 
+  function endOcrSnapCycle() {
+    ocrBusy = false;
+    setCableCaptureUiBusy(false);
+    if (cableMatchBtn && !cableMatchBusy) cableMatchBtn.disabled = false;
+  }
+
+  function setCableOcrEditorVisible(vis) {
+    if (!cableEditorBlock) return;
+    if (vis) cableEditorBlock.removeAttribute('hidden');
+    else cableEditorBlock.setAttribute('hidden', '');
+  }
+
+  function setCableMatchUiBusy(busy) {
+    cableMatchBusy = !!busy;
+    if (cableMatchBtn) cableMatchBtn.disabled = !!busy;
+  }
+
+  function normalizeDraftText(raw) {
+    return String(raw || '')
+      .trim()
+      .replace(/\s+/g, ' ');
+  }
+
   function terminateTessLocal() {
     tessWorkerPromise = null;
     var w = tessWorker;
@@ -796,6 +895,8 @@
   function stopCableOcr() {
     ocrBusy = false;
     setCableCaptureUiBusy(false);
+    setCableMatchUiBusy(false);
+    setCableOcrEditorVisible(false);
     if (scanRaf != null) {
       try { window.cancelAnimationFrame(scanRaf); } catch (eRaf) {}
       try { window.clearTimeout(scanRaf); } catch (eTo) {}
@@ -873,27 +974,25 @@
     }
     ocrBusy = true;
     setCableCaptureUiBusy(true);
+    if (cableMatchBtn && ocrMode === 'cable') cableMatchBtn.disabled = true;
     ensureWorker()
       .then(function (worker) {
         if (!worker) {
-          ocrBusy = false;
-          setCableCaptureUiBusy(false);
+          endOcrSnapCycle();
           if (ocrTextHint) {
             ocrTextHint.textContent = 'Worker OCR nedostupný — obnovte stránku.';
           }
           return;
         }
         if (scanStream === null) {
-          ocrBusy = false;
-          setCableCaptureUiBusy(false);
+          endOcrSnapCycle();
           return;
         }
         worker
           .recognize(canv)
           .then(function (res) {
             if (scanStream === null) {
-              ocrBusy = false;
-              setCableCaptureUiBusy(false);
+              endOcrSnapCycle();
               return;
             }
             var txt = res && res.data && res.data.text ? String(res.data.text) : '';
@@ -908,43 +1007,39 @@
                   'Nepodařilo se přečíst číslo — lépe držte znaky PS v modrém pruhu a klepněte znovu.';
               }
             } else {
-              var clean = processOcrText(txt);
-              if (clean.length) {
-                afterRecognizedCable(clean);
-                return;
-              }
-              if (ocrTextHint) {
-                ocrTextHint.textContent =
-                  'Text je krátký nebo neúplný — posuňte kameru přesně na celý řádek značení a klepněte znovu „Přečíst řádek (OCR)“.';
+              var draft = normalizeDraftText(txt);
+              if (!draft.length) {
+                if (ocrTextHint) {
+                  ocrTextHint.textContent =
+                    'OCR nepřečetl žádný text — lépe držte řádek v modrém pruhu a klepněte „Přečíst řádek (OCR)“ znovu.';
+                }
+              } else if (cableTextDraft) {
+                cableTextDraft.value = draft;
+                if (ocrTextHint) {
+                  ocrTextHint.textContent =
+                    draft.length >= MIN_CHARS
+                      ? 'Text je v poli níže — upravte jej a klepněte „Porovnat s katalogem“, nebo znovu „Přečíst řádek (OCR)“.'
+                      : 'Text je krátký — doplňte ručně v poli níže nebo zkuste OCR znovu, pak „Porovnat s katalogem“.';
+                }
               }
             }
-            ocrBusy = false;
-            setCableCaptureUiBusy(false);
+            endOcrSnapCycle();
           })
           .catch(function () {
             if (scanStream === null) {
-              ocrBusy = false;
-              setCableCaptureUiBusy(false);
+              endOcrSnapCycle();
               return;
             }
             if (ocrTextHint) {
               ocrTextHint.textContent =
                 'OCR selhal — zkuste znovu (držte řádek v pruhu, dobré světlo) nebo zadejte ručně.';
             }
-            ocrBusy = false;
-            setCableCaptureUiBusy(false);
+            endOcrSnapCycle();
           });
       })
       .catch(function () {
-        ocrBusy = false;
-        setCableCaptureUiBusy(false);
+        endOcrSnapCycle();
       });
-  }
-
-  function processOcrText(raw) {
-    var t = String(raw || '').trim();
-    t = t.replace(/\s+/g, ' ').trim();
-    return t.length >= MIN_CHARS ? t : '';
   }
 
   function postMatch(text, cbOk, cbErr) {
@@ -967,29 +1062,6 @@
       })
       .catch(function () {
         cbErr({});
-      });
-  }
-
-  function stashThenGo(text) {
-    fetch(cfg.stashUrl, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify({ text: text, csrf: cfg.csrfStash }),
-    })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (j) {
-        if (!j.ok) window.alert('Uložení textu před formulářem typu selhalo.');
-        else window.location.href = cfg.newCableUrl;
-      })
-      .catch(function () {
-        window.alert('Bez síťové odpovědi nelze otevřít nový typ s textem OCR.');
       });
   }
 
@@ -1019,24 +1091,51 @@
     return true;
   }
 
-  function afterRecognizedCable(fullText) {
-    stopCableOcr();
-    terminateTessLocal();
+  function submitCableDraftForMatch() {
+    if (!cableReady || !cableTextDraft) return;
+    if (ocrBusy || cableMatchBusy) return;
+    var text = normalizeDraftText(cableTextDraft.value);
+    if (!text.length) {
+      window.alert(
+        'Pole „Text ze štítku“ je prázdné — použijte „Přečíst řádek (OCR)“ nebo zadejte text ručně, pak zkuste porovnat znovu.'
+      );
+      return;
+    }
+    if (text.length < MIN_CHARS) {
+      if (!window.confirm(
+        'Text má méně než ' + MIN_CHARS +
+          ' znaků — výsledek párování může být nespolehlivý. Pokračovat v porovnání?'
+      )) {
+        return;
+      }
+    }
+    setCableMatchUiBusy(true);
+    if (cableCaptureBtn) cableCaptureBtn.disabled = true;
     postMatch(
-      fullText,
+      text,
       function (j) {
+        setCableMatchUiBusy(false);
+        if (cableCaptureBtn && !overlay.hidden && scanStream) cableCaptureBtn.disabled = false;
         if (j.matched && j.cableType) {
+          stopCableOcr();
+          terminateTessLocal();
           applyCableFromMatch(j.cableType);
           return;
         }
+        var scoreStr = String(j.score != null ? j.score : '—');
+        if (ocrTextHint) {
+          ocrTextHint.textContent =
+            'Žádná dostatečná shoda v katalogu (skóre „' + scoreStr +
+            '“). Upravte text v poli výše nebo použijte odkaz „Nový typ kabelu v katalogu“ pod formulářem.';
+        }
         window.alert(
-          'Žádná dostatečná shoda v katalogu (nejlepší skóre „' +
-            String(j.score != null ? j.score : '—') +
-            '“). Otevřu formulář nového typu s předvyplněným textem.'
+          'V katalogu není dostatečná shoda (nejlepší skóre „' + scoreStr +
+            '“). Text zůstává k úpravě — zkuste „Porovnat s katalogem“ znovu nebo formulář nového typu na stránce.'
         );
-        stashThenGo(fullText);
       },
       function () {
+        setCableMatchUiBusy(false);
+        if (cableCaptureBtn && !overlay.hidden && scanStream) cableCaptureBtn.disabled = false;
         window.alert('Službu porovnání se nepodařilo zavolat (relace/síť).');
       }
     );
@@ -1063,9 +1162,13 @@
         window.alert('Konfigurace OCR typu kabelu chybí.');
         return;
       }
+      setCableOcrEditorVisible(true);
+      setCableMatchUiBusy(false);
+      if (cableTextDraft) cableTextDraft.value = '';
     } else {
       applyHintPs();
       if (!psIn) return;
+      setCableOcrEditorVisible(false);
     }
     if (typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function') {
       window.alert('Biblioteka OCR se nenačetla.');
@@ -1088,6 +1191,10 @@
         overlay.hidden = true;
         window.alert('Kamera není dostupná.');
       });
+  }
+
+  if (cableMatchBtn) {
+    cableMatchBtn.addEventListener('click', submitCableDraftForMatch);
   }
 
   if (cableCaptureBtn) {
