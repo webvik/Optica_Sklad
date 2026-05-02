@@ -169,6 +169,29 @@
         #work-search-form .work-search-action-btn:active {
             background: #e0e0e2;
         }
+        .work-search-sare-scan-group {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            flex: 0 1 auto;
+            align-items: stretch;
+            min-width: 0;
+        }
+        .work-search-sare-scan-group .work-search-action-btn {
+            flex: 1 1 min(9rem, 100%);
+            min-width: 0;
+            white-space: normal;
+            text-align: center;
+            line-height: 1.2;
+        }
+        @media (max-width: 36rem) {
+            .work-search-sare-scan-group { width: 100%; }
+            .work-search-sare-scan-group .work-search-action-btn {
+                flex: 1 1 calc(50% - 0.25rem);
+                min-height: 2.75rem;
+                font-size: 1rem;
+            }
+        }
         .work-top-area { max-width: 40rem; width: 100%; margin-bottom: 0.75rem; }
         .work-top-area.is-search-collapsed .work-page-lede { display: none; }
         .work-top-area.is-search-collapsed .work-search-form-wrap { display: none; }
@@ -642,6 +665,12 @@
     setRecordSpoolId(sid && sid.value ? sid.value : null);
   })();
 
+  /** Eskalace formátů jen pro sken „Číslo saře“ (žádné QR / DataMatrix).
+   *  Kladné ms (~900): úzký seznam čárovek → po této době automaticky rozšíří o EAN/UPC/Codabar.
+   *  Infinity: bez eskalace, pořád jen úzký seznam (= snadný návrat při problému).
+   *  0: od začátku rovnou rozšířené lineární kódy (bez čekání v 1. fázi). */
+  var WORK_SARE_SCAN_PHASE2_AFTER_MS = 900;
+
   var scanBtn = document.getElementById('work-scan-btn');
   var scanRecordBtn = document.getElementById('work-record-scan-btn');
   var scanOverlay = document.getElementById('work-scan-overlay');
@@ -663,7 +692,17 @@
   function setScanOverlayCopy() {
     if (!scanOverlayText) return;
     if (scanMode === 'sare') {
-      scanOverlayText.textContent = 'Sken čísla saře: úzký pruh nad kódem. Po přečtení se doplní pole — zkontrolujte a teprve pak Hledat; doba pauzy spustí hledání samo.';
+      var tierNote = '';
+      if (Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) && WORK_SARE_SCAN_PHASE2_AFTER_MS === 0) {
+        tierNote = ' Používají se hned všechny podporované čárové kódy (bez QR/DM).';
+      } else if (Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) && WORK_SARE_SCAN_PHASE2_AFTER_MS > 0 && WORK_SARE_SCAN_PHASE2_AFTER_MS < 1e12) {
+        tierNote = ' Po ~' + Math.round(WORK_SARE_SCAN_PHASE2_AFTER_MS / 50) * 50 + ' ms sama přejde také na EAN/UPC apod. (bez QR/DM).';
+      } else {
+        tierNote = ' Pouze úzký seznam čárových typů — bez automatického rozšíření.';
+      }
+      scanOverlayText.textContent = 'Sken čísla saře: úzký pruh nad čárovým kódem. Po přečtení zkontrolujte pole;' +
+        tierNote +
+        ' hledání může spustit pauza nebo Hledat.';
     } else {
       scanOverlayText.textContent = 'Sken do záznamu: samostatné číslo = metráž (m). Dva údaje: metráž;zakázka nebo oddělovač | nebo tabulátor (např. 7843;Z123).';
     }
@@ -768,7 +807,30 @@
         return scanVideo.play();
       })
       .then(function () {
-        var detector = new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
+        function makeRecordDetector() {
+          return new window.BarcodeDetector({ formats: ['code_128', 'code_39', 'code_93', 'ean_13', 'qr_code', 'itf', 'data_matrix'] });
+        }
+        /** QR a Data Matrix pro „Číslo saře“ vyloučené – jen čárové kódy. */
+        function makeSareBarcodeDetector(wideTier) {
+          var narrowLin = ['code_128', 'code_39', 'code_93', 'itf'];
+          var extraLin = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'codabar'];
+          var fmts = wideTier ? narrowLin.concat(extraLin) : narrowLin.slice();
+          return new window.BarcodeDetector({ formats: fmts });
+        }
+        /** Fáze 0 = úzké lineární; fáze 1 = rozšířená lineární sada */
+        var sareFmtTierStartedWide = WORK_SARE_SCAN_PHASE2_AFTER_MS <= 0;
+        var sareFmtTier = sareFmtTierStartedWide ? 1 : 0;
+        var sareScanOpenedAtMs = scanMode === 'sare' ? performance.now() : 0;
+        var detector = scanMode === 'sare' ? makeSareBarcodeDetector(sareFmtTierStartedWide) : makeRecordDetector();
+        function maybeEscalateSareFormats() {
+          if (scanMode !== 'sare' || sareFmtTier !== 0) return;
+          if (!Number.isFinite(WORK_SARE_SCAN_PHASE2_AFTER_MS) || WORK_SARE_SCAN_PHASE2_AFTER_MS <= 0) {
+            return;
+          }
+          if (performance.now() - sareScanOpenedAtMs < WORK_SARE_SCAN_PHASE2_AFTER_MS) return;
+          sareFmtTier = 1;
+          detector = makeSareBarcodeDetector(true);
+        }
         function getCropCanvasEl() {
           if (!scanCropCanvas) scanCropCanvas = document.createElement('canvas');
           return scanCropCanvas;
@@ -794,6 +856,7 @@
             }).catch(function () { scanRaf = requestAnimationFrame(tick); });
           }
           if (scanMode === 'sare') {
+            maybeEscalateSareFormats();
             var vw = scanVideo.videoWidth;
             var vh = scanVideo.videoHeight;
             if (vw < 2 || vh < 2) {
