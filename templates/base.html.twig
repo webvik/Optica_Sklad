@@ -94,6 +94,29 @@
                 .beta-welcome-ok {
                     font-size: 1.05rem;
                 }
+                /* Ruční vstup na mobilu: větší písmo a dotyk. cable-type-list = dlouhý výběr typu — beze změny (globálně + picker). */
+                input[type="text"],
+                input[type="search"],
+                input[type="password"],
+                input[type="email"],
+                input[type="tel"],
+                input[type="url"],
+                input[type="number"],
+                input[type="date"],
+                input[type="datetime-local"],
+                input[type="time"],
+                input[type="month"],
+                input[type="week"],
+                textarea,
+                select:not(.cable-type-list) {
+                    font-size: 1.05rem;
+                    line-height: 1.35;
+                    min-height: 2.65rem;
+                    padding: 0.42rem 0.5rem;
+                }
+                textarea {
+                    min-height: 5.75rem;
+                }
             }
             .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
             .table-scroll > table { min-width: 100%; }
