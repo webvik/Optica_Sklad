@@ -207,6 +207,33 @@
         }
         #cable-type-label-ocr-apply-suggest:hover:not(:disabled) { background: rgba(48, 128, 75, 1); }
         #cable-type-label-ocr-apply-suggest:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+        #cable-type-label-ocr-editor-hint {
+            margin: 0.45rem 0 0;
+            font-size: 0.84rem;
+            line-height: 1.42;
+            color: rgba(230, 240, 255, 0.85);
+            text-align: center;
+        }
+        #cable-type-label-ocr-back-form {
+            margin-top: 0.55rem;
+            width: 100%;
+            min-height: 2.55rem;
+            padding: 0.45rem 1rem;
+            font: inherit;
+            font-size: 0.98rem;
+            font-weight: 600;
+            color: #eaf4ff;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 2px solid rgba(200, 220, 255, 0.55);
+            background: rgba(40, 55, 75, 0.55);
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.08);
+        }
+        #cable-type-label-ocr-back-form:hover {
+            border-color: rgba(220, 235, 255, 0.85);
+            background: rgba(55, 72, 98, 0.78);
+        }
     </style>
 {% endblock %}
 {% block body %}
@@ -228,11 +255,11 @@
         <div class="spool-form__field">
             <span class="spool-form__static-label">Stručný název</span>
             <div class="spool-form__value">
-                <p class="spool-form__readout">{{ cableListLabelPreview }}</p>
+                <p id="cable-type-brief-preview" class="spool-form__readout" aria-live="polite">{{ cableListLabelPreview }}</p>
             </div>
         </div>
         <div class="spool-form__field">
-            <button type="button" class="spool-form__label-scan" id="cable-type-full-desc-ocr-launch" title="OCR řádku štítku — text do Plného popisu a doplnění prázdných polí">
+            <button type="button" class="spool-form__label-scan" id="cable-type-full-desc-ocr-launch" title="Otevře OCR nad tímto formulářem; zeleně dosadí prázdná pole, pak Zpět na formulář → Uložit">
                 {{- form.fullDescription.vars.label -}}
             </button>
             <div class="spool-form__value">
@@ -279,7 +306,7 @@
             <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
             <div class="spool-form__value spool-form__value--actions">
                 <div class="spool-form__actions" role="group" aria-label="Akce">
-                    <button type="button" class="spool-form__btn" id="cable-type-label-ocr-open" title="OCR řádku štítku — doplní rozpoznaná pole, kde jsou prázdná">
+                    <button type="button" class="spool-form__btn" id="cable-type-label-ocr-open" title="Stejný formulář pod oknem — OCR a dosazení jen do prázdných polí, pak Zpět na formulář">
                         OCR štítek
                     </button>
                     <button type="button" class="spool-form__btn" id="cable-type-form-scan" title="Sken čárového kódu do pole Kód zásoby">Sken</button>
@@ -301,11 +328,19 @@
             <button type="button" id="cable-type-label-ocr-read">Přečíst řádek (OCR)</button>
         </div>
         <div id="cable-type-label-ocr-editor" hidden>
-            <label for="cable-type-label-ocr-draft" class="spool-form__static-label" style="display:block;color:#fff;text-align:center;font-weight:600;margin:0 0 0.35rem">Text ze štítku — upravte a pak doplněte formulář</label>
+            <label for="cable-type-label-ocr-draft" class="spool-form__static-label" style="display:block;color:#fff;text-align:center;font-weight:600;margin:0 0 0.35rem">Text ze štítku — upravte</label>
             <textarea id="cable-type-label-ocr-draft" rows="5" autocomplete="off" spellcheck="true"></textarea>
-            <button type="button" id="cable-type-label-ocr-apply-suggest">Doplnit prázdná pole formuláře</button>
+            <p id="cable-type-label-ocr-editor-hint" class="cable-type-label-ocr-editor-hint">
+                Jste už na stránce <strong>nového typu kabelu</strong> (formulář je pod tímto oknem). Zelené tlačítko <em>nepřeskakuje jinam</em> — pošle text na server a doplní jen <strong>prázdná</strong> pole (kód zásoby OCR nemění; použijte „Sken“). Pak „Zpět na formulář“ → doplňte kód → <strong>Uložit</strong> dole.
+            </p>
+            <button type="button" id="cable-type-label-ocr-apply-suggest" title="Odešle řádek na server a do prázdných polí formuláře dosadí plný popis, řadu, počet vláken atd. už vyplněná pole nepřepisuje">
+                Dosadit návrhy do prázdných polí
+            </button>
+            <button type="button" id="cable-type-label-ocr-back-form" title="Zavře kameru — pokračujete ve stejném formuláři (údaje zůstanou)">
+                Zpět na formulář
+            </button>
         </div>
-        <button type="button" id="cable-type-label-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a">Zrušit</button>
+        <button type="button" id="cable-type-label-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a" title="Zavře OCR; již vyplněná pole formuláře zůstanou">Zavřít OCR</button>
     </div>
     <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
         <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
@@ -515,6 +550,9 @@
       fireInput(familySel);
       cnt++;
     }
+    if (typeof window.syncCableTypeBriefPreview === 'function') {
+      window.syncCableTypeBriefPreview();
+    }
     return cnt;
   }
 
@@ -549,7 +587,7 @@
       hint.textContent =
         typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function'
           ? 'OCR se nenačetla — obnovte stránku.'
-          : 'Držte řádek štítku ve středu náhledu → „Přečíst řádek (OCR)“ → upravte text → „Doplnit prázdná pole formuláře“. Pole Kód zásoby OCR nemění (použijte Sken).';
+          : 'Držte řádek štítku ve středu náhledu → „Přečíst řádek (OCR)“ → upravte text → „Dosadit návrhy do prázdných polí“ (jen prázdná pole) → „Zpět na formulář“. Kód zásoby OCR nemění (pole Sken). Formulář katalogu je pod tímto oknem.';
     }
   }
 
@@ -631,7 +669,7 @@
           if (draftTa) draftTa.value = draft;
           if (hint) {
             hint.textContent = draft.length
-              ? 'Text je níže — upravte jej a použijte „Doplnit prázdná pole formuláře“ (jen prázdná pole se vyplní).'
+              ? 'Text je níže — upravte jej, „Dosadit návrhy do prázdných polí“, potom „Zpět na formulář“ (stejná stránka, pokračujete v kódu zásoby a Uložit).'
               : 'OCR vrátil prázdný text — lépe držte řádek a zkuste znovu.';
           }
           ocrBusy = false;
@@ -735,13 +773,13 @@
               hint.textContent =
                 'Doplněno ' +
                 applied +
-                ' prázdných polí — zkontrolujte řadu, počet vláken a název; kód zásoby doplňte ručně a uložte.';
+                ' prázdných polí — klepněte „Zpět na formulář“, zkontrolujte údaje, doplňte kód zásoby a uložte tlačítkem Uložit.';
             } else if (keys.length) {
               hint.textContent =
-                'Z textu nešlo automaticky doplnit nic nového (plná pole jsme nepřepsali). Vyplňte ručně nebo vyprázdněte pole.';
+                'Ze serveru nic nového (plná pole nepřepisujeme). Vyplňte ručně nebo vyprázdněte pole a zkuste „Dosadit návrhy“ znovu.';
             } else {
               hint.textContent =
-                'Ze štítku nešlo vyčíst strukturu — zkuste upravit OCR text a znovu „Doplnit prázdná pole formuláře“.';
+                'Ze štítku nešlo vyčíst strukturu — upravte text a znovu „Dosadit návrhy do prázdných polí“.';
             }
           }
 
@@ -756,12 +794,76 @@
     });
   }
   if (cancelBtn) cancelBtn.addEventListener('click', stopLabelOcr);
+  var backFormBtn = document.getElementById('cable-type-label-ocr-back-form');
+  if (backFormBtn) backFormBtn.addEventListener('click', stopLabelOcr);
 
   document.addEventListener('keydown', function (ev) {
     if (ev.key !== 'Escape' || !overlay || overlay.hidden) return;
     ev.preventDefault();
     stopLabelOcr();
   });
+})();
+(function () {
+  /** Stejné složení jako InventuraBriefGroupLabel (viz PHP App/Service/Warehouse/InventuraBriefGroupLabel.php) */
+  var famEl = document.getElementById({{ form.family.vars.id|json_encode|raw }});
+  var fibEl = document.getElementById({{ form.fiberCount.vars.id|json_encode|raw }});
+  var diamEl = document.getElementById({{ form.diameterMm.vars.id|json_encode|raw }});
+  var outEl = document.getElementById('cable-type-brief-preview');
+  if (!famEl || !fibEl || !diamEl || !outEl) return;
+
+  function normalizeDiameterKeyJs(raw) {
+    if (raw == null) return '';
+    var t = String(raw).trim();
+    if (!t.length) return '';
+    t = t.replace(',', '.');
+    var num = parseFloat(t);
+    if (!isFinite(num)) return t;
+    return String(Math.round(num * 100) / 100);
+  }
+
+  function formatCableBriefJs(fiberRaw, familyValue, diameterRaw) {
+    var family = String(familyValue == null ? '' : familyValue).trim();
+    if (!family.length) family = '\u2014';
+
+    var rawF = String(fiberRaw == null ? '' : fiberRaw).trim();
+    var fiberPart;
+    if (!rawF.length) {
+      fiberPart = '\u2014';
+    } else {
+      var nFib = parseInt(rawF, 10);
+      fiberPart = isFinite(nFib) && nFib >= 0 ? String(nFib) : '\u2014';
+    }
+
+    var base = fiberPart + ' vl. · ' + family;
+
+    var dk = normalizeDiameterKeyJs(diameterRaw);
+    if (!dk.length) return base;
+
+    var fv = parseFloat(dk.replace(',', '.'));
+    if (isFinite(fv)) {
+      var csv = fv.toLocaleString('cs-CZ', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+      return base + ' · \u00d8 ' + csv + ' mm';
+    }
+
+    return base + ' · \u00d8 ' + dk + ' mm';
+  }
+
+  function syncCableTypeBriefPreview() {
+    outEl.textContent = formatCableBriefJs(fibEl.value, famEl.value, diamEl.value);
+  }
+
+  fibEl.addEventListener('input', syncCableTypeBriefPreview);
+  fibEl.addEventListener('change', syncCableTypeBriefPreview);
+  famEl.addEventListener('input', syncCableTypeBriefPreview);
+  famEl.addEventListener('change', syncCableTypeBriefPreview);
+  diamEl.addEventListener('input', syncCableTypeBriefPreview);
+  diamEl.addEventListener('change', syncCableTypeBriefPreview);
+
+  window.syncCableTypeBriefPreview = syncCableTypeBriefPreview;
+  syncCableTypeBriefPreview();
 })();
     </script>
 {% endblock %}
