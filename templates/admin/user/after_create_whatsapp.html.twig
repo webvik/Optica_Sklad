@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+{% block title %}Účet založen — WhatsApp{% endblock %}
+{% block body %}
+    <nav class="app-menu app-menu--toolbar" aria-label="Účet a navigace správy">
+        {% include '_app_menu_cz_top.html.twig' %}
+    </nav>
+    <p style="margin:0 0 1rem"><a href="{{ path('app_admin_users_index') }}">← zpět na Správu uživatelů</a></p>
+    <h1 style="margin-top:0">Účet byl založen</h1>
+    <aside style="max-width:42rem;line-height:1.5;color:#333;font-size:0.94rem;margin:0 0 1rem">
+        <p style="margin:0 0 0.75rem">
+            Tlačítkem níže otevřete <strong>nezávislé okno odkazu aplikace</strong>: aplikace načte přihlašovací údaje z&nbsp;jednorázového chráněného souboru v&nbsp;režimu jen pro čtení, <strong>poté jej smaže</strong>, a&nbsp;přesměruje vás na <strong>WhatsApp</strong> s&nbsp;předvyplněnou zprávou uživateli. Heslo v&nbsp;databázi zůstává výhradně v&nbsp;jednosměrně zahashované podobě.
+        </p>
+        <p style="margin:0 0 0.75rem">
+            Odkaz vede přes aplikaci; typicky jej použijete <strong>jednou</strong> (pak je token neplatný). Platnost souboru je navíc omezená (hodiny).
+        </p>
+        <p style="margin:0;color:#731">Nikomu nezasílejte tuto adresu — kdo odkaz použije jako první, ten spotřebuje platnost odkazu před ostatními.</p>
+    </aside>
+    <p style="margin:0 0 0.85rem">
+        <a class="warehouse-pill" href="{{ whatsappHandoffUrl }}" rel="noopener noreferrer">Otevřít WhatsApp s přihlašovacími údaji</a>
+    </p>
+    <p style="margin:0"><a href="{{ path('app_admin_users_index') }}">Přejít na seznam uživatelů</a></p>
+{% endblock %}

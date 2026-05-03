@@ -24,6 +24,7 @@
                 <tr>
                     <th>Uživatelské jméno</th>
                     <th>Jméno</th>
+                    <th>Telefon</th>
                     <th>Aktivní</th>
                     <th>Role v DB</th>
                     <th></th>
@@ -34,6 +35,7 @@
                 <tr>
                     <td><code>{{ u.getUserIdentifier() }}</code></td>
                     <td>{{ u.getDisplayName() }}</td>
+                    <td>{% if u.phone %}{{ u.phone }}{% else %}—{% endif %}</td>
                     <td>{% if u.getIsActive() %}ano{% else %}ne{% endif %}</td>
                     <td>
                         {% set _ar = u.getAssignedRoles() %}
@@ -46,7 +48,7 @@
                     <td><a href="{{ path('app_admin_users_edit', { id: u.getId() }) }}">Upravit</a></td>
                 </tr>
             {% else %}
-                <tr><td colspan="5">Žádní uživatelé.</td></tr>
+                <tr><td colspan="6">Žádní uživatelé.</td></tr>
             {% endfor %}
             </tbody>
         </table>

@@ -8,6 +8,8 @@ use App\Entity\User;
 use App\Form\Admin\UserCreateFormType;
 use App\Repository\UserRepository;
 use App\Security\WarehouseRole;
+use App\Service\Admin\UserCredentialsWhatsAppHandoff;
+use App\Util\WhatsAppPhoneDigits;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -15,6 +17,7 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -23,6 +26,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Validator\Constraints\Length;
 
 #[Route('/sprava/uzivatele', name: 'app_admin_users_')]
 #[IsGranted(WarehouseRole::APP_ADMIN)]
@@ -45,6 +49,7 @@ final class UserAdminController extends AbstractController
         UserPasswordHasherInterface $passwordHasher,
         UserRepository $userRepository,
         EntityManagerInterface $em,
+        UserCredentialsWhatsAppHandoff $handoff,
     ): Response {
         $form = $this->createForm(UserCreateFormType::class);
         $form->handleRequest($request);
@@ -81,6 +86,9 @@ final class UserAdminController extends AbstractController
         $ln = \trim((string) $form->get('lastName')->getData());
         $user->setFirstName('' !== $fn ? $fn : null);
         $user->setLastName('' !== $ln ? $ln : null);
+        $phoneTrim = \trim((string) $form->get('phone')->getData());
+        $phoneNorm = '' !== $phoneTrim ? mb_substr($phoneTrim, 0, 32, 'UTF-8') : '';
+        $user->setPhone('' !== $phoneNorm ? $phoneNorm : null);
         $user->setRoles([$level]);
         $user->setIsActive(true);
         /** @var string $plainPwd */
@@ -92,7 +100,61 @@ final class UserAdminController extends AbstractController
 
         $this->addFlash('success', sprintf('Účet %s byl založen.', $username));
 
+        $offer = true === $form->get('offerWhatsAppHandoff')->getData();
+        if ($offer && '' !== $phoneNorm) {
+            $digits = WhatsAppPhoneDigits::normalize($phoneNorm);
+            if (\is_string($digits)) {
+                try {
+                    $waToken = $handoff->store($username, $plainPwd, $digits);
+
+                    return $this->redirectToRoute('app_admin_users_after_create', ['token' => $waToken]);
+                } catch (\Throwable) {
+                    $this->addFlash(
+                        'error',
+                        'Účet byl založen, ale nepodařilo se připravit odkaz WhatsApp — zašlete heslo uživateli jiným způsobem.',
+                    );
+                }
+            }
+        }
+
         return $this->redirectToRoute('app_admin_users_index');
+    }
+
+    #[Route('/po-zalozeni', name: 'after_create', methods: ['GET'])]
+    public function afterCreateWhatsApp(Request $request, UserCredentialsWhatsAppHandoff $handoff): Response
+    {
+        $token = (string) $request->query->get('token', '');
+        if ('' === $token || !$handoff->isReady($token)) {
+            $this->addFlash('error', 'Odkaz pro WhatsApp byl už použitý, vypršel nebo je neplatný.');
+
+            return $this->redirectToRoute('app_admin_users_index');
+        }
+
+        return $this->render('admin/user/after_create_whatsapp.html.twig', [
+            'whatsappHandoffUrl' => $this->generateUrl('app_admin_users_whatsapp_redirect', ['token' => $token]),
+        ]);
+    }
+
+    #[Route('/odeslat-povereni-whatsapp/{token}', name: 'whatsapp_redirect', requirements: ['token' => '[a-f0-9]{32}'], methods: ['GET'])]
+    public function redirectWhatsAppHandoff(string $token, UserCredentialsWhatsAppHandoff $handoff): Response
+    {
+        try {
+            $data = $handoff->consume($token, delete: true);
+        } catch (\InvalidArgumentException) {
+            $this->addFlash('error', 'Odkaz pro WhatsApp byl už použitý nebo vypršel.');
+
+            return $this->redirectToRoute('app_admin_users_index');
+        }
+
+        $textLines = [
+            'Přístupové údaje do aplikace Optický sklad:',
+            'Login: '.$data['username'],
+            'Heslo: '.$data['plainPassword'],
+            '',
+            'Po prvním přihlášení si změňte heslo.',
+        ];
+
+        return $this->redirect($handoff->buildWaUrl($data['waDigits'], implode("\n", $textLines)));
     }
 
     #[Route('/{id}/upravit', name: 'edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
@@ -110,6 +172,12 @@ final class UserAdminController extends AbstractController
             ->add('isActive', CheckboxType::class, [
                 'label' => 'Účet aktivní',
                 'required' => false,
+            ])
+            ->add('phone', TextType::class, [
+                'label' => 'Telefon (volitelně)',
+                'required' => false,
+                'constraints' => [new Length(max: 32)],
+                'help' => 'Pro kontakt v administraci (např. WhatsApp číslo jako +420 …).',
             ])
             ->add('newPasswordPlain', RepeatedType::class, [
                 'mapped' => false,
@@ -213,6 +281,9 @@ final class UserAdminController extends AbstractController
             if ($passwordChanged) {
                 $user->setPassword($passwordHasher->hashPassword($user, $pwdTrimmed));
             }
+
+            $phoneClean = \trim((string) ($user->getPhone() ?? ''));
+            $user->setPhone('' !== $phoneClean ? mb_substr($phoneClean, 0, 32, 'UTF-8') : null);
 
             $em->flush();
 

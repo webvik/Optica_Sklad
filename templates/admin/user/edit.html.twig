@@ -23,6 +23,14 @@
                 {{ form_errors(form.isActive) }}
             </div>
         </div>
+        <div class="spool-form__field">
+            {{ form_label(form.phone) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.phone, { attr: { 'aria-label': form.phone.vars.label, maxlength: 32 } }) }}
+                {{ form_help(form.phone) }}
+                {{ form_errors(form.phone) }}
+            </div>
+        </div>
 
         <div class="spool-form__field">
             {{ form_label(form.newPasswordPlain.first) }}
