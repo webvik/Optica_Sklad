@@ -1,13 +1,64 @@
 {% extends 'base.html.twig' %}
 {% block title %}Upravit uživatele{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    {% include '_styles_spool_form_layout.html.twig' %}
+{% endblock %}
 {% block body %}
-    {% include '_app_menu_cz.html.twig' %}
-    <p style="margin:0 0 1rem"><a href="{{ path('app_admin_users_index') }}">← zpět na seznam</a></p>
+    <nav class="app-menu app-menu--toolbar" aria-label="Účet a navigace správy">
+        {% include '_app_menu_cz_top.html.twig' %}
+    </nav>
+    <p style="margin:0 0 1rem"><a href="{{ path('app_admin_users_index') }}">← zpět na Správu uživatelů</a></p>
     <h1>Upravit uživatele</h1>
-    <p>Účet: <strong><code>{{ editUser.userIdentifier }}</code></strong> — {{ editUser.displayName }}</p>
-    {{ form_start(form) }}
-        {{ form_row(form.isActive) }}
-        {{ form_row(form.accessLevel) }}
-        {{ form_row(form.save) }}
-    {{ form_end(form) }}
+    <p class="spool-form" style="margin: 0 0 1rem; max-width: 40rem">
+        Účet: <strong><code>{{ editUser.userIdentifier }}</code></strong>
+        {% if editUser.displayName %} — {{ editUser.displayName }}{% endif %}
+    </p>
+
+    {{ form_start(form, { attr: { class: 'spool-form', id: 'admin-user-edit-form' } }) }}
+        <div class="spool-form__field">
+            {{ form_label(form.isActive) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.isActive, { attr: { 'aria-label': form.isActive.vars.label } }) }}
+                {{ form_errors(form.isActive) }}
+            </div>
+        </div>
+
+        <div class="spool-form__field">
+            {{ form_label(form.newPasswordPlain.first) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.newPasswordPlain.first) }}
+                {{ form_errors(form.newPasswordPlain.first) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.newPasswordPlain.second) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.newPasswordPlain.second) }}
+                {{ form_errors(form.newPasswordPlain.second) }}
+                {{ form_errors(form.newPasswordPlain) }}
+                {{ form_help(form.newPasswordPlain) }}
+            </div>
+        </div>
+        {% do form.newPasswordPlain.setRendered() %}
+
+        <div class="spool-form__field">
+            {{ form_label(form.accessLevel) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.accessLevel) }}
+                {{ form_errors(form.accessLevel) }}
+            </div>
+        </div>
+
+        <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value spool-form__value--actions">
+                <div class="spool-form__actions spool-form__actions--submit-only" role="group" aria-label="Akce">
+                    {{ form_widget(form.save, { attr: { class: 'spool-form__btn' } }) }}
+                </div>
+            </div>
+        </div>
+
+        {{ form_rest(form) }}
+    {{ form_end(form, { render_rest: false }) }}
 {% endblock %}

@@ -17,6 +17,7 @@ use App\Repository\SpoolRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
+use App\Security\WarehouseRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,6 +25,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/sklad/spool', name: 'warehouse_spool_')]
 final class SpoolController extends AbstractController
@@ -58,6 +60,7 @@ final class SpoolController extends AbstractController
             'spools' => $spools,
             'spoolRemaining' => $spoolRemaining,
             'spoolsLookupJson' => $spoolsLookupJson,
+            'work_can_register_spool' => $this->isGranted(WarehouseRole::EDIT),
             /** Diagnostika skenu kamery na mobilu — přidej ?scanDbg=1 na URL „Práce s optikou“. */
             'work_scan_client_log' => $request->query->getBoolean('scanDbg'),
         ]);
@@ -203,6 +206,37 @@ final class SpoolController extends AbstractController
         ]);
     }
 
+    /** Přesná existence čísla saře — pro kontrolu duplicity před zápisem nové cívky. Vyžaduje právo zápisů. */
+    #[Route('/check-reel', name: 'check_reel', methods: ['GET'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function checkReelExists(Request $request, SpoolRepository $repo): JsonResponse
+    {
+        $q = \trim((string) $request->query->get('q', ''));
+        if ('' === $q) {
+            return $this->json(['ok' => false, 'error' => 'empty'], 400);
+        }
+        if (\strlen($q) > 127) {
+            return $this->json(['ok' => false, 'error' => 'too_long'], 400);
+        }
+        $spool = $repo->findOneByReelNumberExactIgnoreCase($q);
+        if (null === $spool) {
+            return $this->json([
+                'ok' => true,
+                'exists' => false,
+                'normalizedQuery' => $q,
+            ]);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'exists' => true,
+            'normalizedQuery' => $q,
+            'id' => $spool->getId(),
+            'reelNumber' => $spool->getReelNumber(),
+            'showUrl' => $this->generateUrl('warehouse_spool_show', ['id' => (int) $spool->getId()]),
+        ]);
+    }
+
     /** Zápis zafuku (metr) ze stránky „Práce s optikou“ (Běžný stav + zakázka). */
     #[Route('/zaznam-prace', name: 'work_record', methods: ['POST'])]
     public function workRecord(Request $request, SpoolRepository $repo, SpoolMeterService $meter, EntityManagerInterface $em): Response
@@ -251,12 +285,19 @@ final class SpoolController extends AbstractController
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
+    #[IsGranted(WarehouseRole::EDIT)]
     public function new(Request $request, EntityManagerInterface $em, SpoolMeterService $meter, CableFamilyRepository $cableFamilyRepository): Response
     {
         $spool = new Spool();
         if (null === $spool->getRegisteredAt()) {
             $spool->setRegisteredAt(new \DateTimeImmutable('today'));
         }
+
+        $reelPrefill = \trim((string) $request->query->get('reel', ''));
+        if ('' !== $reelPrefill && !$request->isMethod(Request::METHOD_POST)) {
+            $spool->setReelNumber($reelPrefill);
+        }
+
         $form = $this->createForm(SpoolFormType::class, $spool);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
@@ -290,6 +331,7 @@ final class SpoolController extends AbstractController
             'form' => $form,
             'title' => 'Nová cívka do evidence',
             'cable_family_labels_json' => \json_encode($familyLabels, \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
+            'spool_reel_check_lookup_url' => $this->generateUrl('warehouse_spool_check_reel'),
         ]);
     }
 

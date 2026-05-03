@@ -260,6 +260,89 @@
             min-height: 2.75rem;
             min-width: 7rem;
         }
+        #work-not-found-overlay[hidden] { display: none !important; }
+        #work-not-found-overlay:not([hidden]) {
+            box-sizing: border-box;
+            position: fixed;
+            inset: 0;
+            z-index: 10040;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+            background: rgba(0, 0, 0, 0.55);
+        }
+        .work-not-found-modal__backdrop {
+            position: absolute;
+            inset: 0;
+            background: transparent;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .work-not-found-modal__card {
+            position: relative;
+            z-index: 1;
+            width: min(100%, 24rem);
+            max-height: min(88vh, 22rem);
+            overflow: auto;
+            margin: auto;
+            box-sizing: border-box;
+            padding: 1.05rem 1.15rem 1.1rem;
+            border-radius: 10px;
+            background: #fdfefe;
+            color: #1a2330;
+            border: 1px solid #c5d6e8;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+        }
+        .work-not-found-modal__title {
+            margin: 0 0 0.5rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.28;
+            text-align: center;
+        }
+        .work-not-found-modal__body {
+            margin: 0 0 0.55rem;
+            font-size: 0.93rem;
+            line-height: 1.42;
+            text-align: center;
+            color: #2b3544;
+            word-break: break-word;
+        }
+        .work-not-found-modal__note {
+            margin: 0 0 0.85rem;
+            font-size: 0.8rem;
+            line-height: 1.38;
+            text-align: center;
+            color: #5a6575;
+        }
+        .work-not-found-modal__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        .work-not-found-modal__actions button {
+            box-sizing: border-box;
+            min-height: 2.55rem;
+            padding: 0.45rem 1rem;
+            font: inherit;
+            font-size: 0.96rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 1px solid #9aa8b8;
+            background: #eef2f6;
+            color: #1a1a1a;
+        }
+        .work-not-found-modal__actions button[type="button"].work-not-found-btn--primary {
+            border-color: #2a6b9a;
+            background: #1f6dad;
+            color: #fff;
+        }
+        .work-not-found-modal__actions button:hover {
+            filter: brightness(0.97);
+        }
     </style>
 {% endblock %}
 {% block body %}
@@ -375,12 +458,37 @@
         <button type="button" id="work-scan-cancel" class="work-scan-cancel-btn">Zrušit</button>
     </div>
 
+    <div id="work-not-found-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="work-not-found-title">
+        <div class="work-not-found-modal__backdrop" id="work-not-found-backdrop" tabindex="-1" aria-hidden="true"></div>
+        <div class="work-not-found-modal__card">
+            <p class="work-not-found-modal__title" id="work-not-found-title">Cívka není evidována</p>
+            <p class="work-not-found-modal__body" id="work-not-found-body"></p>
+            <p class="work-not-found-modal__note" id="work-not-found-note">Číslo saře je v systému <strong>jedinečné</strong> — druhou cívku se stejným číslem nelze založit.</p>
+            <div class="work-not-found-modal__actions" id="work-not-found-actions-edit">
+                <button type="button" class="work-not-found-btn--primary" id="work-not-found-yes">Ano, zapsat do evidence</button>
+                <button type="button" id="work-not-found-no">Ne</button>
+            </div>
+            <div class="work-not-found-modal__actions" id="work-not-found-actions-view" hidden>
+                <button type="button" id="work-not-found-ok">Zavřít</button>
+            </div>
+        </div>
+    </div>
+
     <footer id="work-page-footer" class="work-page-footer" style="margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #ddd; max-width: 40rem; font-size: .92rem; color: #444;">
         <p style="margin: 0 0 .5rem;">Pole <strong>Objekt / zakázka</strong> doplňte podle místa práce.</p>
-        <p style="margin: 0;">Nové cívky → <a href="{{ path('warehouse_receipt_index') }}">Příjem kabelu</a>. <a href="{{ path('warehouse_spool_list') }}">Úplný seznam</a> · <a href="{{ path('warehouse_browse_index') }}">Přehled s filtry</a>.</p>
+        <p style="margin: 0;">
+            {% if is_granted('ROLE_SKLAD_EDIT') %}
+                <a href="{{ path('warehouse_spool_new') }}">Nová cívka (evidence)</a> ·
+            {% endif %}
+            Nové cívky přes příjem → <a href="{{ path('warehouse_receipt_index') }}">Příjem kabelu</a>.
+            <a href="{{ path('warehouse_spool_list') }}">Úplný seznam</a>
+            · <a href="{{ path('warehouse_browse_index') }}">Přehled s filtry</a>.</p>
     </footer>
     {% if spoolsLookupJson %}
     <script type="application/json" id="work-spools-json">{{ spoolsLookupJson|raw }}</script>
+    {% endif %}
+    {% if searchPerformed and spools is empty and searchQuery|trim != '' %}
+        <div id="work-not-found-ssr" data-q="{{ searchQuery|e('html_attr') }}" hidden></div>
     {% endif %}
 {% endblock %}
 {% block javascripts %}
@@ -402,6 +510,8 @@
   var lookupUrl = {{ path('warehouse_spool_lookup')|json_encode|raw }};
   var spoolShowBase = {{ path('warehouse_spool_show', {id: 0})|json_encode|raw }};
   var kartaEmbedBase = {{ path('warehouse_spool_karta_embed', {id: 0})|json_encode|raw }};
+  var workNewSpoolUrl = {{ path('warehouse_spool_new')|json_encode|raw }};
+  var workRegisterSpool = {{ work_can_register_spool|default(false)|json_encode|raw }};
   var t = null, seq = 0;
   var debounceMs = 380;
   var meterState = { s: null, bound: false };
@@ -450,6 +560,81 @@
   }
   function spoolShowUrl(id) { return spoolShowBase.replace(/\/[0-9]+$/, '/' + id); }
   function esc(t) { if (t == null) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  var workNfOverlay = document.getElementById('work-not-found-overlay');
+  var workNfBody = document.getElementById('work-not-found-body');
+  var workNfActEdit = document.getElementById('work-not-found-actions-edit');
+  var workNfActView = document.getElementById('work-not-found-actions-view');
+  var workNfYes = document.getElementById('work-not-found-yes');
+  var workNfNo = document.getElementById('work-not-found-no');
+  var workNfOk = document.getElementById('work-not-found-ok');
+  var workNfBackdrop = document.getElementById('work-not-found-backdrop');
+  var workNfPendingQ = '';
+
+  function closeWorkNotFoundModal() {
+    if (!workNfOverlay) return;
+    workNfOverlay.hidden = true;
+    workNfOverlay.setAttribute('aria-hidden', 'true');
+    workNfPendingQ = '';
+  }
+  function openWorkNotFoundModal(qRaw) {
+    if (!workNfOverlay || !workNfBody) return;
+    var q = String(qRaw || '').trim();
+    if (!q.length) return;
+    workNfPendingQ = q;
+    var html =
+      'Pro číslo saře «<strong>' +
+      esc(q) +
+      '</strong>» není ve skladové evidenci zaevidovaná žádná cívka.';
+    if (workRegisterSpool) {
+      html += ' Chcete ji nyní přidat do evidence?';
+      if (workNfActEdit) workNfActEdit.hidden = false;
+      if (workNfActView) workNfActView.hidden = true;
+    } else {
+      html +=
+        ' Nemáte oprávnění k zápisům — požádejte správce, aby cívku založil, nebo vám rozšířil oprávnění.';
+      if (workNfActEdit) workNfActEdit.hidden = true;
+      if (workNfActView) workNfActView.hidden = false;
+    }
+    workNfBody.innerHTML = html;
+    workNfOverlay.hidden = false;
+    workNfOverlay.setAttribute('aria-hidden', 'false');
+    try {
+      if (workRegisterSpool && workNfYes) workNfYes.focus();
+      else if (workNfOk) workNfOk.focus();
+    } catch (eFoc) {}
+  }
+  if (workNfYes) {
+    workNfYes.addEventListener('click', function () {
+      var q = workNfPendingQ;
+      closeWorkNotFoundModal();
+      if (!q.length || !workNewSpoolUrl) return;
+      try {
+        var u = new URL(workNewSpoolUrl, window.location.origin);
+        u.searchParams.set('reel', q);
+        window.location.assign(u.toString());
+      } catch (eU) {
+        window.location.href = workNewSpoolUrl + '?reel=' + encodeURIComponent(q);
+      }
+    });
+  }
+  if (workNfNo) workNfNo.addEventListener('click', closeWorkNotFoundModal);
+  if (workNfOk) workNfOk.addEventListener('click', closeWorkNotFoundModal);
+  if (workNfBackdrop) workNfBackdrop.addEventListener('click', closeWorkNotFoundModal);
+  function maybeOfferWorkSpoolRegistration(apiQuery) {
+    var qs = String(apiQuery || '').trim();
+    if (qs.length < 1) return;
+    openWorkNotFoundModal(qs);
+  }
+  document.addEventListener(
+    'keydown',
+    function (ev) {
+      if (ev.key !== 'Escape' || !workNfOverlay || workNfOverlay.hidden) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      closeWorkNotFoundModal();
+    },
+    true
+  );
   function setWorkDataPanel(s) {
     if (!dataPanel) return;
     if (s) {
@@ -644,6 +829,7 @@
       results.innerHTML = '<p><strong>Žádná shoda</strong> pro «' + esc(data.query) + '».</p>';
       setMeterSpool(null);
       syncReturnQ();
+      if (data && data.ok !== false) maybeOfferWorkSpoolRegistration(data.query);
       return;
     }
     var rows = list.map(function (p) { return rowHtml(p, list.length === 1); }).join('');
@@ -733,6 +919,12 @@
     expandSearchBtn.setAttribute('aria-expanded', 'true');
   }
   syncReturnQ();
+  (function workNotFoundSsrBoot() {
+    var boot = document.getElementById('work-not-found-ssr');
+    if (!boot || !boot.dataset.q) return;
+    var qq = String(boot.dataset.q).trim();
+    if (qq.length) maybeOfferWorkSpoolRegistration(qq);
+  })();
   (function initRecordBtn() {
     var sid = document.getElementById('work-record-spool-id');
     setRecordSpoolId(sid && sid.value ? sid.value : null);

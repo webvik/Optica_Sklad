@@ -10,11 +10,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity(repositoryClass: SpoolRepository::class)]
 #[ORM\Table(name: 'cable_spool')]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_spool_reel', columns: ['reel_number'])]
+#[UniqueEntity(fields: ['reelNumber'], message: 'Toto číslo saře má již jiná cívka. Druhou cívku se stejným číslem evidovat nelze.', errorPath: 'reelNumber')]
 class Spool
 {
     #[ORM\Id]

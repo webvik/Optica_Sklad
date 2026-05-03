@@ -187,6 +187,24 @@ class SpoolRepository extends ServiceEntityRepository
     }
 
     /**
+     * Přesná shoda čísla saře (jen LOWER(trim) — bez dílčí digitální heuristiky vyhledávání).
+     */
+    public function findOneByReelNumberExactIgnoreCase(string $q): ?Spool
+    {
+        $q = \trim($q);
+        if ('' === $q) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('s')
+            ->where('LOWER(s.reelNumber) = LOWER(:q)')
+            ->setParameter('q', $q)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Cívky s aspoň jedním záznamem, který vstupuje do řetězce m (odběr dle metru nebo úsek/štítek).
      *
      * @return list<int>

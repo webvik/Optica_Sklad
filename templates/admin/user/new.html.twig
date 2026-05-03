@@ -1,0 +1,83 @@
+{% extends 'base.html.twig' %}
+{% block title %}Nový uživatel{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    {% include '_styles_spool_form_layout.html.twig' %}
+{% endblock %}
+{% block body %}
+    <nav class="app-menu app-menu--toolbar" aria-label="Účet a navigace správy">
+        {% include '_app_menu_cz_top.html.twig' %}
+    </nav>
+    <p style="margin:0 0 1rem"><a href="{{ path('app_admin_users_index') }}">← zpět na Správu uživatelů</a></p>
+    <h1>Nový uživatel</h1>
+    <p class="spool-form" style="margin: 0 0 1rem; max-width: 40rem">
+        Po uložení může jít uživatel na domovskou stránku a přihlásit se nastaveným jménem a heslem.
+        Úroveň oprávnění můžete změnit kdykoli v <strong>Upravit</strong>.
+    </p>
+
+    {{ form_start(form, { attr: { class: 'spool-form', id: 'admin-user-create-form' } }) }}
+        <div class="spool-form__field">
+            {{ form_label(form.username) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.username, { attr: { 'aria-label': form.username.vars.label } }) }}
+                {{ form_help(form.username) }}
+                {{ form_errors(form.username) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.plainPassword.first) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.plainPassword.first) }}
+                {{ form_errors(form.plainPassword.first) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.plainPassword.second) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.plainPassword.second) }}
+                {{ form_errors(form.plainPassword.second) }}
+                {{ form_errors(form.plainPassword) }}
+            </div>
+        </div>
+        {% do form.plainPassword.setRendered() %}
+        <div class="spool-form__field">
+            {{ form_label(form.email) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.email, { attr: { 'aria-label': form.email.vars.label } }) }}
+                {{ form_errors(form.email) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.firstName) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.firstName, { attr: { 'aria-label': form.firstName.vars.label } }) }}
+                {{ form_errors(form.firstName) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.lastName) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.lastName, { attr: { 'aria-label': form.lastName.vars.label } }) }}
+                {{ form_errors(form.lastName) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.accessLevel) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.accessLevel) }}
+                {{ form_errors(form.accessLevel) }}
+            </div>
+        </div>
+
+        <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value spool-form__value--actions">
+                <div class="spool-form__actions spool-form__actions--submit-only" role="group" aria-label="Akce">
+                    {{ form_widget(form.save, { attr: { class: 'spool-form__btn' } }) }}
+                </div>
+            </div>
+        </div>
+
+        {{ form_rest(form) }}
+    {{ form_end(form, { render_rest: false }) }}
+{% endblock %}

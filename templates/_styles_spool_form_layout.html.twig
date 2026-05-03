@@ -1,0 +1,151 @@
+{# Společná mřížka popisků a polí (stejně jako formulář „Nová cívka do evidence“). #}
+<style>
+    .spool-form { max-width: 40rem; line-height: 1.6; }
+    .spool-form__field {
+        display: grid;
+        grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+        column-gap: 0.45rem;
+        row-gap: 0.2rem;
+        margin: 0 0 0.75rem;
+        align-items: start;
+    }
+    .spool-form__field > label,
+    .spool-form__field > .spool-form__static-label,
+    .spool-form__field > .spool-form__label-scan {
+        font-weight: 600;
+        font-size: 0.84rem;
+        line-height: 1.25;
+        padding-top: 0.28rem;
+        word-break: break-word;
+        hyphens: auto;
+    }
+    .spool-form__label-scan {
+        box-sizing: border-box;
+        margin: 0;
+        justify-self: start;
+        align-self: start;
+        max-width: 100%;
+        text-align: left;
+        font: inherit;
+        font-weight: 600;
+        font-size: 0.84rem;
+        line-height: 1.25;
+        color: inherit;
+        cursor: pointer;
+        padding: 0.28rem 0.45rem;
+        border: 1px solid rgba(0, 0, 0, 0.26);
+        background: rgba(250, 250, 250, 0.65);
+        border-radius: 4px;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
+        word-break: break-word;
+        hyphens: auto;
+        min-height: 2rem;
+        display: inline-block;
+        vertical-align: top;
+    }
+    .spool-form__label-scan:hover {
+        border-color: rgba(0, 0, 0, 0.42);
+        background: rgba(0, 0, 0, 0.04);
+    }
+    .spool-form__label-scan:active {
+        background: rgba(0, 0, 0, 0.07);
+        border-color: rgba(0, 0, 0, 0.48);
+    }
+    .spool-form__label-scan:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+    }
+    .spool-form__readout { margin: 0; font-size: 0.88rem; line-height: 1.35; color: #333; }
+    .spool-form__value { min-width: 0; text-align: left; }
+    .spool-form__value .form-error, .spool-form__value ul, .spool-form__value p.help-text { margin: 0.25rem 0 0; display: block; }
+    .spool-form__value p.form-text, .spool-form__value p.help-text, .spool-form__value small { font-size: 0.85rem; line-height: 1.4; color: #555; text-align: left; }
+    .spool-form__value [type="date"], .spool-form__value [type="number"],
+    .spool-form__value [type="text"], .spool-form__value textarea, .spool-form__value select {
+        max-width: 100%; box-sizing: border-box;
+    }
+    .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: left; width: 100%; }
+    .spool-form__value input[type='checkbox'],
+    .spool-form__value input[type='radio'] {
+        width: auto !important;
+        max-width: none;
+        flex-shrink: 0;
+    }
+    .spool-form__value select.cable-type-list { max-width: 100%; }
+    @media (min-width: 42rem) {
+        .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
+        .spool-form__row--actions { grid-template-columns: 12.5rem 1fr; }
+        .spool-form__field > label,
+        .spool-form__field > .spool-form__static-label,
+        .spool-form__field > .spool-form__label-scan { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; min-height: 0; }
+        .spool-form__value > input:not([type='checkbox']):not([type='radio']),
+        .spool-form__value > select,
+        .spool-form__value > textarea {
+            max-width: 24rem;
+        }
+        .spool-form__value > input:not([type='checkbox']):not([type='radio']),
+        .spool-form__value > select,
+        .spool-form__value > textarea { margin-left: auto; display: block; }
+        .spool-form__value p.form-text, .spool-form__value p.help-text { max-width: 24rem; margin-left: auto; }
+        .spool-form__value--actions .spool-form__actions { max-width: 24rem; margin-left: auto; }
+        .spool-form__value > ul, .spool-form__value .form-error { text-align: left; margin-left: auto; max-width: 24rem; }
+    }
+    @media (max-width: 41.99rem) {
+        .spool-form__row--action-spacer { display: none !important; }
+        .spool-form__row--actions .spool-form__value--actions { grid-column: 1 / -1; }
+        .spool-form__label-scan {
+            min-height: 2.75rem;
+            padding-top: 0.45rem;
+            padding-bottom: 0.45rem;
+            display: flex;
+            align-items: center;
+        }
+    }
+    .spool-form__actions { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; }
+    .spool-form__actions--submit-only { justify-content: flex-end; }
+    @media (min-width: 42rem) {
+        .spool-form__row--actions .spool-form__value--actions { width: 100%; }
+    }
+    .spool-form__btn, .spool-form__actions button[type="submit"] {
+        box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+        min-height: 2.55rem; min-width: 5.5rem; padding: 0.45rem 1rem; font: inherit; font-size: 1rem; font-weight: 500;
+        line-height: 1.2; border: 1px solid #bbb; border-radius: 4px; background: #f5f5f5; color: #1a1a1a; cursor: pointer;
+    }
+    .spool-form__btn:hover, .spool-form__actions button[type="submit"]:hover { background: #eaeaec; }
+    .spool-form__btn:active, .spool-form__actions button[type="submit"]:active { background: #e0e0e2; }
+    .spool-form__row--action-spacer { display: none; }
+    @media (min-width: 42rem) {
+        .spool-form__row--action-spacer { display: block; min-height: 1px; }
+    }
+
+    {# Rozšířený výběr role: řádky ve sloupci; vlevo radio, vpravo název (Symfony: input→label účastní řádku kvůli auto-placement gridu). #}
+    .spool-form__expanded-choice {
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: start;
+        justify-items: start;
+        column-gap: 0.65rem;
+        row-gap: 0.42rem;
+        width: 100%;
+        max-width: 100%;
+        text-align: left;
+        line-height: 1.42;
+    }
+    .spool-form__expanded-choice > label {
+        font-weight: 500;
+        min-width: 0;
+        margin: 0;
+        cursor: pointer;
+        word-break: break-word;
+        hyphens: auto;
+        padding-top: 0.1rem;
+    }
+    .spool-form__expanded-choice > input[type='radio'] {
+        margin-top: 0.2rem;
+    }
+    @media (min-width: 42rem) {
+        .spool-form__expanded-choice {
+            max-width: min(34rem, 100%);
+        }
+    }
+</style>
