@@ -97,3 +97,75 @@
         {{ form_rest(form) }}
     {{ form_end(form, { render_rest: false }) }}
 {% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+    (function () {
+        var form = document.getElementById('admin-user-create-form');
+        if (!form) return;
+
+        var elUser = document.getElementById({{ form.username.vars.id|json_encode|raw }});
+        var elFirst = document.getElementById({{ form.firstName.vars.id|json_encode|raw }});
+        var elLast = document.getElementById({{ form.lastName.vars.id|json_encode|raw }});
+        if (!elUser || !elFirst || !elLast) return;
+
+        function slugPart(s) {
+            if (!s) return '';
+            var t = String(s).normalize('NFD').replace(/\p{M}/gu, '');
+            t = t.toLowerCase();
+            t = t.replace(/[^a-z0-9._-]/g, '');
+            t = t.replace(/\.{2,}/g, '.');
+            t = t.replace(/^\.+|\.+$/g, '');
+            return t;
+        }
+
+        function suggestedLogin(firstVal, lastVal) {
+            var a = slugPart(String(firstVal || '').trim());
+            var b = slugPart(String(lastVal || '').trim());
+            if (a && b) return a + '.' + b;
+            if (a) return a;
+            if (b) return b;
+            return '';
+        }
+
+        var locked = false;
+        var lastSuggested = '';
+
+        function applyFromNames() {
+            var s = suggestedLogin(elFirst.value, elLast.value);
+            lastSuggested = s;
+            if (!locked) {
+                elUser.value = s;
+            }
+        }
+
+        function onUsernameInput() {
+            var v = elUser.value;
+            var s = suggestedLogin(elFirst.value, elLast.value);
+            lastSuggested = s;
+            if (v === '' || v === s) {
+                locked = false;
+                elUser.value = s;
+                return;
+            }
+            locked = true;
+        }
+
+        elFirst.addEventListener('input', applyFromNames);
+        elLast.addEventListener('input', applyFromNames);
+        elUser.addEventListener('input', onUsernameInput);
+
+        /* Po načtení (např. chyba validace): odhadnout, zda login uživatelsky upraven */
+        lastSuggested = suggestedLogin(elFirst.value, elLast.value);
+        var u0 = String(elUser.value || '').trim();
+        if (u0 === '') {
+            locked = false;
+        } else {
+            locked = u0 !== lastSuggested;
+        }
+        if (!locked) {
+            elUser.value = lastSuggested;
+        }
+    })();
+    </script>
+{% endblock %}

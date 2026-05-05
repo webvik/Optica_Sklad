@@ -1,7 +1,10 @@
 <div class="app-menu__top">
     <div class="app-menu__top-row app-menu__top-row--account">
         <a href="{{ path('app_home') }}">Domů</a>
-        <a href="{{ path('app_logout') }}">Odhlásit se</a>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.1rem;">
+            <a href="{{ path('app_logout') }}">Odhlásit se</a>
+            <a href="{{ path('app_account_change_password') }}" style="font-size:.9rem;line-height:1.2;">Změna hesla</a>
+        </div>
     </div>
     {% if is_granted('ROLE_APP_ADMIN') %}
         <div class="app-menu__top-row app-menu__top-row--admin" aria-label="Správa aplikace">
