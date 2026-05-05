@@ -29,6 +29,23 @@ final class UserCreateFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
+            ->add('firstName', TextType::class, [
+                'label' => 'Jméno',
+                'required' => false,
+                'constraints' => [new Length(max: 100)],
+            ])
+            ->add('lastName', TextType::class, [
+                'label' => 'Příjmení',
+                'required' => false,
+                'constraints' => [new Length(max: 100)],
+            ])
+            ->add('phone', TextType::class, [
+                'mapped' => false,
+                'label' => 'Telefon (volitelně)',
+                'required' => false,
+                'help' => 'Pro jednorázové odeslání loginu a hesla přes WhatsApp (např. +420 7xx xxx xxx).',
+                'constraints' => [new Length(max: 32)],
+            ])
             ->add('username', TextType::class, [
                 'label' => 'Přihlašovací jméno (login)',
                 'help' => 'Bez diakritiky, výhodně jako jméno.prijmení (malá písmena).',
@@ -57,27 +74,11 @@ final class UserCreateFormType extends AbstractType
                     new Length(max: 180),
                 ],
             ])
-            ->add('firstName', TextType::class, [
-                'label' => 'Jméno',
-                'required' => false,
-                'constraints' => [new Length(max: 100)],
-            ])
-            ->add('lastName', TextType::class, [
-                'label' => 'Příjmení',
-                'required' => false,
-                'constraints' => [new Length(max: 100)],
-            ])
-            ->add('phone', TextType::class, [
-                'mapped' => false,
-                'label' => 'Telefon (volitelně)',
-                'required' => false,
-                'help' => 'Pro jednorázové odeslání loginu a hesla přes WhatsApp (např. +420 7xx xxx xxx).',
-                'constraints' => [new Length(max: 32)],
-            ])
             ->add('offerWhatsAppHandoff', CheckboxType::class, [
                 'mapped' => false,
                 'label' => 'Po uložení nabídnout odeslání loginu a hesla uživateli přes WhatsApp',
                 'required' => false,
+                'data' => true,
                 'help' => 'Vyžaduje vyplněné telefonní číslo. Odkaz funguje jednou; heslo se dočasně uloží jen do souboru v serveru a po otevření WhatsApp se smaže.',
             ])
             ->add('accessLevel', ChoiceType::class, [

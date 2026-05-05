@@ -17,6 +17,28 @@
 
     {{ form_start(form, { attr: { class: 'spool-form', id: 'admin-user-create-form' } }) }}
         <div class="spool-form__field">
+            {{ form_label(form.firstName) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.firstName, { attr: { 'aria-label': form.firstName.vars.label } }) }}
+                {{ form_errors(form.firstName) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.lastName) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.lastName, { attr: { 'aria-label': form.lastName.vars.label } }) }}
+                {{ form_errors(form.lastName) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.phone) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.phone, { attr: { 'aria-label': form.phone.vars.label, maxlength: 32 } }) }}
+                {{ form_help(form.phone) }}
+                {{ form_errors(form.phone) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
             {{ form_label(form.username) }}
             <div class="spool-form__value">
                 {{ form_widget(form.username, { attr: { 'aria-label': form.username.vars.label } }) }}
@@ -45,28 +67,6 @@
             <div class="spool-form__value">
                 {{ form_widget(form.email, { attr: { 'aria-label': form.email.vars.label } }) }}
                 {{ form_errors(form.email) }}
-            </div>
-        </div>
-        <div class="spool-form__field">
-            {{ form_label(form.firstName) }}
-            <div class="spool-form__value">
-                {{ form_widget(form.firstName, { attr: { 'aria-label': form.firstName.vars.label } }) }}
-                {{ form_errors(form.firstName) }}
-            </div>
-        </div>
-        <div class="spool-form__field">
-            {{ form_label(form.lastName) }}
-            <div class="spool-form__value">
-                {{ form_widget(form.lastName, { attr: { 'aria-label': form.lastName.vars.label } }) }}
-                {{ form_errors(form.lastName) }}
-            </div>
-        </div>
-        <div class="spool-form__field">
-            {{ form_label(form.phone) }}
-            <div class="spool-form__value">
-                {{ form_widget(form.phone, { attr: { 'aria-label': form.phone.vars.label, maxlength: 32 } }) }}
-                {{ form_help(form.phone) }}
-                {{ form_errors(form.phone) }}
             </div>
         </div>
         <div class="spool-form__field">
