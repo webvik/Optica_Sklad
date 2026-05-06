@@ -34,7 +34,7 @@
             <tbody>
             {% for e in entries %}
                 <tr>
-                    <td>{{ e.occurredAt|date('Y-m-d H:i:s') }}</td>
+                    <td>{{ e.occurredAt|date('Y-m-d H:i:s', 'Europe/Prague') }}</td>
                     <td><code>{{ e.username }}</code></td>
                     <td>{{ e.rolesSnapshot|default([])|join(', ') ?: '—' }}</td>
                     <td>{{ e.method }}</td>
