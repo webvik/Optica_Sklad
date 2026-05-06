@@ -136,7 +136,7 @@ final class UserAdminController extends AbstractController
     }
 
     #[Route('/odeslat-povereni-whatsapp/{token}', name: 'whatsapp_redirect', requirements: ['token' => '[a-f0-9]{32}'], methods: ['GET'])]
-    public function redirectWhatsAppHandoff(string $token, UserCredentialsWhatsAppHandoff $handoff): Response
+    public function redirectWhatsAppHandoff(string $token, Request $request, UserCredentialsWhatsAppHandoff $handoff): Response
     {
         try {
             $data = $handoff->consume($token, delete: true);
@@ -146,10 +146,12 @@ final class UserAdminController extends AbstractController
             return $this->redirectToRoute('app_admin_users_index');
         }
 
+        $appDomain = $request->getSchemeAndHttpHost();
         $textLines = [
             'Přístupové údaje do aplikace Optický sklad:',
             'Login: '.$data['username'],
             'Heslo: '.$data['plainPassword'],
+            'Adresa aplikace: '.$appDomain,
             '',
             'Po prvním přihlášení si změňte heslo.',
         ];
