@@ -75,8 +75,8 @@
             padding: 0 0.35rem;
         }
         #spool-cable-ocr-video-wrap {
-            width: min(100%, 28rem);
-            height: clamp(4.75rem, 14vh, 7rem);
+            width: min(100%, 24rem);
+            height: clamp(3.9rem, 10vh, 5.6rem);
             overflow: hidden;
             border-radius: 8px;
             border: 2px solid rgba(95, 200, 255, 0.85);
@@ -90,7 +90,7 @@
             gap: 0.65rem;
             align-items: center;
             justify-content: center;
-            max-width: min(100%, 28rem);
+            max-width: min(100%, 24rem);
         }
         #spool-cable-ocr-capture {
             flex: 1 1 auto;
@@ -123,7 +123,7 @@
         }
         #spool-cable-ocr-cable-editor[hidden] { display: none !important; }
         #spool-cable-ocr-cable-editor {
-            width: min(100%, 28rem);
+            width: min(100%, 24rem);
             box-sizing: border-box;
         }
         #spool-cable-ocr-draft-label {
@@ -945,8 +945,10 @@
   var ocrBusy = false;
   var cableMatchBusy = false;
   var ocrCropCanvas = null;
-  /** Středový pruh výřezu — mírně vyšší = méně oříznutého textu na telefonu */
-  var CABLE_STRIP_FRAC = 0.24;
+  /** Středový pruh OCR pro typ kabelu: úzký řádek kvůli potlačení okolního „šumu“ */
+  var CABLE_STRIP_FRAC = 0.18;
+  /** Typ kabelu: zúžený výřez i horizontálně (střed), aby se nečetly krajní znaky */
+  var CABLE_WIDTH_FRAC = 0.76;
   /** Min. šířka snímku pro Tesseract (upscale z úzkého videa) */
   var OCR_TARGET_MIN_WIDTH = 1500;
   var OCR_MAX_UPSCALE = 3.6;
@@ -1326,17 +1328,61 @@
     return out;
   }
 
+  /**
+   * Druhý průchod: silnější kontrast + lehká binarizace pro vytažení znaků.
+   * Ne vždy je lepší, proto níže porovnáváme oba OCR výstupy a bereme kvalitnější.
+   */
+  function enhanceStripCanvasForOcrBinary(canvSrc) {
+    var w = canvSrc.width;
+    var h = canvSrc.height;
+    if (w < 8 || h < 4) return canvSrc;
+
+    var out = document.createElement('canvas');
+    out.width = w;
+    out.height = h;
+    var x = out.getContext('2d');
+    if (!x) return canvSrc;
+    x.imageSmoothingEnabled = true;
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(canvSrc, 0, 0, w, h);
+    var img;
+    try {
+      img = x.getImageData(0, 0, w, h);
+    } catch (eImg) {
+      return out;
+    }
+    var d = img.data;
+    var i;
+    for (i = 0; i < d.length; i += 4) {
+      var r = d[i];
+      var g = d[i + 1];
+      var b = d[i + 2];
+      var y = (0.299 * r) + (0.587 * g) + (0.114 * b);
+      var bw = y >= 152 ? 255 : 0;
+      d[i] = bw;
+      d[i + 1] = bw;
+      d[i + 2] = bw;
+    }
+    x.putImageData(img, 0, 0);
+    return out;
+  }
+
   function captureCableOcrCropCanvas() {
     if (!ocrVideo || scanStream === null) return null;
     if (ocrVideo.readyState < 2) return null;
     var vw = ocrVideo.videoWidth;
     var vh = ocrVideo.videoHeight;
     if (vw < 2 || vh < 2) return null;
-    var sh = Math.max(12, Math.round(vh * CABLE_STRIP_FRAC));
+    var isCableMode = ocrMode === 'cable';
+    var stripFrac = isCableMode ? CABLE_STRIP_FRAC : 0.24;
+    var widthFrac = isCableMode ? CABLE_WIDTH_FRAC : 1;
+    var sh = Math.max(12, Math.round(vh * stripFrac));
     var sy = Math.round((vh - sh) / 2);
+    var sw = Math.max(24, Math.round(vw * widthFrac));
+    var sx = Math.round((vw - sw) / 2);
     /** Plná šířka snímku — upscaling řeší enhanceStripCanvasForOcr (dříve cap 960 škodil na telefonu) */
-    var cw = vw;
-    var ch = Math.max(12, Math.round(sh * (cw / vw)));
+    var cw = sw;
+    var ch = Math.max(12, Math.round(sh * (cw / sw)));
     var canv = getCropCanvas();
     if (canv.width !== cw || canv.height !== ch) {
       canv.width = cw;
@@ -1345,7 +1391,7 @@
     var ctx = canv.getContext('2d');
     if (!ctx) return null;
     ctx.filter = 'none';
-    ctx.drawImage(ocrVideo, 0, sy, vw, sh, 0, 0, cw, ch);
+    ctx.drawImage(ocrVideo, sx, sy, sw, sh, 0, 0, cw, ch);
     return enhanceStripCanvasForOcr(canv);
   }
 
@@ -1379,14 +1425,24 @@
           endOcrSnapCycle();
           return;
         }
-        worker
-          .recognize(canv)
-          .then(function (res) {
+        var canvBinary = enhanceStripCanvasForOcrBinary(canv);
+        Promise.allSettled([worker.recognize(canv), worker.recognize(canvBinary)])
+          .then(function (runs) {
             if (scanStream === null) {
               endOcrSnapCycle();
               return;
             }
-            var txt = res && res.data && res.data.text ? String(res.data.text) : '';
+            var txtA = '';
+            var txtB = '';
+            if (runs[0] && runs[0].status === 'fulfilled' && runs[0].value && runs[0].value.data) {
+              txtA = String(runs[0].value.data.text || '');
+            }
+            if (runs[1] && runs[1].status === 'fulfilled' && runs[1].value && runs[1].value.data) {
+              txtB = String(runs[1].value.data.text || '');
+            }
+            var normA = normalizeDraftText(txtA);
+            var normB = normalizeDraftText(txtB);
+            var txt = normA.length >= normB.length ? txtA : txtB;
             if (ocrMode === 'ps') {
               var psVal = tryExtractPs(txt);
               if (psVal) {
