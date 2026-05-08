@@ -75,8 +75,8 @@
             padding: 0 0.35rem;
         }
         #spool-cable-ocr-video-wrap {
-            width: min(100%, 24rem);
-            height: clamp(3.9rem, 10vh, 5.6rem);
+            width: min(100%, 22.5rem);
+            height: clamp(3.6rem, 9vh, 5.2rem);
             overflow: hidden;
             border-radius: 8px;
             border: 2px solid rgba(95, 200, 255, 0.85);
@@ -948,12 +948,14 @@
   /** Středový pruh OCR pro typ kabelu: úzký řádek kvůli potlačení okolního „šumu“ */
   var CABLE_STRIP_FRAC = 0.18;
   /** Typ kabelu: zúžený výřez i horizontálně (střed), aby se nečetly krajní znaky */
-  var CABLE_WIDTH_FRAC = 0.76;
+  var CABLE_WIDTH_FRAC = 0.72;
   /** Min. šířka snímku pro Tesseract (upscale z úzkého videa) */
   var OCR_TARGET_MIN_WIDTH = 1500;
   var OCR_MAX_UPSCALE = 3.6;
   var OCR_MAX_OUTPUT_WIDTH = 2400;
   var MIN_CHARS = 10;
+  /** Režimy pro 2 řádky textu + fallback na sparse text */
+  var OCR_PAGE_SEG_MODES = ['6', '11', '4'];
   var tessWorkerPromise = null;
   var tessWorker = null;
 
@@ -1266,8 +1268,6 @@
         .then(function (worker) {
           return worker
             .setParameters({
-              /** Jeden textový řádek (výřez pruhu) — typicky lepší než „blok“ 6 */
-              tessedit_pageseg_mode: '7',
               user_defined_dpi: '300',
             })
             .then(function () {
@@ -1287,6 +1287,36 @@
   function getCropCanvas() {
     if (!ocrCropCanvas) ocrCropCanvas = document.createElement('canvas');
     return ocrCropCanvas;
+  }
+
+  function recognizeCanvasWithMode(worker, canvas, psm) {
+    return worker
+      .setParameters({ tessedit_pageseg_mode: String(psm) })
+      .then(function () {
+        return worker.recognize(canvas);
+      })
+      .then(function (res) {
+        var txt = res && res.data && res.data.text ? String(res.data.text) : '';
+        return txt;
+      })
+      .catch(function () {
+        return '';
+      });
+  }
+
+  function selectBestOcrText(textList) {
+    var bestRaw = '';
+    var bestNorm = '';
+    var i;
+    for (i = 0; i < textList.length; i++) {
+      var raw = String(textList[i] || '');
+      var norm = normalizeDraftText(raw);
+      if (norm.length > bestNorm.length) {
+        bestNorm = norm;
+        bestRaw = raw;
+      }
+    }
+    return bestRaw;
   }
 
   /**
@@ -1426,23 +1456,19 @@
           return;
         }
         var canvBinary = enhanceStripCanvasForOcrBinary(canv);
-        Promise.allSettled([worker.recognize(canv), worker.recognize(canvBinary)])
-          .then(function (runs) {
+        var tasks = [];
+        var iMode;
+        for (iMode = 0; iMode < OCR_PAGE_SEG_MODES.length; iMode++) {
+          tasks.push(recognizeCanvasWithMode(worker, canv, OCR_PAGE_SEG_MODES[iMode]));
+          tasks.push(recognizeCanvasWithMode(worker, canvBinary, OCR_PAGE_SEG_MODES[iMode]));
+        }
+        Promise.all(tasks)
+          .then(function (texts) {
             if (scanStream === null) {
               endOcrSnapCycle();
               return;
             }
-            var txtA = '';
-            var txtB = '';
-            if (runs[0] && runs[0].status === 'fulfilled' && runs[0].value && runs[0].value.data) {
-              txtA = String(runs[0].value.data.text || '');
-            }
-            if (runs[1] && runs[1].status === 'fulfilled' && runs[1].value && runs[1].value.data) {
-              txtB = String(runs[1].value.data.text || '');
-            }
-            var normA = normalizeDraftText(txtA);
-            var normB = normalizeDraftText(txtB);
-            var txt = normA.length >= normB.length ? txtA : txtB;
+            var txt = selectBestOcrText(texts || []);
             if (ocrMode === 'ps') {
               var psVal = tryExtractPs(txt);
               if (psVal) {
