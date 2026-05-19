@@ -4,6 +4,7 @@ namespace App\Controller\Warehouse;
 
 use App\Enum\SpoolStatus;
 use App\Service\Warehouse\InventuraBriefGroupLabel;
+use App\Service\Warehouse\InventuraExcelExporter;
 use App\Service\Warehouse\SpoolMeterService;
 use App\Repository\CableTypeRepository;
 use App\Repository\SpoolEventRepository;
@@ -64,10 +65,30 @@ final class StockBrowseController extends AbstractController
         $spools = $spoolRepository->findForInventuraSheet();
         $groups = self::buildInventuryGroups($spools);
 
+        $generatedAt = new \DateTimeImmutable('now');
+
         return $this->render('warehouse/stock_browse_inventura.html.twig', [
             'groups' => $groups,
-            'generatedAt' => new \DateTimeImmutable('now'),
+            'generatedAt' => $generatedAt,
         ]);
+    }
+
+    #[Route('/inventura/export/krata', name: 'inventura_export_brief', methods: ['GET'])]
+    public function inventuraExportBrief(SpoolRepository $spoolRepository, InventuraExcelExporter $exporter): Response
+    {
+        $generatedAt = new \DateTimeImmutable('now');
+        $groups = self::buildInventuryGroups($spoolRepository->findForInventuraSheet());
+
+        return $exporter->downloadBrief($groups, $generatedAt);
+    }
+
+    #[Route('/inventura/export/plna', name: 'inventura_export_full', methods: ['GET'])]
+    public function inventuraExportFull(SpoolRepository $spoolRepository, InventuraExcelExporter $exporter): Response
+    {
+        $generatedAt = new \DateTimeImmutable('now');
+        $groups = self::buildInventuryGroups($spoolRepository->findForInventuraSheet());
+
+        return $exporter->downloadFull($groups, $generatedAt);
     }
 
     /**

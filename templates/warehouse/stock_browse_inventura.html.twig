@@ -54,6 +54,13 @@
         .inventura-brief > summary::before { content: '▸ '; display: inline-block; transition: transform 0.15s; }
         .inventura-brief[open] > summary::before { transform: rotate(90deg); }
         .inventura-brief__inner { margin-top: 0.6rem; width: 100%; max-width: 100%; }
+        .inventura-export-line {
+            margin: 0.65rem 0 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
         /* Krátká tabulka — jednoduché auto rozložení (před experimenty s fixed/col) */
         .inventura-table--brief {
             font-size: 0.92rem;
@@ -169,6 +176,9 @@
                 {% endfor %}
                 </tbody>
             </table>
+            <p class="inventura-export-line inventura-no-print">
+                <a class="warehouse-pill" href="{{ path('warehouse_browse_inventura_export_brief') }}">Export do Excelu</a>
+            </p>
         </div>
     </details>
     {% endif %}
@@ -217,4 +227,7 @@
             </tbody>
         </table>
     </div>
+    <p class="inventura-export-line inventura-no-print">
+        <a class="warehouse-pill" href="{{ path('warehouse_browse_inventura_export_full') }}">Export do Excelu</a>
+    </p>
 {% endblock %}
