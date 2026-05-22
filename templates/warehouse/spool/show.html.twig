@@ -52,6 +52,13 @@
         }
         .spool-form__btn:hover, .spool-form__actions button[type="submit"]:hover { background: #eaeaec; }
         .spool-form__btn:active, .spool-form__actions button[type="submit"]:active { background: #e0e0e2; }
+        .spool-form__btn--danger {
+            border-color: #c44;
+            background: #fef2f2;
+            color: #8b1a1a;
+        }
+        .spool-form__btn--danger:hover { background: #fde8e8; }
+        .spool-form__btn--danger:active { background: #f8d4d4; }
         .spool-form__row--action-spacer { display: none; }
         @media (min-width: 42rem) {
             .spool-form__row--action-spacer { display: block; min-height: 1px; }
@@ -298,6 +305,16 @@
             <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
             <div class="spool-form__value spool-form__value--actions">
                 <div class="spool-form__actions" role="group" aria-label="Akce">
+                    {% if is_granted('ROLE_SKLAD_ADMIN') %}
+                        <input type="hidden" name="_delete_token" value="{{ csrf_token('spool_delete') }}">
+                        <button type="submit"
+                                class="spool-form__btn spool-form__btn--danger"
+                                formaction="{{ path('warehouse_spool_delete', { id: spool.id }) }}"
+                                formmethod="post"
+                                onclick="return confirm('Opravdu smazat cívku «{{ spool.reelNumber|e('js') }}» včetně celého deníku (odběry, zafuky)? Tuto akci nelze vrátit.');">
+                            Smazat
+                        </button>
+                    {% endif %}
                     <button type="submit" class="spool-form__btn">Zapsat</button>
                 </div>
             </div>

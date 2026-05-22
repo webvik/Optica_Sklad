@@ -14,7 +14,7 @@
     </thead>
     <tbody>
     {% for s in spools %}
-        <tr>
+        <tr class="browse-spool-row" data-spool-id="{{ s.id }}">
             <td>{{ s.reelNumber }}</td>
             <td>{{ s.cableType ? s.cableType.code : '—' }}</td>
             <td>{{ s.briefInventuraLabel }}</td>
@@ -24,7 +24,7 @@
             <td><a href="{{ path('warehouse_spool_show', {id: s.id}) }}">Karta</a></td>
         </tr>
     {% else %}
-        <tr><td colspan="7">Žádné záznamy v tomto výběru.</td></tr>
+        <tr class="browse-spool-row browse-spool-row--empty"><td colspan="7">Žádné záznamy v tomto výběru.</td></tr>
     {% endfor %}
     </tbody>
 </table>

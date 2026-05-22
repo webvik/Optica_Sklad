@@ -86,7 +86,7 @@ class Spool
     private ?User $updatedBy = null;
 
     /** @var Collection<int, SpoolEvent> */
-    #[ORM\OneToMany(targetEntity: SpoolEvent::class, mappedBy: 'spool', cascade: ['persist'])]
+    #[ORM\OneToMany(targetEntity: SpoolEvent::class, mappedBy: 'spool', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['id' => 'ASC'])]
     private Collection $events;
 

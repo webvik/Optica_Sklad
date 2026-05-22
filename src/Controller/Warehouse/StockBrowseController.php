@@ -10,6 +10,7 @@ use App\Repository\CableTypeRepository;
 use App\Repository\SpoolEventRepository;
 use App\Repository\SpoolRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -43,9 +44,11 @@ final class StockBrowseController extends AbstractController
         $cableTypeIdsForQuery = self::normalizeCableTypeIdsIfAllSelected($cableTypeIdsFromForm, $allCableTypeIds);
 
         $statuses = self::parseStatusList($request);
+        $reelQ = \trim((string) $request->query->get('q', ''));
 
         return $this->render('warehouse/stock_browse.html.twig', [
-            'spools' => $spools->findFiltered($cableTypeIdsForQuery, $statuses),
+            'spools' => $spools->findFiltered($cableTypeIdsForQuery, $statuses, '' !== $reelQ ? $reelQ : null),
+            'searchQuery' => $reelQ,
             'cableTypeChoices' => $choiceEntities,
             'filterCableTypeIds' => $cableTypeIdsFromForm,
             'cableTypeFilterIsAll' => $cableTypeIdsForQuery === [] && $cableTypeIdsFromForm !== [],
@@ -55,6 +58,54 @@ final class StockBrowseController extends AbstractController
                 static fn (SpoolStatus $s) => $s->value,
                 $statuses,
             ),
+        ]);
+    }
+
+    /** Živé hledání čísla saře v rámci aktuálních filtrů přehledu (AJAX). */
+    #[Route('/api/hledat-sare', name: 'reel_search', methods: ['GET'])]
+    public function reelSearch(
+        Request $request,
+        SpoolRepository $spools,
+        CableTypeRepository $cableTypes,
+    ): JsonResponse {
+        $q = \trim((string) $request->query->get('q', ''));
+        if ('' === $q) {
+            return $this->json([
+                'ok' => true,
+                'query' => '',
+                'count' => 0,
+                'spoolIds' => [],
+            ]);
+        }
+
+        $choiceEntities = $cableTypes->findAllOrderedForCableTypePicker(false);
+        $allCableTypeIds = array_values(array_map(
+            static fn ($ct) => (int) $ct->getId(),
+            $choiceEntities,
+        ));
+        \sort($allCableTypeIds, \SORT_NUMERIC);
+
+        $cableTypeIdsFromForm = self::parseIdList($request, 'cableTypeIds');
+        $cableTypeIdsForQuery = self::normalizeCableTypeIdsIfAllSelected($cableTypeIdsFromForm, $allCableTypeIds);
+        $statuses = self::parseStatusList($request);
+
+        try {
+            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeIdsForQuery, $statuses, 500);
+        } catch (\Throwable $e) {
+            return $this->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+                'query' => $q,
+                'count' => 0,
+                'spoolIds' => [],
+            ], 500);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'query' => $q,
+            'count' => \count($ids),
+            'spoolIds' => $ids,
         ]);
     }
 

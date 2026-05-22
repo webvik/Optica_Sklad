@@ -27,6 +27,27 @@
             max-width: 100%;
         }
         .browse-filters__col--submit { flex: 0 0 auto; }
+        .browse-filters__col--reelSearch { flex: 1 1 0; min-width: 0; }
+        .browse-reel-q-input {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 2.5rem;
+            padding: 0.4rem 0.65rem;
+            font: inherit;
+            font-size: 0.95rem;
+            line-height: 1.3;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: #fff;
+            color: #1a1a1a;
+        }
+        .browse-reel-q-input::placeholder { color: #888; }
+        .browse-reel-hint {
+            color: #666;
+            font-size: 0.9em;
+            min-height: 1.2em;
+            margin: 0 0 0.75rem;
+        }
         .browse-filters__row button[type="submit"] { min-height: 2.5rem; }
         .browse-inventura-btn-line { margin: 0.35rem 0 0.75rem; }
         .browse-inventura-btn-line .warehouse-pill {
@@ -274,10 +295,28 @@
                 <label for="browse-usage-proj-link">Podle zakázky</label>
                 <a id="browse-usage-proj-link" href="{{ path('warehouse_browse_usage_by_project') }}" class="browse-filters__proj-feed-link">Filtr podle projektů</a>
             </div>
+            <div class="browse-filters__col browse-filters__col--equal browse-filters__col--reelSearch">
+                <label for="browse-reel-q">Číslo saře</label>
+                <input type="text"
+                       name="q"
+                       id="browse-reel-q"
+                       class="browse-reel-q-input"
+                       value="{{ searchQuery|default('')|e('html_attr') }}"
+                       autocomplete="off"
+                       autocapitalize="off"
+                       spellcheck="false"
+                       inputmode="search"
+                       placeholder="např. 450-1470"
+                       aria-describedby="browse-reel-hint">
+            </div>
         </div>
     </form>
 
+    <p id="browse-reel-hint" class="browse-reel-hint" aria-live="polite"></p>
+
+    <div id="browse-spool-table-host">
     {% include 'warehouse/_spool_table.html.twig' with { spools: spools } only %}
+    </div>
 
     <p><a href="{{ path('warehouse_dashboard') }}">Číselný přehled (dashboard)</a> ·
        <a href="{{ path('warehouse_spool_index') }}">Běžná práce s cívkami</a></p>
@@ -512,6 +551,161 @@
     if (cableRoot && cableRoot.classList.contains('cable-type-mobile-picker--open')) { ev.preventDefault(); closeCable(); return; }
     if (statusRoot && statusRoot.classList.contains('cable-type-mobile-picker--open')) { ev.preventDefault(); closeStatus(); }
   });
+
+  var browseForm = document.querySelector('form.browse-filters');
+  var browseQ = document.getElementById('browse-reel-q');
+  var browseHint = document.getElementById('browse-reel-hint');
+  var browseTableHost = document.getElementById('browse-spool-table-host');
+  var browseReelSearchUrl = {{ path('warehouse_browse_reel_search')|json_encode|raw }};
+  var browseDebounceMs = 380;
+  var browseSeq = 0;
+  var browseTimer = null;
+
+  function browseFilterParams() {
+    var p = new URLSearchParams();
+    if (!browseForm) return p;
+    var cableCbs = browseForm.querySelectorAll('input.js-browse-cable-cb:checked');
+    for (var i = 0; i < cableCbs.length; i++) {
+      p.append('cableTypeIds[]', cableCbs[i].value);
+    }
+    var statusCbs = browseForm.querySelectorAll('input.js-browse-status-cb:checked');
+    for (var j = 0; j < statusCbs.length; j++) {
+      p.append('status[]', statusCbs[j].value);
+    }
+    return p;
+  }
+
+  function browseTableRows() {
+    if (!browseTableHost) return [];
+    return browseTableHost.querySelectorAll('tr.browse-spool-row:not(.browse-spool-row--empty)');
+  }
+
+  function browseApplyRowFilter(spoolIds, q) {
+    var idSet = {};
+    if (spoolIds && spoolIds.length) {
+      for (var i = 0; i < spoolIds.length; i++) idSet[String(spoolIds[i])] = true;
+    }
+    var rows = browseTableRows();
+    var visible = 0;
+    for (var r = 0; r < rows.length; r++) {
+      var tr = rows[r];
+      var sid = tr.getAttribute('data-spool-id');
+      var show = !q || (sid && idSet[sid]);
+      tr.hidden = !show;
+      if (show) visible++;
+    }
+    var emptyRow = browseTableHost && browseTableHost.querySelector('tr.browse-spool-row--empty');
+    if (emptyRow) emptyRow.hidden = true;
+    var noMatch = browseTableHost && browseTableHost.querySelector('#browse-reel-no-match');
+    if (q && visible === 0) {
+      if (!noMatch && browseTableHost) {
+        noMatch = document.createElement('p');
+        noMatch.id = 'browse-reel-no-match';
+        noMatch.style.cssText = 'color:#333;margin:.5rem 0';
+        browseTableHost.appendChild(noMatch);
+      }
+      if (noMatch) {
+        noMatch.hidden = false;
+        noMatch.innerHTML = '<strong>Žádná shoda</strong> pro «' + String(q).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '» v aktuálním výběru tabulky.';
+      }
+    } else if (noMatch) {
+      noMatch.hidden = true;
+    }
+    return visible;
+  }
+
+  function browseShowAllRows() {
+    var rows = browseTableRows();
+    for (var i = 0; i < rows.length; i++) rows[i].hidden = false;
+    var noMatch = document.getElementById('browse-reel-no-match');
+    if (noMatch) noMatch.hidden = true;
+    var emptyRow = browseTableHost && browseTableHost.querySelector('tr.browse-spool-row--empty');
+    if (emptyRow) emptyRow.hidden = rows.length > 0;
+  }
+
+  function browseRunReelSearch(q, force) {
+    q = (q || '').trim();
+    if (q.length < 1) {
+      if (browseHint) browseHint.textContent = '';
+      browseShowAllRows();
+      if (window.history && window.history.replaceState) {
+        var u0 = new URL(window.location.href);
+        u0.searchParams.delete('q');
+        window.history.replaceState(null, '', u0.toString());
+      }
+      return;
+    }
+    var my = ++browseSeq;
+    if (browseHint) browseHint.textContent = 'Načítám…';
+    var u = new URL(browseReelSearchUrl, window.location.origin);
+    var fp = browseFilterParams();
+    fp.set('q', q);
+    u.search = fp.toString();
+    fetch(u.toString(), {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (res) {
+        var ct = res.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) {
+          return res.text().then(function () { throw new Error('not json'); });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        if (my !== browseSeq) return;
+        if (!data || data.ok === false) {
+          if (browseHint) browseHint.textContent = (data && data.message) ? ('Chyba: ' + data.message) : 'Chyba hledání.';
+          return;
+        }
+        var visible = browseApplyRowFilter(data.spoolIds || [], q);
+        if (browseHint) {
+          if (data.count === 0) browseHint.textContent = 'Žádná shoda v tabulce — zkuste Filtrovat nebo upravte dotaz.';
+          else if (visible === 0) browseHint.textContent = 'Nalezeno ' + data.count + ' v evidenci, ale žádná řádka v tabulce — stiskněte Filtrovat.';
+          else if (data.count === 1) browseHint.textContent = 'Jedna shoda v tabulce.';
+          else browseHint.textContent = 'Zobrazeno ' + visible + ' z ' + data.count + ' shod v evidenci.';
+        }
+        if (window.history && window.history.replaceState) {
+          var url = new URL(window.location.href);
+          url.searchParams.set('q', q);
+          window.history.replaceState(null, '', url.toString());
+        }
+      })
+      .catch(function () {
+        if (my !== browseSeq) return;
+        if (browseHint) browseHint.textContent = '';
+        if (browseForm) browseForm.submit();
+      });
+  }
+
+  function browseOnReelInput() {
+    var q = browseQ ? String(browseQ.value || '').trim() : '';
+    clearTimeout(browseTimer);
+    browseTimer = setTimeout(function () {
+      browseRunReelSearch(browseQ ? browseQ.value : '', false);
+    }, browseDebounceMs);
+  }
+
+  if (browseQ) {
+    browseQ.addEventListener('input', browseOnReelInput);
+    browseQ.addEventListener('paste', function () { setTimeout(browseOnReelInput, 0); });
+    browseQ.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        clearTimeout(browseTimer);
+        browseRunReelSearch(browseQ.value, true);
+      }
+    });
+  }
+  if (browseForm) {
+    browseForm.addEventListener('submit', function () {
+      clearTimeout(browseTimer);
+      browseSeq++;
+    });
+  }
+  if (browseQ && String(browseQ.value || '').trim().length > 0) {
+    browseRunReelSearch(browseQ.value, true);
+  }
 })();
 </script>
 {% endblock %}

@@ -377,6 +377,26 @@ final class SpoolController extends AbstractController
         return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
     }
 
+    #[Route('/{id}/smazat', name: 'delete', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted(WarehouseRole::ADMIN)]
+    public function delete(Request $request, Spool $spool, EntityManagerInterface $em): Response
+    {
+        $token = (string) $request->request->get('_delete_token', '');
+        if (!$this->isCsrfTokenValid('spool_delete', $token)) {
+            $this->addFlash('error', 'Neplatný požadavek (CSRF). Obnovte stránku a zkuste znovu.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $reel = $spool->getReelNumber();
+        $em->remove($spool);
+        $em->flush();
+
+        $this->addFlash('success', sprintf('Cívka %s a všechny záznamy v deníku byly smazány.', $reel));
+
+        return $this->redirectToRoute('warehouse_browse_index');
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     public function show(Request $request, Spool $spool, SpoolMeterService $meter, EntityManagerInterface $em): Response
     {

@@ -26,7 +26,80 @@ class SpoolRepository extends ServiceEntityRepository
      *
      * @return list<Spool>
      */
-    public function findFiltered(array $cableTypeIds, array $statuses, int $limit = 500): array
+    public function findFiltered(array $cableTypeIds, array $statuses, ?string $reelQ = null, int $limit = 500): array
+    {
+        $reelTrim = null !== $reelQ ? \trim($reelQ) : '';
+        if ('' !== $reelTrim) {
+            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeIds, $statuses, $limit);
+            if ($ids === []) {
+                return [];
+            }
+
+            return $this->loadSpoolsForBrowseByIds($ids);
+        }
+
+        $qb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, $limit);
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Stejná logika jako {@see searchByReelInput}, ale jen v rámci filtrů přehledu skladu.
+     *
+     * @param list<int>         $cableTypeIds
+     * @param list<SpoolStatus> $statuses
+     *
+     * @return list<int>
+     */
+    public function searchIdsByReelWithinFilters(string $q, array $cableTypeIds, array $statuses, int $limit = 500): array
+    {
+        $q = \trim($q);
+        if ('' === $q) {
+            return [];
+        }
+
+        $exactQb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, 1)
+            ->select('s.id')
+            ->andWhere('LOWER(s.reelNumber) = LOWER(:q)')
+            ->setParameter('q', $q);
+        /** @var list<string|int> $exactIds */
+        $exactIds = $exactQb->getQuery()->getSingleColumnResult();
+        if ($exactIds !== []) {
+            return [(int) $exactIds[0]];
+        }
+
+        $partialIds = $this->searchIdsByReelPartial($q, $limit);
+        if ($partialIds === []) {
+            return [];
+        }
+
+        $filterQb = $this->createQueryBuilder('s')
+            ->select('s.id')
+            ->leftJoin('s.cableType', 'c')
+            ->where('s.id IN (:ids)')
+            ->setParameter('ids', $partialIds)
+            ->orderBy('s.reelNumber', 'ASC')
+            ->setMaxResults($limit);
+        if ($cableTypeIds !== []) {
+            $filterQb->andWhere('c.id IN (:cids)')
+                ->setParameter('cids', $cableTypeIds);
+        }
+        if ($statuses !== []) {
+            $filterQb->andWhere('s.status IN (:stss)')
+                ->setParameter('stss', $statuses);
+        }
+
+        /** @var list<string|int> $rowIds */
+        $rowIds = $filterQb->getQuery()->getSingleColumnResult();
+
+        return \array_values(\array_map(static fn (mixed $v): int => (int) $v, $rowIds));
+    }
+
+    /**
+     * @param list<int>         $cableTypeIds
+     * @param list<SpoolStatus> $statuses
+     */
+    private function createFilteredQueryBuilder(array $cableTypeIds, array $statuses, int $limit): \Doctrine\ORM\QueryBuilder
     {
         $qb = $this->createQueryBuilder('s')
             ->leftJoin('s.cableType', 'c')
@@ -43,7 +116,29 @@ class SpoolRepository extends ServiceEntityRepository
                 ->setParameter('stss', $statuses);
         }
 
-        return $qb->getQuery()->getResult();
+        return $qb;
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<Spool>
+     */
+    private function loadSpoolsForBrowseByIds(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('s')
+            ->leftJoin('s.cableType', 'c')
+            ->addSelect('c')
+            ->where('s.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('CASE WHEN s.fiberCount IS NOT NULL THEN s.fiberCount WHEN c.fiberCount IS NOT NULL THEN c.fiberCount ELSE 0 END', 'ASC')
+            ->addOrderBy('s.reelNumber', 'ASC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**
