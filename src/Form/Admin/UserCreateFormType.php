@@ -9,7 +9,6 @@ use App\Util\WhatsAppPhoneDigits;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
-use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -26,6 +25,9 @@ use Symfony\Component\Validator\Constraints\Regex;
 
 final class UserCreateFormType extends AbstractType
 {
+    /** Výchozí heslo na formuláři „Nový uživatel“ (lze před uložením změnit). */
+    public const DEFAULT_PLAIN_PASSWORD = '12345678';
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
@@ -56,9 +58,17 @@ final class UserCreateFormType extends AbstractType
                 ],
             ])
             ->add('plainPassword', RepeatedType::class, [
-                'type' => PasswordType::class,
+                // TextType + type=password: Symfony 8 PasswordType vždy maže value, dokud formulář není odeslaný.
+                'type' => TextType::class,
+                'options' => [
+                    'attr' => [
+                        'type' => 'password',
+                        'autocomplete' => 'new-password',
+                    ],
+                ],
                 'mapped' => false,
                 'required' => true,
+                'data' => self::DEFAULT_PLAIN_PASSWORD,
                 'first_options' => ['label' => 'Heslo'],
                 'second_options' => ['label' => 'Heslo znovu'],
                 'constraints' => [

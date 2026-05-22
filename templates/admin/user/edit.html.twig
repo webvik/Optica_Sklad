@@ -3,6 +3,16 @@
 {% block stylesheets %}
     {{ parent() }}
     {% include '_styles_spool_form_layout.html.twig' %}
+    <style>
+        .spool-form__btn--danger {
+            border-color: #c44;
+            background: #fef2f2;
+            color: #8b1a1a;
+        }
+        .spool-form__btn--danger:hover { background: #fde8e8; }
+        .spool-form__btn--danger:active { background: #f8d4d4; }
+        .spool-form__delete-hint { font-size: 0.88rem; color: #666; max-width: 14rem; line-height: 1.35; }
+    </style>
 {% endblock %}
 {% block body %}
     <nav class="app-menu app-menu--toolbar" aria-label="Účet a navigace správy">
@@ -14,6 +24,14 @@
         Účet: <strong><code>{{ editUser.userIdentifier }}</code></strong>
         {% if editUser.displayName %} — {{ editUser.displayName }}{% endif %}
     </p>
+
+    {% if form.vars.submitted and not form.vars.valid %}
+        <div class="flashes" role="alert" style="margin-bottom: 1rem;">
+            <p style="margin:0;padding:.65rem 1rem;border-radius:4px;max-width:40rem;background:#fee;color:#600;border:1px solid #e0b0b0;">
+                Změny nebyly uloženy — opravte chyby ve formuláři níže.
+            </p>
+        </div>
+    {% endif %}
 
     {{ form_start(form, { attr: { class: 'spool-form', id: 'admin-user-edit-form' } }) }}
         <div class="spool-form__field">
@@ -61,7 +79,19 @@
         <div class="spool-form__field spool-form__row--actions" style="margin-top: 0.25rem; margin-bottom: 0.25rem;">
             <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
             <div class="spool-form__value spool-form__value--actions">
-                <div class="spool-form__actions spool-form__actions--submit-only" role="group" aria-label="Akce">
+                <div class="spool-form__actions" role="group" aria-label="Akce">
+                    {% if canDeleteUser %}
+                        <input type="hidden" name="_delete_token" value="{{ csrf_token('admin_user_delete') }}">
+                        <button type="submit"
+                                class="spool-form__btn spool-form__btn--danger"
+                                formaction="{{ path('app_admin_users_delete', { id: editUser.id }) }}"
+                                formmethod="post"
+                                onclick="return confirm('Opravdu smazat účet «{{ editUser.userIdentifier|e('js') }}»? Tuto akci nelze vrátit.');">
+                            Smazat
+                        </button>
+                    {% elseif deleteUserBlockedReason %}
+                        <span class="spool-form__delete-hint" title="{{ deleteUserBlockedReason }}">Smazat — {{ deleteUserBlockedReason }}</span>
+                    {% endif %}
                     {{ form_widget(form.save, { attr: { class: 'spool-form__btn' } }) }}
                 </div>
             </div>

@@ -51,7 +51,9 @@ final class UserAdminController extends AbstractController
         EntityManagerInterface $em,
         UserCredentialsWhatsAppHandoff $handoff,
     ): Response {
-        $form = $this->createForm(UserCreateFormType::class);
+        $form = $this->createForm(UserCreateFormType::class, [
+            'plainPassword' => UserCreateFormType::DEFAULT_PLAIN_PASSWORD,
+        ]);
         $form->handleRequest($request);
         if (!$form->isSubmitted() || !$form->isValid()) {
             return $this->render('admin/user/new.html.twig', ['form' => $form]);
@@ -301,7 +303,39 @@ final class UserAdminController extends AbstractController
         return $this->render('admin/user/edit.html.twig', [
             'editUser' => $user,
             'form' => $form,
+            'canDeleteUser' => null === $this->deleteBlockReason($user, $userRepository),
+            'deleteUserBlockedReason' => $this->deleteBlockReason($user, $userRepository),
         ]);
+    }
+
+    #[Route('/{id}/smazat', name: 'delete', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function delete(
+        Request $request,
+        User $user,
+        UserRepository $userRepository,
+        EntityManagerInterface $em,
+    ): Response {
+        $token = (string) $request->request->get('_delete_token', '');
+        if (!$this->isCsrfTokenValid('admin_user_delete', $token)) {
+            $this->addFlash('error', 'Neplatný požadavek (CSRF). Obnovte stránku a zkuste znovu.');
+
+            return $this->redirectToRoute('app_admin_users_edit', ['id' => $user->getId()]);
+        }
+
+        $blockReason = $this->deleteBlockReason($user, $userRepository);
+        if (null !== $blockReason) {
+            $this->addFlash('error', $blockReason);
+
+            return $this->redirectToRoute('app_admin_users_edit', ['id' => $user->getId()]);
+        }
+
+        $username = $user->getUserIdentifier();
+        $em->remove($user);
+        $em->flush();
+
+        $this->addFlash('success', sprintf('Účet %s byl smazán.', $username));
+
+        return $this->redirectToRoute('app_admin_users_index');
     }
 
     /** Počet řádků v DB majících ROLE_APP_ADMIN v JSON „roles“. */
@@ -319,5 +353,21 @@ final class UserAdminController extends AbstractController
         }
 
         return $n;
+    }
+
+    /** null = smazání povoleno; jinak česká hláška proč ne. */
+    private function deleteBlockReason(User $target, UserRepository $userRepository): ?string
+    {
+        $current = $this->getUser();
+        if ($current instanceof User && $current->getId() === $target->getId()) {
+            return 'Vlastní účet nelze smazat.';
+        }
+
+        if (\in_array(WarehouseRole::APP_ADMIN, $target->getAssignedRoles(), true)
+            && $this->countStoredAppAdmins($userRepository) <= 1) {
+            return 'Nelze smazat jediného aplikačního administrátora.';
+        }
+
+        return null;
     }
 }
