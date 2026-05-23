@@ -33,14 +33,15 @@
 <div class="table-scroll table-scroll--wide">
 <table class="spool-diary-table">
     <thead>
-        <tr><th>m (čtení)</th><th>Krok (m)</th><th>Zakázka</th><th>Kdy</th><th>Pozn.</th></tr>
+        <tr><th>m (čtení)</th><th>Délka (m)</th><th>Zakázka</th><th>Kdy</th><th>Pozn.</th></tr>
     </thead>
     <tbody>
     {% for e in spool.eventsSortedByVisibleM %}
+        {% set diary = spool_diary_cells(e) %}
         <tr>
-            <td>{{ e.visibleM is not null ? e.visibleM : '—' }}</td>
-            <td>{{ e.usedMeters is not null ? e.usedMeters : '—' }}</td>
-            <td>{{ e.projectLabel|default('—') }}</td>
+            <td>{{ diary.visibleM is not null ? diary.visibleM : '—' }}</td>
+            <td>{{ diary.usedMeters is not null ? diary.usedMeters : '—' }}</td>
+            <td>{{ diary.projectLabel|default('—') }}</td>
             <td>{{ e.occurredAt|date('Y-m-d') }}</td>
             <td>{{ e.note|default('') }}</td>
         </tr>

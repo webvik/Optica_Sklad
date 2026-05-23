@@ -27,6 +27,9 @@ final class SpoolMeterService
     /** Popisek do sloupce „Zakázka“ u odpisu — odpis z evidence a likvidace fyz. zbytku. */
     public const WRITEOFF_PROJECT_LABEL = 'Odpis z evidence — likvidace zbytku';
 
+    /** Popisek do sloupce „Zakázka“ u předání cívky (deník). */
+    public const TRANSFER_PROJECT_LABEL = 'PŘEDÁČA';
+
     public function __construct(
         private readonly EntityManagerInterface $em,
     ) {
@@ -350,6 +353,15 @@ final class SpoolMeterService
             $spool->setStatus(SpoolStatus::WrittenOff);
         }
         if (SpoolEventType::Transfer === $type) {
+            $remaining = $spool->getCurrentRemainingM() ?? $spool->getTotalLengthM();
+            $notStarted = 0 === $this->countVisibleChainEvents($spool);
+            $event->setProjectLabel(self::TRANSFER_PROJECT_LABEL);
+            $event->setUsedMeters($remaining);
+            $event->setVisibleM(
+                $notStarted
+                    ? $spool->getInitialVisibleM()
+                    : ($spool->getLastVisibleM() ?? $spool->getInitialVisibleM())
+            );
             $spool->setStatus(SpoolStatus::Transferred);
         }
         $spool->addEvent($event);
@@ -404,6 +416,79 @@ final class SpoolMeterService
     {
         $spool->setCurrentRemainingM($spool->getTotalLengthM());
         $spool->setLastVisibleM($spool->getInitialVisibleM());
+    }
+
+    /**
+     * Hodnoty pro tabulku deníku (může se lišit od surových polí u předání / vyřazení).
+     *
+     * @return array{visibleM: ?int, usedMeters: ?int, projectLabel: ?string}
+     */
+    public function diaryCells(SpoolEvent $event): array
+    {
+        $type = $event->getType();
+        if (SpoolEventType::Transfer === $type) {
+            return $this->diaryCellsForTransfer($event);
+        }
+        if (SpoolEventType::Writeoff === $type) {
+            return [
+                'visibleM' => null,
+                'usedMeters' => $event->getUsedMeters(),
+                'projectLabel' => $event->getProjectLabel() ?? self::WRITEOFF_PROJECT_LABEL,
+            ];
+        }
+
+        return [
+            'visibleM' => $event->getVisibleM(),
+            'usedMeters' => $event->getUsedMeters(),
+            'projectLabel' => $event->getProjectLabel(),
+        ];
+    }
+
+    /**
+     * @return array{visibleM: ?int, usedMeters: ?int, projectLabel: ?string}
+     */
+    private function diaryCellsForTransfer(SpoolEvent $event): array
+    {
+        $spool = $event->getSpool();
+        if (null === $spool) {
+            return [
+                'visibleM' => $event->getVisibleM(),
+                'usedMeters' => $event->getUsedMeters(),
+                'projectLabel' => self::TRANSFER_PROJECT_LABEL,
+            ];
+        }
+
+        $used = $event->getUsedMeters() ?? $spool->getCurrentRemainingM() ?? $spool->getTotalLengthM();
+        $visible = $event->getVisibleM();
+        if (null === $visible) {
+            $notStarted = 0 === $this->countVisibleChainEventsBefore($spool, $event);
+            $visible = $notStarted
+                ? $spool->getInitialVisibleM()
+                : ($spool->getLastVisibleM() ?? $spool->getInitialVisibleM());
+        }
+
+        return [
+            'visibleM' => $visible,
+            'usedMeters' => $used,
+            'projectLabel' => self::TRANSFER_PROJECT_LABEL,
+        ];
+    }
+
+    /** Řetězec m před daným záznamem (pro starší předání bez uloženého visible_m). */
+    private function countVisibleChainEventsBefore(Spool $spool, SpoolEvent $before): int
+    {
+        $beforeId = $before->getId();
+        $n = 0;
+        foreach ($spool->getEvents() as $ev) {
+            if (null !== $beforeId && null !== $ev->getId() && $ev->getId() >= $beforeId) {
+                continue;
+            }
+            if (self::isVisibleMeterChainEventType($ev->getType())) {
+                ++$n;
+            }
+        }
+
+        return $n;
     }
 
     /**
