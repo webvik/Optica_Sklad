@@ -24,10 +24,20 @@
         <strong>PS:</strong> {{ spool.initialVisibleM }},
         <strong>Délka:</strong> {{ spool.totalLengthM }} m
     </p>
-    <p style="margin: 0;">
+    <p style="margin: 0 0 0.5rem;">
         <strong>směr čtení metru:</strong> {{ spool.meterSign is null ? '—' : (spool.meterSign == 1 ? 'rostoucí' : 'klesající') }}<br>
         <strong>Stav:</strong> {% if spool.status.value == 'in_stock' %}na skladě{% elseif spool.status.value == 'transferred' %}předáno{% elseif spool.status.value == 'written_off' %}vyřazeno{% else %}{{ spool.status.value }}{% endif %}
+        {% if spool.needsCorrection %}<br><strong style="color:#a60;">Ke korekci</strong> (ve filtru Přehled skladu){% endif %}
     </p>
+    {% if is_granted(constant('App\\Security\\WarehouseRole::CORRECTION_FLAG_MANAGER')) %}
+        <form method="post" action="{{ path('warehouse_spool_needs_correction', {id: spool.id}) }}" style="margin:0;">
+            <input type="hidden" name="_token" value="{{ csrf_token('spool_needs_correction_' ~ spool.id) }}">
+            <label style="display:flex;align-items:flex-start;gap:0.4rem;cursor:pointer;font-size:0.95rem;">
+                <input type="checkbox" name="needsCorrection" value="1"{% if spool.needsCorrection %} checked{% endif %} onchange="this.form.submit()">
+                <span><strong>Označit ke korekci</strong> — po opravě dat odškrtněte</span>
+            </label>
+        </form>
+    {% endif %}
 </div>
 <h2>Deník</h2>
 <div class="table-scroll table-scroll--wide">

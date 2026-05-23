@@ -17,6 +17,9 @@ final class WarehouseRole
 
     public const APP_ADMIN = 'ROLE_APP_ADMIN';
 
+    /** Příznak „ke korekci“ na cívce — zatím jen aplikační admin (později lze self::ADMIN). */
+    public const CORRECTION_FLAG_MANAGER = self::APP_ADMIN;
+
     /**
      * @return array<string, string>
      */

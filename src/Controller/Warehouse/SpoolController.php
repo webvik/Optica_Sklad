@@ -397,6 +397,33 @@ final class SpoolController extends AbstractController
         return $this->redirectToRoute('warehouse_browse_index');
     }
 
+    #[Route('/{id}/priznak-korekce', name: 'needs_correction', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted(WarehouseRole::CORRECTION_FLAG_MANAGER)]
+    public function setNeedsCorrection(Request $request, Spool $spool, EntityManagerInterface $em): Response
+    {
+        if (!$this->isCsrfTokenValid('spool_needs_correction_'.$spool->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $spool->setNeedsCorrection($request->request->getBoolean('needsCorrection'));
+        $u = $this->getUser();
+        if ($u instanceof User) {
+            $spool->setUpdatedBy($u);
+        }
+        $em->flush();
+
+        $this->addFlash(
+            'success',
+            $spool->isNeedsCorrection()
+                ? 'Cívka je označena ke korekci — najdete ji ve filtru Přehled skladu.'
+                : 'Příznak ke korekci byl odebrán.',
+        );
+
+        return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     public function show(Request $request, Spool $spool, SpoolMeterService $meter, EntityManagerInterface $em): Response
     {

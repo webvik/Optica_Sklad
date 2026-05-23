@@ -26,11 +26,16 @@ class SpoolRepository extends ServiceEntityRepository
      *
      * @return list<Spool>
      */
-    public function findFiltered(array $cableTypeIds, array $statuses, ?string $reelQ = null, int $limit = 500): array
-    {
+    public function findFiltered(
+        array $cableTypeIds,
+        array $statuses,
+        ?string $reelQ = null,
+        int $limit = 500,
+        bool $onlyNeedsCorrection = false,
+    ): array {
         $reelTrim = null !== $reelQ ? \trim($reelQ) : '';
         if ('' !== $reelTrim) {
-            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeIds, $statuses, $limit);
+            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeIds, $statuses, $limit, $onlyNeedsCorrection);
             if ($ids === []) {
                 return [];
             }
@@ -38,7 +43,7 @@ class SpoolRepository extends ServiceEntityRepository
             return $this->loadSpoolsForBrowseByIds($ids);
         }
 
-        $qb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, $limit);
+        $qb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, $limit, $onlyNeedsCorrection);
 
         return $qb->getQuery()->getResult();
     }
@@ -51,14 +56,19 @@ class SpoolRepository extends ServiceEntityRepository
      *
      * @return list<int>
      */
-    public function searchIdsByReelWithinFilters(string $q, array $cableTypeIds, array $statuses, int $limit = 500): array
-    {
+    public function searchIdsByReelWithinFilters(
+        string $q,
+        array $cableTypeIds,
+        array $statuses,
+        int $limit = 500,
+        bool $onlyNeedsCorrection = false,
+    ): array {
         $q = \trim($q);
         if ('' === $q) {
             return [];
         }
 
-        $exactQb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, 1)
+        $exactQb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, 1, $onlyNeedsCorrection)
             ->select('s.id')
             ->andWhere('LOWER(s.reelNumber) = LOWER(:q)')
             ->setParameter('q', $q);
@@ -88,6 +98,9 @@ class SpoolRepository extends ServiceEntityRepository
             $filterQb->andWhere('s.status IN (:stss)')
                 ->setParameter('stss', $statuses);
         }
+        if ($onlyNeedsCorrection) {
+            $filterQb->andWhere('s.needsCorrection = true');
+        }
 
         /** @var list<string|int> $rowIds */
         $rowIds = $filterQb->getQuery()->getSingleColumnResult();
@@ -99,8 +112,12 @@ class SpoolRepository extends ServiceEntityRepository
      * @param list<int>         $cableTypeIds
      * @param list<SpoolStatus> $statuses
      */
-    private function createFilteredQueryBuilder(array $cableTypeIds, array $statuses, int $limit): \Doctrine\ORM\QueryBuilder
-    {
+    private function createFilteredQueryBuilder(
+        array $cableTypeIds,
+        array $statuses,
+        int $limit,
+        bool $onlyNeedsCorrection = false,
+    ): \Doctrine\ORM\QueryBuilder {
         $qb = $this->createQueryBuilder('s')
             ->leftJoin('s.cableType', 'c')
             ->addSelect('c')
@@ -114,6 +131,9 @@ class SpoolRepository extends ServiceEntityRepository
         if ($statuses !== []) {
             $qb->andWhere('s.status IN (:stss)')
                 ->setParameter('stss', $statuses);
+        }
+        if ($onlyNeedsCorrection) {
+            $qb->andWhere('s.needsCorrection = true');
         }
 
         return $qb;

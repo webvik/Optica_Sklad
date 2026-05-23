@@ -249,7 +249,7 @@
                 <label for="browse-status-btn">Stav cívky</label>
                 <div class="cable-type-mobile-picker" id="browse-status-picker" data-browse-mode="status">
                     <button type="button" class="cable-type-mobile-picker__toggle" id="browse-status-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="browse-status-panel">
-                        <span class="cable-type-mobile-picker__text" id="browse-status-label">{% if allStatusesSelected|default(false) %}Všechny stavy{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'in_stock' %}na skladě{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'transferred' %}předáno{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'written_off' %}vyřazeno{% else %}…{% endif %}</span>
+                        <span class="cable-type-mobile-picker__text" id="browse-status-label">{% if filterNeedsCorrection|default(false) and allStatusesSelected|default(false) %}k ke korekci{% elseif filterNeedsCorrection|default(false) %}… · k ke korekci{% elseif allStatusesSelected|default(false) %}Všechny stavy{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'in_stock' %}na skladě{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'transferred' %}předáno{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'written_off' %}vyřazeno{% else %}…{% endif %}</span>
                         <span class="cable-type-mobile-picker__chev" aria-hidden="true">▼</span>
                     </button>
                     <div class="cable-type-mobile-picker__backdrop" id="browse-status-backdrop" hidden></div>
@@ -275,6 +275,10 @@
                                 <label class="browse-filter-checkpanel__row">
                                     <input type="checkbox" name="status[]" value="written_off" class="js-browse-status-cb" data-browse-label="vyřazeno"{% if 'written_off' in filterStatusValues %} checked{% endif %}>
                                     <span class="browse-filter-checkpanel__text">vyřazeno</span>
+                                </label>
+                                <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--correction">
+                                    <input type="checkbox" name="needsCorrection" value="1" class="js-browse-needs-correction" data-browse-label="k ke korekci"{% if filterNeedsCorrection|default(false) %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">k ke korekci</span>
                                 </label>
                             </div>
                         </div>
@@ -354,9 +358,11 @@
     return czTypu(n);
   }
   function summarizeStatus(root) {
+    var korekce = root.querySelector('.js-browse-needs-correction');
+    var kOn = korekce && korekce.checked;
     var cbs = root.querySelectorAll('input.js-browse-status-cb');
     var t = cbs.length;
-    if (t !== 3) return '…';
+    if (t !== 3) return kOn ? 'k ke korekci' : '…';
     var n = 0;
     var labels = [];
     for (var i = 0; i < cbs.length; i++) {
@@ -365,10 +371,14 @@
         labels.push(cbs[i].getAttribute('data-browse-label') || '');
       }
     }
-    if (n === 0) return '— všechny —';
-    if (n === 3) return 'Všechny stavy';
-    if (n === 1) return labels[0] || '…';
-    return czStavu(n);
+    var base;
+    if (n === 0) base = '— všechny —';
+    else if (n === 3) base = 'Všechny stavy';
+    else if (n === 1) base = labels[0] || '…';
+    else base = czStavu(n);
+    if (!kOn) return base;
+    if (base === 'Všechny stavy' || base === '— všechny —') return 'k ke korekci';
+    return base + ' · k ke korekci';
   }
 
   function syncCableVse(root) {
@@ -507,7 +517,7 @@
       for (var b = 0; b < cL.length; b++) cL[b].addEventListener('change', function () { syncLabel(); });
     } else {
       var vseS = root.querySelector('.js-browse-status-vse');
-      var sL = root.querySelectorAll('input.js-browse-status-cb');
+      var sL = root.querySelectorAll('input.js-browse-status-cb, input.js-browse-needs-correction');
       if (vseS) {
         vseS.addEventListener('change', function () {
           var on2 = vseS.checked;
@@ -564,6 +574,10 @@
     var statusCbs = browseForm.querySelectorAll('input.js-browse-status-cb:checked');
     for (var j = 0; j < statusCbs.length; j++) {
       p.append('status[]', statusCbs[j].value);
+    }
+    var kCb = browseForm.querySelector('input.js-browse-needs-correction');
+    if (kCb && kCb.checked) {
+      p.append('needsCorrection', '1');
     }
     return p;
   }

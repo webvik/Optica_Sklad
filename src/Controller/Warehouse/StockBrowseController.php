@@ -44,10 +44,17 @@ final class StockBrowseController extends AbstractController
         $cableTypeIdsForQuery = self::normalizeCableTypeIdsIfAllSelected($cableTypeIdsFromForm, $allCableTypeIds);
 
         $statuses = self::parseStatusList($request);
+        $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
         $reelQ = \trim((string) $request->query->get('q', ''));
 
         return $this->render('warehouse/stock_browse.html.twig', [
-            'spools' => $spools->findFiltered($cableTypeIdsForQuery, $statuses, '' !== $reelQ ? $reelQ : null),
+            'spools' => $spools->findFiltered(
+                $cableTypeIdsForQuery,
+                $statuses,
+                '' !== $reelQ ? $reelQ : null,
+                500,
+                $onlyNeedsCorrection,
+            ),
             'searchQuery' => $reelQ,
             'cableTypeChoices' => $choiceEntities,
             'filterCableTypeIds' => $cableTypeIdsFromForm,
@@ -58,6 +65,7 @@ final class StockBrowseController extends AbstractController
                 static fn (SpoolStatus $s) => $s->value,
                 $statuses,
             ),
+            'filterNeedsCorrection' => $onlyNeedsCorrection,
         ]);
     }
 
@@ -88,9 +96,10 @@ final class StockBrowseController extends AbstractController
         $cableTypeIdsFromForm = self::parseIdList($request, 'cableTypeIds');
         $cableTypeIdsForQuery = self::normalizeCableTypeIdsIfAllSelected($cableTypeIdsFromForm, $allCableTypeIds);
         $statuses = self::parseStatusList($request);
+        $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
 
         try {
-            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeIdsForQuery, $statuses, 500);
+            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeIdsForQuery, $statuses, 500, $onlyNeedsCorrection);
         } catch (\Throwable $e) {
             return $this->json([
                 'ok' => false,
@@ -479,6 +488,11 @@ final class StockBrowseController extends AbstractController
         }
 
         return $lower;
+    }
+
+    private static function parseNeedsCorrectionFilter(Request $request): bool
+    {
+        return $request->query->getBoolean('needsCorrection');
     }
 
     private static function parseBrowseDateDay(mixed $raw): ?\DateTimeImmutable

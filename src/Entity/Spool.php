@@ -62,6 +62,10 @@ class Spool
     #[ORM\Column(length: 20, enumType: SpoolStatus::class)]
     private SpoolStatus $status = SpoolStatus::InStock;
 
+    /** Ruční příznak: cívka čeká na opravu dat (filtr v Přehledu skladu). */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $needsCorrection = false;
+
     #[ORM\Column(nullable: true)]
     private ?int $reservedM = null;
 
@@ -268,6 +272,18 @@ class Spool
     public function setStatus(SpoolStatus $status): static
     {
         $this->status = $status;
+
+        return $this;
+    }
+
+    public function isNeedsCorrection(): bool
+    {
+        return $this->needsCorrection;
+    }
+
+    public function setNeedsCorrection(bool $needsCorrection): static
+    {
+        $this->needsCorrection = $needsCorrection;
 
         return $this;
     }
