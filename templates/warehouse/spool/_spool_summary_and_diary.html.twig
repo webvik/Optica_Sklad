@@ -27,6 +27,29 @@
   }
   .spool-correction-form__actions { margin-top: 0.5rem; }
   .spool-correction-form__expand[hidden] { display: none !important; }
+  .spool-correction-history {
+      margin: 0.65rem 0 0;
+      max-width: 36rem;
+      font-size: 0.9rem;
+  }
+  .spool-correction-history > summary {
+      cursor: pointer;
+      color: #555;
+      padding: 0.35rem 0;
+  }
+  .spool-correction-history__body {
+      margin: 0.35rem 0 0;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      background: #f5f5f5;
+  }
+  .spool-correction-form__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+  }
 </style>
 <div class="spool-card-summary">
     <p style="margin: 0 0 0.5rem;">
@@ -53,13 +76,25 @@
         <strong>směr čtení metru:</strong> {{ spool.meterSign is null ? '—' : (spool.meterSign == 1 ? 'rostoucí' : 'klesající') }}<br>
         <strong>Stav:</strong> {% if spool.status.value == 'in_stock' %}na skladě{% elseif spool.status.value == 'transferred' %}předáno{% elseif spool.status.value == 'written_off' %}vyřazeno{% else %}{{ spool.status.value }}{% endif %}
     </p>
-    {% if spool.needsCorrection and spool.correctionNote %}
+    {% if spool.needsCorrection and spool.correctionNote and not is_granted(constant('App\\Security\\WarehouseRole::CORRECTION_FLAG_MANAGER')) %}
         <div class="spool-correction-box" role="note">
             <strong style="color:#a60;">Ke korekci</strong>
             <div class="spool-correction-box__note-read">{{ spool.correctionNote }}</div>
         </div>
-    {% elseif spool.needsCorrection %}
-        <p style="margin:0.35rem 0 0;color:#a60;"><strong>Ke korekci</strong> (bez poznámky)</p>
+    {% elseif spool.needsCorrection and not is_granted(constant('App\\Security\\WarehouseRole::CORRECTION_FLAG_MANAGER')) %}
+        <p style="margin:0.35rem 0 0;color:#a60;"><strong>Ke korekci</strong></p>
+    {% endif %}
+    {% if spool.correctionResolvedAt %}
+        <details class="spool-correction-history">
+            <summary>Korekce provedena ({{ spool.correctionResolvedAt|date('d.m.Y H:i') }})</summary>
+            <div class="spool-correction-history__body">
+                {% if spool.correctionResolvedNote %}
+                    <div class="spool-correction-box__note-read">{{ spool.correctionResolvedNote }}</div>
+                {% else %}
+                    <span style="color:#666;">Bez uložené poznámky.</span>
+                {% endif %}
+            </div>
+        </details>
     {% endif %}
     {% if is_granted(constant('App\\Security\\WarehouseRole::CORRECTION_FLAG_MANAGER')) %}
         <form method="post" action="{{ path('warehouse_spool_needs_correction', {id: spool.id}) }}" class="spool-correction-form spool-correction-box">
@@ -73,9 +108,12 @@
                     Poznámka (co je špatně / co opravit)
                     <textarea id="spool-correction-note" name="correctionNote" rows="4" placeholder="např. nesedí zůstatek s deníkem, chybné m u zafuku…">{{ spool.correctionNote|default('') }}</textarea>
                 </label>
-                <p style="margin:0.35rem 0 0;font-size:0.82rem;color:#555;">Po opravě dat odškrtněte příznak a uložte — poznámka se smaže.</p>
+                <p style="margin:0.35rem 0 0;font-size:0.82rem;color:#555;">Po opravě dat v deníku klikněte <strong>Korekce provedena</strong> — cívka zmizí z filtru, poznámka zůstane v historii níže.</p>
                 <div class="spool-correction-form__actions">
-                    <button type="submit">Uložit</button>
+                    <button type="submit" name="correctionAction" value="save">Uložit</button>
+                    {% if spool.needsCorrection %}
+                        <button type="submit" name="correctionAction" value="resolve" class="ui-btn-secondary">Korekce provedena</button>
+                    {% endif %}
                 </div>
             </div>
         </form>

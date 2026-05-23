@@ -66,9 +66,16 @@ class Spool
     #[ORM\Column(options: ['default' => false])]
     private bool $needsCorrection = false;
 
-    /** Co je špatně / co opravit (jen při needs_correction). */
+    /** Co je špatně / co opravit (jen při aktivní needs_correction). */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $correctionNote = null;
+
+    /** Kdy byla korekce označena jako provedená (archiv, mimo filtr). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $correctionResolvedAt = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $correctionResolvedNote = null;
 
     #[ORM\Column(nullable: true)]
     private ?int $reservedM = null;
@@ -300,6 +307,30 @@ class Spool
     public function setCorrectionNote(?string $correctionNote): static
     {
         $this->correctionNote = $correctionNote;
+
+        return $this;
+    }
+
+    public function getCorrectionResolvedAt(): ?\DateTimeImmutable
+    {
+        return $this->correctionResolvedAt;
+    }
+
+    public function setCorrectionResolvedAt(?\DateTimeImmutable $correctionResolvedAt): static
+    {
+        $this->correctionResolvedAt = $correctionResolvedAt;
+
+        return $this;
+    }
+
+    public function getCorrectionResolvedNote(): ?string
+    {
+        return $this->correctionResolvedNote;
+    }
+
+    public function setCorrectionResolvedNote(?string $correctionResolvedNote): static
+    {
+        $this->correctionResolvedNote = $correctionResolvedNote;
 
         return $this;
     }

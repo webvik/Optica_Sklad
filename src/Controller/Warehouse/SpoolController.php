@@ -407,6 +407,29 @@ final class SpoolController extends AbstractController
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
         }
 
+        $u = $this->getUser();
+        $action = (string) $request->request->get('correctionAction', 'save');
+
+        if ('resolve' === $action) {
+            if (!$spool->isNeedsCorrection()) {
+                $this->addFlash('error', 'Cívka není označena jako aktivní korekce.');
+
+                return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+            }
+            $archived = \trim((string) ($spool->getCorrectionNote() ?? ''));
+            $spool->setCorrectionResolvedAt(new \DateTimeImmutable());
+            $spool->setCorrectionResolvedNote('' !== $archived ? $archived : null);
+            $spool->setNeedsCorrection(false);
+            $spool->setCorrectionNote(null);
+            if ($u instanceof User) {
+                $spool->setUpdatedBy($u);
+            }
+            $em->flush();
+            $this->addFlash('success', 'Korekce označena jako provedená — cívka zmizí z filtru „k ke korekci“. Poznámka zůstane v historii na kartě.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
         $flag = $request->request->getBoolean('needsCorrection');
         $note = \trim((string) $request->request->get('correctionNote', ''));
         if ($flag && '' === $note) {
@@ -417,7 +440,10 @@ final class SpoolController extends AbstractController
 
         $spool->setNeedsCorrection($flag);
         $spool->setCorrectionNote($flag ? $note : null);
-        $u = $this->getUser();
+        if ($flag) {
+            $spool->setCorrectionResolvedAt(null);
+            $spool->setCorrectionResolvedNote(null);
+        }
         if ($u instanceof User) {
             $spool->setUpdatedBy($u);
         }
