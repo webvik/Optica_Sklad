@@ -319,7 +319,7 @@ final class SpoolController extends AbstractController
             }
             $this->addFlash('success_modal', $msg);
 
-            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+            return $this->redirectToRoute('warehouse_spool_new');
         }
 
         $familyLabels = [];
