@@ -420,94 +420,65 @@ final class StockBrowseController extends AbstractController
             ];
         }
 
-        /** Virtuální zakázka pro odpisy — na konec seznamu (viz {@see SpoolMeterService::WRITEOFF_PROJECT_LABEL}). */
+        /** Odpis a předání — vždy na konec (likvidace, pak PŘEDÁČA). */
         $wo = SpoolMeterService::WRITEOFF_PROJECT_LABEL;
-        $withoutWriteoff = [];
+        $tr = SpoolMeterService::TRANSFER_PROJECT_LABEL;
+        $regular = [];
         $writeoffBlock = null;
+        $transferBlock = null;
         foreach ($out as $block) {
-            if ($block['projectLabel'] === $wo) {
+            $pl = $block['projectLabel'];
+            if ($pl === $wo) {
                 $writeoffBlock = $block;
 
                 continue;
             }
-            $withoutWriteoff[] = $block;
+            if ($pl === $tr) {
+                $transferBlock = $block;
+
+                continue;
+            }
+            $regular[] = $block;
         }
         if (null !== $writeoffBlock) {
-            $withoutWriteoff[] = $writeoffBlock;
+            $regular[] = $writeoffBlock;
+        }
+        if (null !== $transferBlock) {
+            $regular[] = $transferBlock;
         }
 
-        return $withoutWriteoff;
+        return $regular;
     }
 
     /**
-     * Řazení především podle slov (bez ohledu na pořadí), sekundárně čistě číselné kusy řetězce
-     * (např. různé číslo zakázky u stejných slov jako „test“ budou pohromadě).
+     * Podobné názvy vedle sebe: první slovo zakázky, pak přirozené řazení celého názvu
+     * (Vltava, Vltava Jih, Vltava Sever).
      */
     private static function compareProjectLabelsByAffinity(string $a, string $b): int
     {
-        $pa = self::projectAffinityBuckets($a);
-        $pb = self::projectAffinityBuckets($b);
-        if ($pa['text'] !== $pb['text']) {
-            return \strcmp($pa['text'], $pb['text']);
-        }
-        $nc = self::compareSortedNumericTokenLists($pa['nums'], $pb['nums']);
-        if (0 !== $nc) {
-            return $nc;
+        $wa = self::projectLabelLeadingWord($a);
+        $wb = self::projectLabelLeadingWord($b);
+        $c = \strnatcasecmp($wa, $wb);
+        if (0 !== $c) {
+            return $c;
         }
 
         return \strnatcasecmp($a, $b);
     }
 
-    /**
-     * Rozdělí slova od číselných tokenů; text setřídit, pak čísla (pro sekundární pořadí).
-     *
-     * @return array{text: string, nums: list<string>}
-     */
-    private static function projectAffinityBuckets(string $label): array
+    /** První „slovo“ v názvu zakázky (pro seskupení variant stejného projektu). */
+    private static function projectLabelLeadingWord(string $label): string
     {
         $label = \trim($label);
         if ('' === $label) {
-            return ['text' => '', 'nums' => []];
+            return '';
         }
         $lower = \mb_strtolower($label, 'UTF-8');
-        $words = [];
-        if (false !== \preg_match_all('/[\p{L}\p{N}]+/u', $lower, $m) && isset($m[0]) && $m[0] !== []) {
-            $words = $m[0];
-        }
-        if ($words === []) {
-            return ['text' => $lower, 'nums' => []];
-        }
-        $textTok = [];
-        $numTok = [];
-        foreach ($words as $w) {
-            if (1 === \preg_match('/^\p{N}+$/u', $w)) {
-                $numTok[] = $w;
-
-                continue;
-            }
-            $textTok[] = $w;
-        }
-        \sort($textTok, \SORT_STRING);
-        /* řazení číselných tokenů přirozeně (2 před 10) */
-        \sort($numTok, \SORT_NATURAL);
-
-        return ['text' => \implode(' ', $textTok), 'nums' => $numTok];
-    }
-
-    /** @param list<string> $a @param list<string> $b */
-    private static function compareSortedNumericTokenLists(array $a, array $b): int
-    {
-        $na = \count($a);
-        $nb = \count($b);
-        $n = \min($na, $nb);
-        for ($i = 0; $i < $n; ++$i) {
-            $c = \strnatcmp((string) $a[$i], (string) $b[$i]);
-            if (0 !== $c) {
-                return $c;
-            }
+        if (1 === \preg_match('/^[\p{L}\p{N}]+/u', $lower, $m)) {
+            return $m[0];
         }
 
-        return $na <=> $nb;
+        return $lower;
     }
 
     private static function parseBrowseDateDay(mixed $raw): ?\DateTimeImmutable
