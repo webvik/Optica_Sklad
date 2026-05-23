@@ -66,6 +66,10 @@ class Spool
     #[ORM\Column(options: ['default' => false])]
     private bool $needsCorrection = false;
 
+    /** Co je špatně / co opravit (jen při needs_correction). */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $correctionNote = null;
+
     #[ORM\Column(nullable: true)]
     private ?int $reservedM = null;
 
@@ -284,6 +288,18 @@ class Spool
     public function setNeedsCorrection(bool $needsCorrection): static
     {
         $this->needsCorrection = $needsCorrection;
+
+        return $this;
+    }
+
+    public function getCorrectionNote(): ?string
+    {
+        return $this->correctionNote;
+    }
+
+    public function setCorrectionNote(?string $correctionNote): static
+    {
+        $this->correctionNote = $correctionNote;
 
         return $this;
     }

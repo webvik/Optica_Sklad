@@ -2,6 +2,31 @@
 <style>
   .spool-card-summary { line-height: 1.55; }
   .spool-card-summary__zbyva { font-size: 1.45em; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .spool-correction-box {
+      margin: 0.65rem 0 0;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid #e0c080;
+      border-radius: 6px;
+      background: #fffbf0;
+      max-width: 36rem;
+  }
+  .spool-correction-box__note-read {
+      margin: 0.35rem 0 0;
+      white-space: pre-wrap;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: #333;
+  }
+  .spool-correction-form textarea {
+      width: 100%;
+      max-width: 100%;
+      min-height: 4.5rem;
+      box-sizing: border-box;
+      font: inherit;
+      margin-top: 0.35rem;
+  }
+  .spool-correction-form__actions { margin-top: 0.5rem; }
+  .spool-correction-form__expand[hidden] { display: none !important; }
 </style>
 <div class="spool-card-summary">
     <p style="margin: 0 0 0.5rem;">
@@ -27,16 +52,43 @@
     <p style="margin: 0 0 0.5rem;">
         <strong>směr čtení metru:</strong> {{ spool.meterSign is null ? '—' : (spool.meterSign == 1 ? 'rostoucí' : 'klesající') }}<br>
         <strong>Stav:</strong> {% if spool.status.value == 'in_stock' %}na skladě{% elseif spool.status.value == 'transferred' %}předáno{% elseif spool.status.value == 'written_off' %}vyřazeno{% else %}{{ spool.status.value }}{% endif %}
-        {% if spool.needsCorrection %}<br><strong style="color:#a60;">Ke korekci</strong> (ve filtru Přehled skladu){% endif %}
     </p>
+    {% if spool.needsCorrection and spool.correctionNote %}
+        <div class="spool-correction-box" role="note">
+            <strong style="color:#a60;">Ke korekci</strong>
+            <div class="spool-correction-box__note-read">{{ spool.correctionNote }}</div>
+        </div>
+    {% elseif spool.needsCorrection %}
+        <p style="margin:0.35rem 0 0;color:#a60;"><strong>Ke korekci</strong> (bez poznámky)</p>
+    {% endif %}
     {% if is_granted(constant('App\\Security\\WarehouseRole::CORRECTION_FLAG_MANAGER')) %}
-        <form method="post" action="{{ path('warehouse_spool_needs_correction', {id: spool.id}) }}" style="margin:0;">
+        <form method="post" action="{{ path('warehouse_spool_needs_correction', {id: spool.id}) }}" class="spool-correction-form spool-correction-box">
             <input type="hidden" name="_token" value="{{ csrf_token('spool_needs_correction_' ~ spool.id) }}">
             <label style="display:flex;align-items:flex-start;gap:0.4rem;cursor:pointer;font-size:0.95rem;">
-                <input type="checkbox" name="needsCorrection" value="1"{% if spool.needsCorrection %} checked{% endif %} onchange="this.form.submit()">
-                <span><strong>Označit ke korekci</strong> — po opravě dat odškrtněte</span>
+                <input type="checkbox" name="needsCorrection" value="1" class="js-spool-needs-correction-cb"{% if spool.needsCorrection %} checked{% endif %}>
+                <span><strong>Označit ke korekci</strong></span>
             </label>
+            <div class="spool-correction-form__expand js-spool-correction-details"{% if not spool.needsCorrection %} hidden{% endif %}>
+                <label for="spool-correction-note" style="display:block;margin-top:0.5rem;font-size:0.9rem;">
+                    Poznámka (co je špatně / co opravit)
+                    <textarea id="spool-correction-note" name="correctionNote" rows="4" placeholder="např. nesedí zůstatek s deníkem, chybné m u zafuku…">{{ spool.correctionNote|default('') }}</textarea>
+                </label>
+                <p style="margin:0.35rem 0 0;font-size:0.82rem;color:#555;">Po opravě dat odškrtněte příznak a uložte — poznámka se smaže.</p>
+                <div class="spool-correction-form__actions">
+                    <button type="submit">Uložit</button>
+                </div>
+            </div>
         </form>
+        <script>
+        (function () {
+            var cb = document.querySelector('.js-spool-needs-correction-cb');
+            var panel = document.querySelector('.js-spool-correction-details');
+            if (!cb || !panel) return;
+            function sync() { panel.hidden = !cb.checked; }
+            cb.addEventListener('change', sync);
+            sync();
+        })();
+        </script>
     {% endif %}
 </div>
 <h2>Deník</h2>

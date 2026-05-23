@@ -407,7 +407,16 @@ final class SpoolController extends AbstractController
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
         }
 
-        $spool->setNeedsCorrection($request->request->getBoolean('needsCorrection'));
+        $flag = $request->request->getBoolean('needsCorrection');
+        $note = \trim((string) $request->request->get('correctionNote', ''));
+        if ($flag && '' === $note) {
+            $this->addFlash('error', 'U označení ke korekci vyplňte poznámku — co je potřeba opravit.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $spool->setNeedsCorrection($flag);
+        $spool->setCorrectionNote($flag ? $note : null);
         $u = $this->getUser();
         if ($u instanceof User) {
             $spool->setUpdatedBy($u);

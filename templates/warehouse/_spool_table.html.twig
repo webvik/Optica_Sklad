@@ -20,7 +20,7 @@
             <td>{{ s.briefInventuraLabel }}</td>
             <td>{{ s.currentRemainingM ?? '—' }}</td>
             <td>{{ s.totalLengthM }}</td>
-            <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}{% if s.needsCorrection %} <span title="Čeká na korekci dat" style="color:#a60;font-weight:600;">· korek.</span>{% endif %}</td>
+            <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}{% if s.needsCorrection %} <span title="{% if s.correctionNote %}{{ s.correctionNote|e('html_attr') }}{% else %}Čeká na korekci dat{% endif %}" style="color:#a60;font-weight:600;">· korek.</span>{% endif %}</td>
             <td><a href="{{ path('warehouse_spool_show', {id: s.id}) }}">Karta</a></td>
         </tr>
     {% else %}
