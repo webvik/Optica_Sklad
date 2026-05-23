@@ -3,17 +3,21 @@
 namespace App\Controller\Warehouse;
 
 use App\Enum\SpoolStatus;
-use App\Service\Warehouse\InventuraBriefGroupLabel;
-use App\Service\Warehouse\InventuraExcelExporter;
-use App\Service\Warehouse\SpoolMeterService;
 use App\Repository\CableTypeRepository;
+use App\Repository\ProjectReportAliasRepository;
 use App\Repository\SpoolEventRepository;
 use App\Repository\SpoolRepository;
+use App\Security\WarehouseRole;
+use App\Service\Warehouse\InventuraBriefGroupLabel;
+use App\Service\Warehouse\InventuraExcelExporter;
+use App\Service\Warehouse\ProjectReportAliasService;
+use App\Service\Warehouse\SpoolMeterService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Prohlídka skladu: filtry, přehled zásob (k inventuře / kontrole).
@@ -147,8 +151,12 @@ final class StockBrowseController extends AbstractController
      * bez jednoho součtu přes všechny typy v projektu.
      */
     #[Route('/odber-v-zakazkach', name: 'usage_by_project', methods: ['GET'])]
-    public function usageByProject(Request $request, SpoolEventRepository $eventRepository): Response
-    {
+    public function usageByProject(
+        Request $request,
+        SpoolEventRepository $eventRepository,
+        ProjectReportAliasService $aliasService,
+        ProjectReportAliasRepository $aliasRepository,
+    ): Response {
         $today = new \DateTimeImmutable('today');
         /** Výchozí od: půl roku zpět („Filtr podle projektů“ bez parametrů v URL). */
         $defaultFrom = $today->modify('-6 months')->setTime(0, 0, 0);
@@ -166,7 +174,7 @@ final class StockBrowseController extends AbstractController
         $to = $toDay->setTime(23, 59, 59);
 
         $events = $eventRepository->findUsageEventsForProjectsReport($from, $to);
-        $projectGroups = self::buildProjectUsageGroupsInventuraStyle($events);
+        $projectGroups = self::buildProjectUsageGroupsInventuraStyle($events, $aliasService);
 
         return $this->render('warehouse/stock_browse_usage_by_project.html.twig', [
             'projectGroups' => $projectGroups,
@@ -174,7 +182,74 @@ final class StockBrowseController extends AbstractController
             'periodTo' => $to,
             'filterDateFrom' => $fromDay->format('Y-m-d'),
             'filterDateTo' => $toDay->format('Y-m-d'),
+            'projectAliasRows' => $aliasRepository->findAllOrdered(),
+            'reportReservedLabels' => [
+                SpoolMeterService::WRITEOFF_PROJECT_LABEL,
+                SpoolMeterService::TRANSFER_PROJECT_LABEL,
+            ],
         ]);
+    }
+
+    #[Route('/odber-v-zakazkach/sloucit', name: 'usage_by_project_merge', methods: ['POST'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function usageByProjectMerge(Request $request, ProjectReportAliasService $aliasService): Response
+    {
+        if (!$this->isCsrfTokenValid('project_alias_merge', (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectUsageByProject($request);
+        }
+        try {
+            $canonical = (string) $request->request->get('canonicalLabel', '');
+            $sources = $request->request->all('sourceLabels');
+            if (!\is_array($sources)) {
+                $sources = [];
+            }
+            $sources = array_values(array_filter(array_map(
+                static fn ($v) => \is_string($v) ? $v : '',
+                $sources,
+            ), static fn (string $s): bool => '' !== \trim($s)));
+            $aliasService->mergeBulk($canonical, $sources);
+            $this->addFlash('success', 'Sloučení bylo uloženo — v reportu se vybrané projekty zobrazí pod jedním názvem. Zápis na cívce v deníku zůstává beze změny.');
+        } catch (\InvalidArgumentException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectUsageByProject($request);
+    }
+
+    #[Route('/odber-v-zakazkach/alias/{id}/smazat', name: 'usage_by_project_alias_delete', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function usageByProjectAliasDelete(int $id, Request $request, ProjectReportAliasService $aliasService): Response
+    {
+        if (!$this->isCsrfTokenValid('project_alias_delete_'.$id, (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectUsageByProject($request);
+        }
+        try {
+            $aliasService->remove($id);
+            $this->addFlash('success', 'Pravidlo sloučení bylo zrušeno.');
+        } catch (\InvalidArgumentException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectUsageByProject($request);
+    }
+
+    private function redirectUsageByProject(Request $request): Response
+    {
+        $dateFrom = \trim((string) $request->request->get('dateFrom', $request->query->get('dateFrom', '')));
+        $dateTo = \trim((string) $request->request->get('dateTo', $request->query->get('dateTo', '')));
+        $params = [];
+        if ('' !== $dateFrom) {
+            $params['dateFrom'] = $dateFrom;
+        }
+        if ('' !== $dateTo) {
+            $params['dateTo'] = $dateTo;
+        }
+
+        return $this->redirectToRoute('warehouse_browse_usage_by_project', $params);
     }
 
     /**
@@ -357,11 +432,25 @@ final class StockBrowseController extends AbstractController
      *
      * @param list<\App\Entity\SpoolEvent> $events
      *
-     * @return list<array{projectLabel: string, lines: list<array{groupLabel: string, meters: int}>}>
+     * @return list<array{
+     *   projectLabel: string,
+     *   sourceLabels: list<string>,
+     *   lines: list<array{groupLabel: string, meters: int}>
+     * }>
      */
-    private static function buildProjectUsageGroupsInventuraStyle(array $events): array
-    {
-        /** @var array<string, array<string, array{groupLabel: string, meters: int}>> $nested */
+    private static function buildProjectUsageGroupsInventuraStyle(
+        array $events,
+        ProjectReportAliasService $aliasService,
+    ): array {
+        $aliasMap = $aliasService->getNormalizedToCanonicalMap();
+        /**
+         * @var array<string, array{
+         *   displayLabel: string,
+         *   labelCounts: array<string, int>,
+         *   sourceLabels: array<string, true>,
+         *   buckets: array<string, array{groupLabel: string, meters: int}>
+         * }>
+         */
         $nested = [];
         foreach ($events as $e) {
             $pl = \trim((string) $e->getProjectLabel());
@@ -376,34 +465,34 @@ final class StockBrowseController extends AbstractController
             if (null === $sp) {
                 continue;
             }
+            $groupKey = $aliasService->reportGroupKey($pl, $aliasMap);
             $fiber = $sp->getEffectiveFiberCount();
             $family = '' !== $sp->getFamily() ? $sp->getFamily() : '—';
             $diamKey = InventuraBriefGroupLabel::normalizeDiameterKey($sp->getEffectiveDiameterMm());
             $bucketKey = $fiber."\0".$family."\0".$diamKey;
             $groupLabel = InventuraBriefGroupLabel::format($fiber, $family, $diamKey);
-            if (!isset($nested[$pl])) {
-                $nested[$pl] = [];
+            if (!isset($nested[$groupKey])) {
+                $nested[$groupKey] = [
+                    'displayLabel' => $pl,
+                    'labelCounts' => [],
+                    'sourceLabels' => [],
+                    'buckets' => [],
+                ];
             }
-            if (!isset($nested[$pl][$bucketKey])) {
-                $nested[$pl][$bucketKey] = [
+            $nested[$groupKey]['sourceLabels'][$pl] = true;
+            $nested[$groupKey]['labelCounts'][$pl] = ($nested[$groupKey]['labelCounts'][$pl] ?? 0) + 1;
+            if (!isset($nested[$groupKey]['buckets'][$bucketKey])) {
+                $nested[$groupKey]['buckets'][$bucketKey] = [
                     'groupLabel' => $groupLabel,
                     'meters' => 0,
                 ];
             }
-            $nested[$pl][$bucketKey]['meters'] += $um;
+            $nested[$groupKey]['buckets'][$bucketKey]['meters'] += $um;
         }
-        /** @var list<string> */
-        $projectLabelsOrdered = \array_keys($nested);
-        \usort(
-            $projectLabelsOrdered,
-            static function (string $a, string $b): int {
-                return self::compareProjectLabelsByAffinity($a, $b);
-            },
-        );
         $out = [];
-        foreach ($projectLabelsOrdered as $label) {
-            $groups = $nested[$label];
-            $lines = \array_values($groups);
+        foreach ($nested as $entry) {
+            $entry['displayLabel'] = $aliasService->pickDisplayLabelFromVariants($entry['labelCounts']);
+            $lines = \array_values($entry['buckets']);
             \usort(
                 $lines,
                 static function (array $a, array $b): int {
@@ -414,11 +503,20 @@ final class StockBrowseController extends AbstractController
                     return \strcmp($a['groupLabel'], $b['groupLabel']);
                 },
             );
+            $sourceLabels = \array_keys($entry['sourceLabels']);
+            \usort($sourceLabels, static fn (string $a, string $b): int => \strnatcasecmp($a, $b));
             $out[] = [
-                'projectLabel' => $label,
+                'projectLabel' => $entry['displayLabel'],
+                'sourceLabels' => $sourceLabels,
                 'lines' => $lines,
             ];
         }
+        \usort(
+            $out,
+            static function (array $a, array $b): int {
+                return self::compareProjectLabelsByAffinity($a['projectLabel'], $b['projectLabel']);
+            },
+        );
 
         /** Odpis a předání — vždy na konec (likvidace, pak PŘEDÁČA). */
         $wo = SpoolMeterService::WRITEOFF_PROJECT_LABEL;

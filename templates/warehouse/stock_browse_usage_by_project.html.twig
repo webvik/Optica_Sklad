@@ -3,7 +3,7 @@
 {% block stylesheets %}
     {{ parent() }}
     <style>
-        .browse-proj-fold { margin: 0; padding: 0; border: 0; background: transparent; max-width: 52rem; }
+        .browse-proj-fold { margin: 0; padding: 0; border: 0; background: transparent; max-width: 52rem; flex: 1; min-width: 0; }
         .browse-proj-fold > summary {
             list-style: none;
             cursor: pointer;
@@ -57,7 +57,6 @@
             font-weight: 500;
             white-space: nowrap;
         }
-        /* Stejná šířka jako <details class="browse-proj-fold"> (max-width: 52rem) pod tímto blokem */
         .usage-proj-filters {
             display: flex;
             flex-wrap: wrap;
@@ -89,7 +88,107 @@
             font: inherit;
             padding: 0.35rem;
         }
-        .browse-proj-fold__wrapper { margin-bottom: 0.55rem; }
+        .browse-proj-fold__wrapper {
+            margin-bottom: 0.55rem;
+            max-width: 52rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .browse-proj-fold__variants {
+            display: block;
+            margin-top: 0.2rem;
+            font-size: 0.82rem;
+            font-weight: 400;
+            color: #555;
+        }
+        .usage-proj-merge-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin: 0 0 1rem;
+            max-width: 52rem;
+        }
+        .usage-proj-merge-toolbar[hidden] { display: none !important; }
+        .browse-proj-merge-pick {
+            display: none;
+            flex: 0 0 auto;
+            margin-top: 0.55rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .browse-proj-merge-pick input {
+            width: 1.15rem;
+            height: 1.15rem;
+            margin: 0;
+            cursor: pointer;
+        }
+        body.usage-proj-merge-mode .browse-proj-merge-pick:not([hidden]) {
+            display: flex;
+            align-items: center;
+        }
+        body.usage-proj-merge-mode .browse-proj-fold__wrapper--reserved .browse-proj-merge-pick {
+            visibility: hidden;
+        }
+        .usage-proj-merge-modal__choices {
+            margin: 0.75rem 0 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+        .usage-proj-merge-modal__choice {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.45rem;
+            font-size: 0.95rem;
+            line-height: 1.35;
+            cursor: pointer;
+        }
+        .usage-proj-merge-modal__choice input { margin-top: 0.2rem; }
+        .usage-proj-merge-modal__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .usage-proj-aliases {
+            margin-top: 2rem;
+            max-width: 52rem;
+            font-size: 0.9rem;
+        }
+        .usage-proj-aliases table { width: 100%; border-collapse: collapse; }
+        .usage-proj-aliases th,
+        .usage-proj-aliases td {
+            text-align: left;
+            padding: 0.35rem 0.5rem;
+            border-bottom: 1px solid #e0e6ed;
+        }
+        /* Vlastní overlay — .success-modal-overlay má display:flex a láme [hidden] */
+        .usage-proj-merge-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 20000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            box-sizing: border-box;
+        }
+        .usage-proj-merge-overlay.is-open {
+            display: flex;
+        }
+        .usage-proj-merge-overlay .success-modal-panel {
+            position: relative;
+            max-width: 30rem;
+            width: 100%;
+            margin: 0;
+            padding: 1.15rem 1.25rem 1rem;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
     </style>
 {% endblock %}
 {% block body %}
@@ -100,6 +199,7 @@
 
     <p style="color:#444; margin:0 0 1rem; max-width:46rem;">
         Experimentální výpis: odběr (m) z deníku v období, seskupený podle zakázky / projektu.
+        Sloučení jen mění report — zápis na cívce v deníku zůstává, jak byl zapsán.
     </p>
 
     <form method="get" action="{{ path('warehouse_browse_usage_by_project') }}" class="usage-proj-filters">
@@ -120,13 +220,35 @@
 
     <p style="margin:0 0 1rem;"><strong>Období:</strong> {{ periodFrom|date('d.m.Y') }} – {{ periodTo|date('d.m.Y') }} <span style="color:#555;">(poslední den včetně)</span></p>
 
+    {% if is_granted('ROLE_SKLAD_EDIT') and projectGroups|length > 0 %}
+        <div class="usage-proj-merge-toolbar" id="usage-proj-merge-toolbar">
+            <button type="button" id="usage-proj-merge-start">Sloučit projekty</button>
+            <button type="button" id="usage-proj-merge-go" hidden disabled>Sloučit</button>
+            <button type="button" id="usage-proj-merge-cancel" class="ui-btn-secondary" hidden>Zrušit</button>
+        </div>
+    {% endif %}
+
     {% if projectGroups|length == 0 %}
         <p>V období nejsou žádné záznamy s odběrem m a vyplněnou zakázkou / projektem.</p>
     {% else %}
+        <div id="usage-proj-list">
         {% for p in projectGroups %}
-            <div class="browse-proj-fold__wrapper">
+            {% set isReserved = p.projectLabel in reportReservedLabels %}
+            <div class="browse-proj-fold__wrapper{% if isReserved %} browse-proj-fold__wrapper--reserved{% endif %}"
+                 data-merge-project-label="{{ p.projectLabel }}"
+                 data-merge-source-labels="{{ p.sourceLabels|json_encode|e('html_attr') }}">
+                {% if is_granted('ROLE_SKLAD_EDIT') and not isReserved %}
+                    <label class="browse-proj-merge-pick" hidden>
+                        <input type="checkbox" class="js-usage-proj-pick" value="{{ p.projectLabel|e('html_attr') }}">
+                    </label>
+                {% endif %}
                 <details class="browse-proj-fold"{% if loop.first %} open{% endif %}>
-                    <summary><span class="browse-proj-fold__name">{{ p.projectLabel }}</span></summary>
+                    <summary>
+                        <span class="browse-proj-fold__name">{{ p.projectLabel }}</span>
+                        {% if p.sourceLabels|length > 1 %}
+                            <span class="browse-proj-fold__variants">zápisy: {{ p.sourceLabels|join(' · ') }}</span>
+                        {% endif %}
+                    </summary>
                     <div class="browse-proj-fold__body">
                         <ul class="browse-proj-fold__list">
                             {% for line in p.lines %}
@@ -140,5 +262,198 @@
                 </details>
             </div>
         {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if is_granted('ROLE_SKLAD_EDIT') and projectAliasRows|length > 0 %}
+        <section class="usage-proj-aliases">
+            <h2 style="font-size:1.05rem;">Uložená sloučení (jen pro report)</h2>
+            <table>
+                <thead>
+                    <tr><th>Zápis v deníku</th><th>V reportu jako</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for row in projectAliasRows %}
+                    <tr>
+                        <td>{{ row.aliasLabel }}</td>
+                        <td>{{ row.canonicalLabel }}</td>
+                        <td>
+                            <form method="post" action="{{ path('warehouse_browse_usage_by_project_alias_delete', {id: row.id}) }}" style="display:inline;">
+                                <input type="hidden" name="_token" value="{{ csrf_token('project_alias_delete_' ~ row.id) }}">
+                                <input type="hidden" name="dateFrom" value="{{ filterDateFrom }}">
+                                <input type="hidden" name="dateTo" value="{{ filterDateTo }}">
+                                <button type="submit" class="ui-btn-secondary" style="font-size:0.85rem;">Zrušit</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+
+    {% if is_granted('ROLE_SKLAD_EDIT') and projectGroups|length > 0 %}
+        <div id="usage-proj-merge-modal" class="usage-proj-merge-overlay" role="dialog" aria-modal="true" aria-labelledby="usage-proj-merge-modal-title" aria-hidden="true">
+            <div class="success-modal-panel">
+                <button type="button" class="success-modal-x" id="usage-proj-merge-modal-x" aria-label="Zavřít">×</button>
+                <h2 id="usage-proj-merge-modal-title" class="success-modal-title" style="color:#1a3d6b;">Sloučit projekty</h2>
+                <p class="success-modal-text" style="color:#333;">V reportu zobrazit pod názvem:</p>
+                <form method="post" action="{{ path('warehouse_browse_usage_by_project_merge') }}" id="usage-proj-merge-form">
+                    <input type="hidden" name="_token" value="{{ csrf_token('project_alias_merge') }}">
+                    <input type="hidden" name="dateFrom" value="{{ filterDateFrom }}">
+                    <input type="hidden" name="dateTo" value="{{ filterDateTo }}">
+                    <div class="usage-proj-merge-modal__choices" id="usage-proj-merge-radios"></div>
+                    <div id="usage-proj-merge-source-fields"></div>
+                    <div class="usage-proj-merge-modal__actions">
+                        <button type="submit" class="success-modal-ok" style="background:#1a4d8c;">Uložit sloučení</button>
+                        <button type="button" class="ui-btn-secondary" id="usage-proj-merge-modal-cancel">Zrušit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% if is_granted('ROLE_SKLAD_EDIT') and projectGroups|length > 0 %}
+    <script>
+    (function () {
+        var startBtn = document.getElementById('usage-proj-merge-start');
+        var goBtn = document.getElementById('usage-proj-merge-go');
+        var cancelBtn = document.getElementById('usage-proj-merge-cancel');
+        var modal = document.getElementById('usage-proj-merge-modal');
+        var modalX = document.getElementById('usage-proj-merge-modal-x');
+        var modalCancel = document.getElementById('usage-proj-merge-modal-cancel');
+        var radiosHost = document.getElementById('usage-proj-merge-radios');
+        var sourceFields = document.getElementById('usage-proj-merge-source-fields');
+        var form = document.getElementById('usage-proj-merge-form');
+        if (!startBtn || !goBtn) return;
+
+        function normLabel(s) {
+            return (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        }
+
+        function picks() {
+            return Array.prototype.slice.call(document.querySelectorAll('.js-usage-proj-pick:checked'));
+        }
+
+        function setMergeMode(on) {
+            document.body.classList.toggle('usage-proj-merge-mode', on);
+            startBtn.hidden = on;
+            goBtn.hidden = !on;
+            cancelBtn.hidden = !on;
+            document.querySelectorAll('.browse-proj-merge-pick').forEach(function (el) {
+                el.hidden = !on;
+            });
+            if (!on) {
+                document.querySelectorAll('.js-usage-proj-pick').forEach(function (cb) { cb.checked = false; });
+                updateGo();
+            }
+        }
+
+        function updateGo() {
+            goBtn.disabled = picks().length < 2;
+        }
+
+        function closeModal() {
+            if (!modal) return;
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('flash-center-open');
+            document.removeEventListener('keydown', onEscMerge);
+        }
+
+        function onEscMerge(ev) {
+            if (ev.key === 'Escape') closeModal();
+        }
+
+        function openModal() {
+            var selected = picks();
+            if (selected.length < 2 || !radiosHost || !sourceFields) return;
+
+            radiosHost.innerHTML = '';
+            sourceFields.innerHTML = '';
+
+            selected.forEach(function (cb, i) {
+                var wrap = cb.closest('.browse-proj-fold__wrapper');
+                var label = wrap ? wrap.getAttribute('data-merge-project-label') : cb.value;
+                var id = 'usage-proj-canonical_' + i;
+                var row = document.createElement('label');
+                row.className = 'usage-proj-merge-modal__choice';
+                row.innerHTML =
+                    '<input type="radio" name="canonicalLabel" value="" id="' + id + '" required' + (i === 0 ? ' checked' : '') + '>' +
+                    '<span></span>';
+                row.querySelector('input').value = label;
+                row.querySelector('span').textContent = label;
+                radiosHost.appendChild(row);
+            });
+            rebuildSourceFields();
+
+            modal.classList.add('is-open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('flash-center-open');
+            document.addEventListener('keydown', onEscMerge);
+            var firstRadio = radiosHost.querySelector('input[type="radio"]');
+            if (firstRadio) firstRadio.focus();
+        }
+
+        function rebuildSourceFields() {
+            if (!sourceFields || !radiosHost) return;
+            sourceFields.innerHTML = '';
+            var canonicalInput = radiosHost.querySelector('input[name="canonicalLabel"]:checked');
+            if (!canonicalInput) return;
+            var canonical = canonicalInput.value;
+            var canonicalNorm = normLabel(canonical);
+            var seen = {};
+
+            picks().forEach(function (cb) {
+                var wrap = cb.closest('.browse-proj-fold__wrapper');
+                if (!wrap) return;
+                var projectLabel = wrap.getAttribute('data-merge-project-label') || '';
+                var raw = wrap.getAttribute('data-merge-source-labels') || '[]';
+                var sources;
+                try { sources = JSON.parse(raw); } catch (e) { sources = []; }
+                if (!Array.isArray(sources) || sources.length === 0) {
+                    sources = projectLabel ? [projectLabel] : [];
+                }
+                sources.forEach(function (src) {
+                    var n = normLabel(src);
+                    if (!n || n === canonicalNorm || seen[n]) return;
+                    seen[n] = true;
+                    var inp = document.createElement('input');
+                    inp.type = 'hidden';
+                    inp.name = 'sourceLabels[]';
+                    inp.value = src;
+                    sourceFields.appendChild(inp);
+                });
+            });
+        }
+
+        startBtn.addEventListener('click', function () { setMergeMode(true); });
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function () { setMergeMode(false); closeModal(); });
+        }
+        document.querySelectorAll('.js-usage-proj-pick').forEach(function (cb) {
+            cb.addEventListener('change', updateGo);
+        });
+        goBtn.addEventListener('click', openModal);
+        if (modal) {
+            modal.addEventListener('click', function (ev) {
+                if (ev.target === modal) closeModal();
+            });
+        }
+        if (modalX) modalX.addEventListener('click', closeModal);
+        if (modalCancel) modalCancel.addEventListener('click', closeModal);
+        closeModal();
+        if (radiosHost) {
+            radiosHost.addEventListener('change', function (e) {
+                if (e.target && e.target.name === 'canonicalLabel') rebuildSourceFields();
+            });
+        }
+        if (form) {
+            form.addEventListener('submit', function () { rebuildSourceFields(); });
+        }
+    })();
+    </script>
     {% endif %}
 {% endblock %}
