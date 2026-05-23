@@ -13,16 +13,23 @@ final class BetaWelcomeExtension extends AbstractExtension
 {
     public function __construct(
         #[Autowire(env: 'BETA_WHATSAPP_PHONE')] private readonly string $betaWhatsappPhoneDigits,
+        #[Autowire(env: 'bool:BETA_WELCOME_ENABLED')] private readonly bool $betaWelcomeEnabled,
     ) {
     }
 
     public function getFunctions(): array
     {
         return [
+            new TwigFunction('beta_welcome_enabled', $this->isEnabled(...)),
             new TwigFunction('beta_welcome_paragraphs', $this->paragraphs(...)),
             new TwigFunction('beta_whatsapp_contact_url', $this->whatsappUrl(...)),
             new TwigFunction('beta_whatsapp_contact_label', $this->whatsappLabel(...)),
         ];
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->betaWelcomeEnabled;
     }
 
     /** @return list<string> */

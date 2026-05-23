@@ -312,7 +312,7 @@
             </div>
         </div>
         {% endif %}
-        {% if app.user %}
+        {% if app.user and beta_welcome_enabled() %}
         {% set beta_login_hints = app.flashes('beta_welcome_open') %}
         <div id="beta-welcome-root" data-beta-auto-open-after-login="{{ beta_login_hints|length > 0 ? '1' : '0' }}">
             <div id="beta-welcome-modal" class="beta-welcome-overlay" role="dialog" aria-modal="true" aria-labelledby="beta-welcome-modal-title" aria-hidden="true" hidden tabindex="-1">

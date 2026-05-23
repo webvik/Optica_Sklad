@@ -1,0 +1,33 @@
+Subject: New subdomain optica.lowpartners.net — vhost, PHP 8.4.21, MariaDB optica_sklad
+
+Hello,
+
+Please set up a production instance of our Optický sklad (optical cable warehouse) application on a new subdomain. The existing beta site on the main domain must remain unchanged.
+
+1) DNS / virtual host
+   - Subdomain: optica.lowpartners.net
+   - DocumentRoot: /home/httpd/html/optica.lowpartners.net/public
+   - PHP 8.4 — same as beta (verified on lowpartners.net: `php84 -v` → PHP 8.4.21, Remi RPM, OPcache)
+   - CLI / cron command: php84 (not `php` or `php82`)
+   - Same PHP-FPM / handler as https://lowpartners.net/
+   - Extensions: ctype, iconv, pdo_mysql, intl, mbstring, xml, zip, opcache (json recommended)
+   - ionCube on beta is from the hosting stack — optica only needs the same PHP setup; ionCube is not required for our Symfony app
+   - HTTPS (Let's Encrypt) for optica.lowpartners.net
+   - URL rewrite / try_files for Symfony (front controller: public/index.php)
+
+2) New MariaDB (separate from existing lowpartners_app)
+   - Database name: optica_sklad
+   - User: optica_sklad
+   - Password: [please generate and send securely]
+   - Privileges: only on database optica_sklad (SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, …)
+   - Host: localhost (same as existing beta lowpartners_app connection)
+
+3) Directory
+   - Create /home/httpd/html/optica.lowpartners.net/ (write access for our account via SSH/FTP for deployment)
+   - Web server must be able to write to var/ and any upload directories
+
+4) Leave unchanged
+   - https://lowpartners.net/ → /home/httpd/html/lowpartners.net/
+   - Database lowpartners_app / user lowpartners_app
+
+Thank you.

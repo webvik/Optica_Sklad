@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventSubscriber;
 
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
@@ -12,8 +13,17 @@ use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
  */
 final class PostLoginBetaWelcomeSubscriber implements EventSubscriberInterface
 {
+    public function __construct(
+        #[Autowire(env: 'bool:BETA_WELCOME_ENABLED')] private readonly bool $betaWelcomeEnabled,
+    ) {
+    }
+
     public function onLoginSuccess(LoginSuccessEvent $event): void
     {
+        if (!$this->betaWelcomeEnabled) {
+            return;
+        }
+
         if ('main' !== $event->getFirewallName()) {
             return;
         }
