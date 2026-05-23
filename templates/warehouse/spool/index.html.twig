@@ -124,12 +124,18 @@
             .work-input-sare { flex: 0 0 auto; width: 100%; font-size: 1rem; line-height: 1.3; padding: 0.5rem 0.75rem; }
             .work-search-field-row > .work-search-action-btn { width: 100%; min-height: 2.75rem; justify-content: center; flex: 0 0 auto; }
         }
-        .work-record-scan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; }
-        @media (max-width: 36rem) {
-            .work-record-scan-row { flex-direction: column; align-items: stretch; }
-            .work-record-scan-row .work-scan-tl { width: 100%; min-height: 2.75rem; justify-content: center; }
+        .work-record-scan-row {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.5rem;
+            margin: 0.5rem 0 0.75rem;
         }
-        .work-record-scan-hint { font-size: 0.88rem; color: #555; max-width: 42rem; line-height: 1.35; }
+        .work-record-scan-row .work-search-sare-scan-group {
+            width: 100%;
+            display: flex;
+        }
+        .work-record-scan-hint { font-size: 0.88rem; color: #555; max-width: 42rem; line-height: 1.35; margin: 0; }
         .work-spool-table-wrap { margin: 0 -0.15rem; }
         @media (max-width: 36rem) {
             .work-page-footer { max-width: none; }
@@ -140,11 +146,7 @@
             .work-spool-table-wrap .work-spool-table th { font-weight: 600; letter-spacing: -0.02em; }
             .work-spool-table-wrap.table-scroll--wide > .work-spool-table { min-width: 33rem; }
         }
-        #work-data-panel .work-submit-record, #work-record-form [type="submit"] { min-height: 2.6rem; padding: 0.5rem 1.1rem; }
-        @media (max-width: 36rem) {
-            #work-data-panel .work-submit-record, #work-record-form [type="submit"] { min-height: 2.75rem; width: 100%; font-size: 1.05rem; }
-        }
-        #work-search-form .work-search-action-btn {
+        .work-search-action-btn {
             box-sizing: border-box;
             display: inline-flex;
             align-items: center;
@@ -427,12 +429,12 @@
                 <input type="text" name="project" id="work-project" class="work-input-project" autocomplete="off" placeholder="volitelné">
             </p>
             <div class="work-record-scan-row">
-                <button type="button" id="work-record-scan-btn" class="work-scan-tl ui-btn-secondary" data-work-scan-mode="record" style="white-space: nowrap; font-size: 1.1rem; padding: 0.45rem 0.9rem;" title="Sken do záznamu: metráž, nebo metráž;zakázka (oddělovač ;, |, tab)">Sken</button>
-                <span class="work-record-scan-hint">Jeden kód: jen číslice → <strong>Běžný stav</strong> (m). Dva údaje: <code>7843;Z123</code> nebo tab / <code>|</code> → metráž a <strong>Objekt / zakázka</strong>. Bez kamery: čtečka může psát do pole (stejný formát).</span>
+                <span class="work-search-sare-scan-group">
+                    <button type="button" id="work-record-scan-btn" class="work-search-action-btn ui-btn-secondary work-scan-tl" data-work-scan-mode="record" title="Sken do záznamu: metráž, nebo metráž;zakázka (oddělovač ;, |, tab)">Sken</button>
+                    <button type="submit" class="work-search-action-btn ui-btn-primary work-submit-record">Zapsat</button>
+                </span>
+                <p class="work-record-scan-hint">Jeden kód: jen číslice → <strong>Běžný stav</strong> (m). Dva údaje: <code>7843;Z123</code> nebo tab / <code>|</code> → metráž a <strong>Objekt / zakázka</strong>. Bez kamery: čtečka může psát do pole (stejný formát).</p>
             </div>
-            <p style="margin: 0;">
-                <button type="submit" class="work-submit-record" style="font-size: 1rem;">Zapsat</button>
-            </p>
         </form>
     </div>
 
