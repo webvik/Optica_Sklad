@@ -269,6 +269,7 @@ final class SpoolController extends AbstractController
                 $visibleInt,
                 new \DateTimeImmutable('now'),
                 '' !== $project ? $project : null,
+                null,
                 $u
             );
             if ($u instanceof User) {
@@ -503,6 +504,7 @@ final class SpoolController extends AbstractController
                         $event->getVisibleM(),
                         $event->getOccurredAt(),
                         $event->getProjectLabel(),
+                        $event->getNote(),
                         $u
                     );
                 } elseif (SpoolEventType::LaidSection === $type && null !== $event->getVisibleM()) {

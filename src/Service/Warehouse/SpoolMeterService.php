@@ -118,6 +118,7 @@ final class SpoolMeterService
         int $newVisibleM,
         ?\DateTimeImmutable $occurredAt,
         ?string $projectLabel,
+        ?string $note,
         ?User $user,
     ): SpoolEvent {
         return $this->applyVisibleChainEvent(
@@ -126,7 +127,7 @@ final class SpoolMeterService
             $newVisibleM,
             $occurredAt,
             $projectLabel,
-            null,
+            $note,
             $user
         );
     }
