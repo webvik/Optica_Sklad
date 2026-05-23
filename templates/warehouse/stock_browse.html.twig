@@ -63,6 +63,7 @@
             max-width: 100%;
         }
         .browse-filters__col--usageReport > label { font-size: 0.95rem; }
+        /* Barvy: a.browse-filters__proj-feed-link v _styles_ui_buttons.html.twig */
         .browse-filters__proj-feed-link {
             display: flex;
             align-items: center;
@@ -75,10 +76,7 @@
             line-height: 1.2;
             font: inherit;
             font-size: 0.95rem;
-            border: 1px solid #999;
-            border-radius: 4px;
-            background: #fff;
-            color: #1a1a1a;
+            border-radius: 6px;
             text-decoration: none;
             box-sizing: border-box;
             white-space: nowrap;
@@ -86,12 +84,7 @@
             overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
         }
-        .browse-filters__proj-feed-link:hover,
-        .browse-filters__proj-feed-link:focus-visible {
-            background: #f5f5f5;
-            color: #0a1628;
-            outline: none;
-        }
+        .browse-filters__proj-feed-link:focus-visible { outline: none; }
         @media (min-width: 42rem) {
             .browse-filters__col--usageReport {
                 margin-left: 0.55rem;

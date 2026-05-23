@@ -187,9 +187,10 @@
     .work-search-next-tl { display: none; }
     .work-top-area.is-search-collapsed .work-search-next-tl { display: inline-flex; }
 
-    /* Navigační pills + odkazy CTA (Inventura, Export, Nová cívka, …) — primary */
+    /* Navigační pills + odkazy CTA (Inventura, Export, Filtr podle projektů, …) — primary */
     a.app-menu__nav-link,
     a.warehouse-pill,
+    a.browse-filters__proj-feed-link,
     button.warehouse-pill:not(.beta-welcome-chip),
     .inventura-brief > summary,
     .browse-proj-fold > summary {
@@ -204,6 +205,8 @@
     }
     a.app-menu__nav-link:hover,
     a.warehouse-pill:hover,
+    a.browse-filters__proj-feed-link:hover,
+    a.browse-filters__proj-feed-link:focus-visible,
     button.warehouse-pill:not(.beta-welcome-chip):hover,
     .inventura-brief > summary:hover,
     .browse-proj-fold > summary:hover {
@@ -214,6 +217,7 @@
     }
     a.app-menu__nav-link:active,
     a.warehouse-pill:active,
+    a.browse-filters__proj-feed-link:active,
     button.warehouse-pill:not(.beta-welcome-chip):active,
     .inventura-brief > summary:active,
     .browse-proj-fold > summary:active {

@@ -378,11 +378,8 @@
             text-align: left; background: #fafafa; border-radius: 4px; white-space: pre-wrap; word-break: break-word;
         }
         .cable-type-full-desc:empty { display: none !important; }
-        .cable-type-hover-group:hover .cable-type-full-desc.has-content,
-        .cable-type-hover-group:focus-within .cable-type-full-desc.has-content { display: block; }
-        @media (hover: none), (pointer: coarse) {
-            .cable-type-full-desc.has-content { display: block; }
-        }
+        /* Po výběru typu nechat plný popis viditelný (ne jen při :hover / :focus-within). */
+        .cable-type-full-desc.has-content { display: block; }
         /* Plný popis v okně: vždy viditelný, když je pikr otevřený a pro vybraný typ existuje text.
            (Nelze spoléhat na :hover na .panel — nad nativním <select> v některých prohlížečích se :hover nepropaguje a řádek mizel.) */
         .cable-type-mobile-picker__full-desc {
