@@ -1,0 +1,226 @@
+{# Globální primary / secondary tlačítka (po {% block stylesheets %} v base). #}
+<style>
+    :root {
+        --ui-btn-primary-border: #164f7f;
+        --ui-btn-primary-fg: #fff;
+        --ui-btn-primary-bg: linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%);
+        --ui-btn-primary-hover-bg: linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%);
+        --ui-btn-primary-active-bg: linear-gradient(180deg, #1f75ad 0%, #185a91 40%, #144d7c 70%, #123f66 100%);
+        --ui-btn-secondary-border: #7a8fa3;
+        --ui-btn-secondary-fg: #1a5f96;
+        --ui-btn-secondary-bg: linear-gradient(180deg, #f2f4f7 0%, #dde2e9 48%, #cfd6df 100%);
+        --ui-btn-secondary-hover-bg: linear-gradient(180deg, #eef4fa 0%, #d8e6f2 50%, #c8dae8 100%);
+        --ui-btn-secondary-active-bg: linear-gradient(180deg, #e0e5eb 0%, #ccd4de 55%, #bcc6d2 100%);
+        --ui-btn-danger-border: #8a2222;
+        --ui-btn-danger-fg: #fff;
+        --ui-btn-danger-bg: linear-gradient(180deg, #e85c5c 0%, #c93030 52%, #a82828 100%);
+        --ui-btn-danger-hover-bg: linear-gradient(180deg, #df5050 0%, #b82828 55%, #962020 100%);
+        --ui-btn-danger-active-bg: linear-gradient(180deg, #c93030 0%, #a82828 55%, #8a1e1e 100%);
+    }
+
+    :is(
+        .ui-btn-primary,
+        .ui-btn-secondary,
+        .ui-btn-danger,
+        input[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        button[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        .work-not-found-btn--primary,
+        button[type="button"]:not(.ui-btn-not-themed):not(:is(
+            .error-modal-x, .success-modal-x, .beta-welcome-x,
+            .error-modal-ok, .success-modal-ok, .beta-welcome-ok,
+            .beta-welcome-chip,
+            button.warehouse-pill,
+            .spool-form__label-scan,
+            .work-scan-mode-btn, .work-scan-cancel-btn, .work-search-next-tl,
+            .cable-type-mobile-picker__close,
+            .spool-cable-ocr-choice-modal__btn,
+            .ui-btn-primary, .ui-btn-danger, .work-not-found-btn--primary,
+            #work-scan-overlay *, #spool-form-scan-overlay *, #spool-cable-ocr-overlay *,
+            #cable-type-form-scan-overlay *, #cable-type-label-ocr-overlay *
+        ))
+    ) {
+        -webkit-appearance: none;
+        appearance: none;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.55rem;
+        min-width: 5.5rem;
+        padding: 0.5rem 1rem;
+        font: inherit;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.2;
+        border-radius: 6px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    :is(
+        .ui-btn-primary,
+        input[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        button[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        .work-not-found-btn--primary
+    ) {
+        background: var(--ui-btn-primary-bg);
+        background-image: var(--ui-btn-primary-bg);
+        border: 1px solid var(--ui-btn-primary-border);
+        color: var(--ui-btn-primary-fg);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(15, 40, 71, 0.12);
+    }
+    :is(
+        .ui-btn-primary,
+        input[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        button[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        .work-not-found-btn--primary
+    ):hover {
+        background: var(--ui-btn-primary-hover-bg);
+        background-image: var(--ui-btn-primary-hover-bg);
+        border-color: #144d7c;
+        color: var(--ui-btn-primary-fg);
+    }
+    :is(
+        .ui-btn-primary,
+        input[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        button[type="submit"]:not(.ui-btn-not-themed):not(.spool-form__btn--danger),
+        .work-not-found-btn--primary
+    ):active {
+        background: var(--ui-btn-primary-active-bg);
+        background-image: var(--ui-btn-primary-active-bg);
+        border-color: #123f66;
+        color: var(--ui-btn-primary-fg);
+        box-shadow: 0 1px 2px rgba(15, 40, 71, 0.15) inset;
+    }
+
+    :is(
+        .ui-btn-secondary,
+        button[type="button"]:not(.ui-btn-not-themed):not(:is(
+            .error-modal-x, .success-modal-x, .beta-welcome-x,
+            .error-modal-ok, .success-modal-ok, .beta-welcome-ok,
+            .beta-welcome-chip,
+            button.warehouse-pill,
+            .spool-form__label-scan,
+            .work-scan-mode-btn, .work-scan-cancel-btn, .work-search-next-tl,
+            .cable-type-mobile-picker__close,
+            .spool-cable-ocr-choice-modal__btn,
+            .ui-btn-primary, .ui-btn-danger, .work-not-found-btn--primary,
+            #work-scan-overlay *, #spool-form-scan-overlay *, #spool-cable-ocr-overlay *,
+            #cable-type-form-scan-overlay *, #cable-type-label-ocr-overlay *
+        ))
+    ) {
+        background: var(--ui-btn-secondary-bg);
+        background-image: var(--ui-btn-secondary-bg);
+        border: 1px solid var(--ui-btn-secondary-border);
+        color: var(--ui-btn-secondary-fg);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset, 0 1px 2px rgba(30, 45, 60, 0.08);
+    }
+    :is(
+        .ui-btn-secondary,
+        button[type="button"]:not(.ui-btn-not-themed):not(:is(
+            .error-modal-x, .success-modal-x, .beta-welcome-x,
+            .error-modal-ok, .success-modal-ok, .beta-welcome-ok,
+            .beta-welcome-chip,
+            button.warehouse-pill,
+            .spool-form__label-scan,
+            .work-scan-mode-btn, .work-scan-cancel-btn, .work-search-next-tl,
+            .cable-type-mobile-picker__close,
+            .spool-cable-ocr-choice-modal__btn,
+            .ui-btn-primary, .ui-btn-danger, .work-not-found-btn--primary,
+            #work-scan-overlay *, #spool-form-scan-overlay *, #spool-cable-ocr-overlay *,
+            #cable-type-form-scan-overlay *, #cable-type-label-ocr-overlay *
+        ))
+    ):hover {
+        background: var(--ui-btn-secondary-hover-bg);
+        background-image: var(--ui-btn-secondary-hover-bg);
+        border-color: #5a7a94;
+        color: var(--ui-btn-secondary-fg);
+    }
+    :is(
+        .ui-btn-secondary,
+        button[type="button"]:not(.ui-btn-not-themed):not(:is(
+            .error-modal-x, .success-modal-x, .beta-welcome-x,
+            .error-modal-ok, .success-modal-ok, .beta-welcome-ok,
+            .beta-welcome-chip,
+            button.warehouse-pill,
+            .spool-form__label-scan,
+            .work-scan-mode-btn, .work-scan-cancel-btn, .work-search-next-tl,
+            .cable-type-mobile-picker__close,
+            .spool-cable-ocr-choice-modal__btn,
+            .ui-btn-primary, .ui-btn-danger, .work-not-found-btn--primary,
+            #work-scan-overlay *, #spool-form-scan-overlay *, #spool-cable-ocr-overlay *,
+            #cable-type-form-scan-overlay *, #cable-type-label-ocr-overlay *
+        ))
+    ):active {
+        background: var(--ui-btn-secondary-active-bg);
+        background-image: var(--ui-btn-secondary-active-bg);
+        border-color: #4d6a82;
+        color: var(--ui-btn-secondary-fg);
+        box-shadow: 0 1px 2px rgba(30, 45, 60, 0.12) inset;
+    }
+
+    button.spool-form__btn--danger,
+    input[type="submit"].spool-form__btn--danger {
+        background: var(--ui-btn-danger-bg);
+        background-image: var(--ui-btn-danger-bg);
+        border: 1px solid var(--ui-btn-danger-border);
+        color: var(--ui-btn-danger-fg);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset;
+    }
+    button.spool-form__btn--danger:hover,
+    input[type="submit"].spool-form__btn--danger:hover {
+        background: var(--ui-btn-danger-hover-bg);
+        background-image: var(--ui-btn-danger-hover-bg);
+        border-color: #7a1c1c;
+        color: var(--ui-btn-danger-fg);
+    }
+    button.spool-form__btn--danger:active,
+    input[type="submit"].spool-form__btn--danger:active {
+        background: var(--ui-btn-danger-active-bg);
+        background-image: var(--ui-btn-danger-active-bg);
+        border-color: #6a1818;
+        color: var(--ui-btn-danger-fg);
+        box-shadow: 0 1px 2px rgba(60, 15, 15, 0.2) inset;
+    }
+
+    /* Práce s optikou: vlastní show/hide (globální tlačítka by jinak nastavily display:inline-flex) */
+    .work-search-next-tl { display: none; }
+    .work-top-area.is-search-collapsed .work-search-next-tl { display: inline-flex; }
+
+    /* Navigační pills + odkazy CTA (Inventura, Export, Nová cívka, …) — primary */
+    a.app-menu__nav-link,
+    a.warehouse-pill,
+    button.warehouse-pill:not(.beta-welcome-chip),
+    .inventura-brief > summary,
+    .browse-proj-fold > summary {
+        background: var(--ui-btn-primary-bg);
+        background-image: var(--ui-btn-primary-bg);
+        border: 1px solid var(--ui-btn-primary-border);
+        color: var(--ui-btn-primary-fg);
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(15, 40, 71, 0.12);
+        -webkit-tap-highlight-color: rgba(255, 255, 255, 0.12);
+    }
+    a.app-menu__nav-link:hover,
+    a.warehouse-pill:hover,
+    button.warehouse-pill:not(.beta-welcome-chip):hover,
+    .inventura-brief > summary:hover,
+    .browse-proj-fold > summary:hover {
+        background: var(--ui-btn-primary-hover-bg);
+        background-image: var(--ui-btn-primary-hover-bg);
+        border-color: #144d7c;
+        color: var(--ui-btn-primary-fg);
+    }
+    a.app-menu__nav-link:active,
+    a.warehouse-pill:active,
+    button.warehouse-pill:not(.beta-welcome-chip):active,
+    .inventura-brief > summary:active,
+    .browse-proj-fold > summary:active {
+        background: var(--ui-btn-primary-active-bg);
+        background-image: var(--ui-btn-primary-active-bg);
+        border-color: #123f66;
+        color: var(--ui-btn-primary-fg);
+        box-shadow: 0 1px 2px rgba(15, 40, 71, 0.15) inset;
+    }
+</style>

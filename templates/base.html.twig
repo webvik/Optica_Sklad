@@ -51,16 +51,14 @@
                 text-wrap: balance;
             }
             .app-menu__list { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch; }
+            /* Rozložení pills — barvy v _styles_ui_buttons.html.twig */
             a.app-menu__nav-link, a.warehouse-pill, button.warehouse-pill {
                 box-sizing: border-box; display: flex; align-items: center; justify-content: center;
-                text-align: center; text-decoration: none; color: #1a2a3a; font-weight: 500; line-height: 1.2;
+                text-align: center; text-decoration: none; line-height: 1.2;
                 min-height: 2.55rem; padding: 0.4rem 0.6rem; font-size: 0.92rem;
-                border: 1px solid #b8c4d0; border-radius: 6px;
-                background: linear-gradient(180deg, #f7f9fc 0%, #ebeef4 100%);
+                border-radius: 6px;
                 -webkit-tap-highlight-color: transparent;
             }
-            a.app-menu__nav-link:hover, a.warehouse-pill:hover, button.warehouse-pill:hover { background: #e2e8f0; color: #0a1628; }
-            a.app-menu__nav-link:active, a.warehouse-pill:active, button.warehouse-pill:active { background: #d8e0ec; }
             @media (max-width: 48rem) {
                 .app-menu__list {
                     flex-direction: column;
@@ -271,6 +269,7 @@
         </style>
         {% block stylesheets %}
         {% endblock %}
+        {% include '_styles_ui_buttons.html.twig' %}
 
         {% set frankenphpHotReload = app.request.server.get('FRANKENPHP_HOT_RELOAD') %}
         {% if frankenphpHotReload %}

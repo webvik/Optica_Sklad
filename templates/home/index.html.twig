@@ -9,53 +9,71 @@
             margin-top: 0.15rem;
             margin-bottom: 0.5rem;
         }
+        /* Přihlášení: výchozí větší pole (desktop); mobil níže ještě zvětšit / na celou šířku */
+        .home-login-form {
+            max-width: 32rem;
+        }
+        .home-login-form > p {
+            margin: 0.9rem 0;
+        }
+        .home-login-form label {
+            display: block;
+            font-size: 1.08rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+            line-height: 1.3;
+        }
+        .home-login-form input[type="text"],
+        .home-login-form input[type="password"] {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            appearance: none;
+            font-size: 1.25rem;
+            line-height: 1.35;
+            min-height: 3rem;
+            padding: 0.7rem 0.95rem;
+            border: 1px solid #8a9399;
+            border-radius: 8px;
+        }
+        .home-login-form button[type="submit"] {
+            box-sizing: border-box;
+            min-height: 3rem;
+            font-size: 1.15rem;
+            font-weight: 600;
+            padding: 0.65rem 1.35rem;
+            border-radius: 8px;
+            margin-top: 0.35rem;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .home-login-form .home-login-form__hint {
+            font-size: 0.95rem !important;
+            line-height: 1.45;
+            margin-top: 0.25rem !important;
+        }
         /*
-         * Přihlášení: Android v landscape / „širší“ viewport často přesahuje 36rem → bez stylů mrňavá pole.
-         * 60rem (~960px) pokryje většinu mobilů i na šířku; min. 16px kvůli Android Chrome / měřítku systému.
+         * Mobil / landscape: 60rem pokryje většinu telefonů na šířku; min. 16–18px kvůli Chrome / měřítku.
          */
         @media (max-width: 60rem) {
             .home-login-form {
                 max-width: 100%;
             }
-            .home-login-form > p {
-                margin: 0.9rem 0;
-            }
             .home-login-form label {
-                display: block;
                 font-size: max(1.02rem, 16px);
-                font-weight: 600;
-                margin-bottom: 0.35rem;
-                line-height: 1.3;
             }
             .home-login-form input[type="text"],
             .home-login-form input[type="password"] {
-                width: 100%;
-                max-width: 100%;
-                box-sizing: border-box;
-                -webkit-appearance: none;
-                appearance: none;
                 font-size: max(1.125rem, 18px);
-                line-height: 1.35;
-                min-height: 3rem;
-                padding: 0.7rem 0.85rem;
-                border: 1px solid #8a9399;
-                border-radius: 8px;
             }
             .home-login-form button[type="submit"] {
                 width: 100%;
-                box-sizing: border-box;
-                min-height: 3rem;
                 font-size: max(1.125rem, 18px);
-                font-weight: 600;
-                padding: 0.65rem 1rem;
-                border-radius: 8px;
-                margin-top: 0.35rem;
-                -webkit-appearance: none;
-                appearance: none;
             }
             .home-login-form .home-login-form__hint {
                 font-size: max(0.95rem, 15px) !important;
-                line-height: 1.45;
                 margin-top: 1rem !important;
             }
         }

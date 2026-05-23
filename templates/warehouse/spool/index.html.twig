@@ -155,19 +155,10 @@
             font: inherit;
             font-size: 1.1rem;
             line-height: 1.2;
-            font-weight: 500;
+            font-weight: 600;
             white-space: nowrap;
             cursor: pointer;
-            border: 1px solid #bbb;
-            border-radius: 4px;
-            background: #f5f5f5;
-            color: inherit;
-        }
-        #work-search-form .work-search-action-btn:hover {
-            background: #eaeaec;
-        }
-        #work-search-form .work-search-action-btn:active {
-            background: #e0e0e2;
+            border-radius: 6px;
         }
         .work-search-sare-scan-group {
             display: inline-flex;
@@ -340,11 +331,6 @@
             background: #eef2f6;
             color: #1a1a1a;
         }
-        .work-not-found-modal__actions button[type="button"].work-not-found-btn--primary {
-            border-color: #2a6b9a;
-            background: #1f6dad;
-            color: #fff;
-        }
         .work-not-found-modal__actions button:hover {
             filter: brightness(0.97);
         }
@@ -364,8 +350,8 @@
             <span class="work-search-field-row" style="width: 100%;">
                 <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="např. 450-1470">
                 <span class="work-search-sare-scan-group">
-                    <button type="submit" class="work-search-action-btn">Hledat</button>
-                    <button type="button" id="work-scan-btn" class="work-search-action-btn work-scan-tl" data-work-scan-mode="sare" title="Sken čísla saře: úzký pruh nad kódem → pole Číslo saře (upravte před Hledat)">Sken</button>
+                    <button type="submit" class="work-search-action-btn ui-btn-primary">Hledat</button>
+                    <button type="button" id="work-scan-btn" class="work-search-action-btn ui-btn-secondary work-scan-tl" data-work-scan-mode="sare" title="Sken čísla saře: úzký pruh nad kódem → pole Číslo saře (upravte před Hledat)">Sken</button>
                 </span>
             </span>
         </p>
@@ -441,7 +427,7 @@
                 <input type="text" name="project" id="work-project" class="work-input-project" autocomplete="off" placeholder="volitelné">
             </p>
             <div class="work-record-scan-row">
-                <button type="button" id="work-record-scan-btn" class="work-scan-tl" data-work-scan-mode="record" style="white-space: nowrap; font-size: 1.1rem; padding: 0.45rem 0.9rem;" title="Sken do záznamu: metráž, nebo metráž;zakázka (oddělovač ;, |, tab)">Sken</button>
+                <button type="button" id="work-record-scan-btn" class="work-scan-tl ui-btn-secondary" data-work-scan-mode="record" style="white-space: nowrap; font-size: 1.1rem; padding: 0.45rem 0.9rem;" title="Sken do záznamu: metráž, nebo metráž;zakázka (oddělovač ;, |, tab)">Sken</button>
                 <span class="work-record-scan-hint">Jeden kód: jen číslice → <strong>Běžný stav</strong> (m). Dva údaje: <code>7843;Z123</code> nebo tab / <code>|</code> → metráž a <strong>Objekt / zakázka</strong>. Bez kamery: čtečka může psát do pole (stejný formát).</span>
             </div>
             <p style="margin: 0;">
