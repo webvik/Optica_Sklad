@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Spool;
 use App\Enum\SpoolEventType;
 use App\Enum\SpoolStatus;
+use App\Service\Warehouse\CableTypeBrowseFilter;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -21,13 +22,12 @@ class SpoolRepository extends ServiceEntityRepository
     /**
      * Výběr podle 0–N typů a 0–N stavů. Prázdné pole = bez omezení v dané dimenzi.
      *
-     * @param list<int>         $cableTypeIds
      * @param list<SpoolStatus> $statuses
      *
      * @return list<Spool>
      */
     public function findFiltered(
-        array $cableTypeIds,
+        CableTypeBrowseFilter $cableTypeFilter,
         array $statuses,
         ?string $reelQ = null,
         int $limit = 500,
@@ -35,7 +35,7 @@ class SpoolRepository extends ServiceEntityRepository
     ): array {
         $reelTrim = null !== $reelQ ? \trim($reelQ) : '';
         if ('' !== $reelTrim) {
-            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeIds, $statuses, $limit, $onlyNeedsCorrection);
+            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection);
             if ($ids === []) {
                 return [];
             }
@@ -43,7 +43,7 @@ class SpoolRepository extends ServiceEntityRepository
             return $this->loadSpoolsForBrowseByIds($ids);
         }
 
-        $qb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, $limit, $onlyNeedsCorrection);
+        $qb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection);
 
         return $qb->getQuery()->getResult();
     }
@@ -51,14 +51,13 @@ class SpoolRepository extends ServiceEntityRepository
     /**
      * Stejná logika jako {@see searchByReelInput}, ale jen v rámci filtrů přehledu skladu.
      *
-     * @param list<int>         $cableTypeIds
      * @param list<SpoolStatus> $statuses
      *
      * @return list<int>
      */
     public function searchIdsByReelWithinFilters(
         string $q,
-        array $cableTypeIds,
+        CableTypeBrowseFilter $cableTypeFilter,
         array $statuses,
         int $limit = 500,
         bool $onlyNeedsCorrection = false,
@@ -68,7 +67,7 @@ class SpoolRepository extends ServiceEntityRepository
             return [];
         }
 
-        $exactQb = $this->createFilteredQueryBuilder($cableTypeIds, $statuses, 1, $onlyNeedsCorrection)
+        $exactQb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, 1, $onlyNeedsCorrection)
             ->select('s.id')
             ->andWhere('LOWER(s.reelNumber) = LOWER(:q)')
             ->setParameter('q', $q);
@@ -90,10 +89,7 @@ class SpoolRepository extends ServiceEntityRepository
             ->setParameter('ids', $partialIds)
             ->orderBy('s.reelNumber', 'ASC')
             ->setMaxResults($limit);
-        if ($cableTypeIds !== []) {
-            $filterQb->andWhere('c.id IN (:cids)')
-                ->setParameter('cids', $cableTypeIds);
-        }
+        $this->applyCableTypeBrowseFilter($filterQb, $cableTypeFilter);
         if ($statuses !== []) {
             $filterQb->andWhere('s.status IN (:stss)')
                 ->setParameter('stss', $statuses);
@@ -109,11 +105,10 @@ class SpoolRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param list<int>         $cableTypeIds
      * @param list<SpoolStatus> $statuses
      */
     private function createFilteredQueryBuilder(
-        array $cableTypeIds,
+        CableTypeBrowseFilter $cableTypeFilter,
         array $statuses,
         int $limit,
         bool $onlyNeedsCorrection = false,
@@ -124,10 +119,7 @@ class SpoolRepository extends ServiceEntityRepository
             ->orderBy('CASE WHEN s.fiberCount IS NOT NULL THEN s.fiberCount WHEN c.fiberCount IS NOT NULL THEN c.fiberCount ELSE 0 END', 'ASC')
             ->addOrderBy('s.reelNumber', 'ASC')
             ->setMaxResults($limit);
-        if ($cableTypeIds !== []) {
-            $qb->andWhere('c.id IN (:cids)')
-                ->setParameter('cids', $cableTypeIds);
-        }
+        $this->applyCableTypeBrowseFilter($qb, $cableTypeFilter);
         if ($statuses !== []) {
             $qb->andWhere('s.status IN (:stss)')
                 ->setParameter('stss', $statuses);
@@ -137,6 +129,32 @@ class SpoolRepository extends ServiceEntityRepository
         }
 
         return $qb;
+    }
+
+    private function applyCableTypeBrowseFilter(\Doctrine\ORM\QueryBuilder $qb, CableTypeBrowseFilter $filter): void
+    {
+        if (!$filter->restrictsCableDimension()) {
+            return;
+        }
+        if ($filter->onlyWithAssignedType) {
+            $qb->andWhere('c.id IS NOT NULL');
+
+            return;
+        }
+        $hasIds = $filter->ids !== [];
+        if ($hasIds && $filter->includeUnset) {
+            $qb->andWhere('c.id IN (:browseCableTypeIds) OR c.id IS NULL')
+                ->setParameter('browseCableTypeIds', $filter->ids);
+
+            return;
+        }
+        if ($filter->includeUnset) {
+            $qb->andWhere('c.id IS NULL');
+
+            return;
+        }
+        $qb->andWhere('c.id IN (:browseCableTypeIds)')
+            ->setParameter('browseCableTypeIds', $filter->ids);
     }
 
     /**

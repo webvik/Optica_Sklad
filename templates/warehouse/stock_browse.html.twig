@@ -231,6 +231,10 @@
                                     <input type="checkbox" class="js-browse-cable-vse" aria-label="Vše: zaškrtnout všechny typy" title="Vše" tabindex="0">
                                     <span class="browse-filter-checkpanel__text">Vše</span>
                                 </label>
+                                <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--unset">
+                                    <input type="checkbox" name="cableTypeUnset" value="1" class="js-browse-cable-unset" data-browse-label="— typ neuveden —"{% if filterCableTypeUnset|default(false) %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">— typ neuveden —</span>
+                                </label>
                                 {% for ct in cableTypeChoices %}
                                     <label class="browse-filter-checkpanel__row">
                                         <input type="checkbox" name="cableTypeIds[]" value="{{ ct.id }}" class="js-browse-cable-cb" data-browse-label="{{ ct.code|e('html_attr') }} — {{ ct.name|e('html_attr') }}"{% if ct.id in filterCableTypeIds %} checked{% endif %}>
@@ -341,6 +345,7 @@
   }
 
   function summarizeCable(root) {
+    var unsetCb = root.querySelector('input.js-browse-cable-unset');
     var cbs = root.querySelectorAll('input.js-browse-cable-cb');
     var t = cbs.length;
     var n = 0;
@@ -351,11 +356,17 @@
         labels.push(cbs[i].getAttribute('data-browse-label') || '');
       }
     }
-    if (t === 0) return '— všechny —';
-    if (n === 0) return '— všechny —';
-    if (n === t) return 'Všechny typy';
-    if (n === 1) return labels[0] || '…';
-    return czTypu(n);
+    var unsetOn = unsetCb && unsetCb.checked;
+    var picked = n + (unsetOn ? 1 : 0);
+    if (t === 0 && !unsetCb) return '— všechny —';
+    if (picked === 0) return '— všechny —';
+    if (n === t && unsetOn) return 'Všechny typy';
+    if (unsetOn && n === 0) return unsetCb.getAttribute('data-browse-label') || '— typ neuveden —';
+    if (picked === 1) {
+      if (unsetOn) return unsetCb.getAttribute('data-browse-label') || '…';
+      return labels[0] || '…';
+    }
+    return czTypu(picked);
   }
   function summarizeStatus(root) {
     var korekce = root.querySelector('.js-browse-needs-correction');
@@ -383,19 +394,23 @@
 
   function syncCableVse(root) {
     var vse = root.querySelector('.js-browse-cable-vse');
+    var unsetCb = root.querySelector('input.js-browse-cable-unset');
     var cbs = root.querySelectorAll('input.js-browse-cable-cb');
     if (!vse) return;
     if (!cbs.length) {
       vse.indeterminate = false;
-      vse.checked = false;
-      vse.setAttribute('disabled', 'disabled');
+      vse.checked = unsetCb ? unsetCb.checked : false;
+      if (!unsetCb) vse.setAttribute('disabled', 'disabled');
+      else vse.removeAttribute('disabled');
       return;
     }
     vse.removeAttribute('disabled');
     var n = 0;
     for (var i = 0; i < cbs.length; i++) if (cbs[i].checked) n++;
-    vse.indeterminate = n > 0 && n < cbs.length;
-    vse.checked = n === cbs.length;
+    var allCatalog = n === cbs.length;
+    var allOn = allCatalog && (!unsetCb || unsetCb.checked);
+    vse.indeterminate = !allOn && (n > 0 || (unsetCb && unsetCb.checked));
+    vse.checked = allOn;
   }
   function syncStatusVse(root) {
     var vse = root.querySelector('.js-browse-status-vse');
@@ -505,15 +520,18 @@
 
     if (isCable) {
       var vseC = root.querySelector('.js-browse-cable-vse');
+      var unsetC = root.querySelector('input.js-browse-cable-unset');
       var cL = root.querySelectorAll('input.js-browse-cable-cb');
       if (vseC) {
         vseC.addEventListener('change', function () {
           var on = vseC.checked;
           for (var a = 0; a < cL.length; a++) cL[a].checked = on;
+          if (unsetC) unsetC.checked = on;
           vseC.indeterminate = false;
           syncLabel();
         });
       }
+      if (unsetC) unsetC.addEventListener('change', function () { syncLabel(); });
       for (var b = 0; b < cL.length; b++) cL[b].addEventListener('change', function () { syncLabel(); });
     } else {
       var vseS = root.querySelector('.js-browse-status-vse');
@@ -570,6 +588,10 @@
     var cableCbs = browseForm.querySelectorAll('input.js-browse-cable-cb:checked');
     for (var i = 0; i < cableCbs.length; i++) {
       p.append('cableTypeIds[]', cableCbs[i].value);
+    }
+    var cableUnset = browseForm.querySelector('input.js-browse-cable-unset');
+    if (cableUnset && cableUnset.checked) {
+      p.append('cableTypeUnset', '1');
     }
     var statusCbs = browseForm.querySelectorAll('input.js-browse-status-cb:checked');
     for (var j = 0; j < statusCbs.length; j++) {

@@ -3,6 +3,7 @@
 namespace App\Controller\Warehouse;
 
 use App\Enum\SpoolStatus;
+use App\Service\Warehouse\CableTypeBrowseFilter;
 use App\Service\Warehouse\InventuraBriefGroupLabel;
 use App\Service\Warehouse\InventuraExcelExporter;
 use App\Service\Warehouse\SpoolMeterService;
@@ -41,7 +42,12 @@ final class StockBrowseController extends AbstractController
                 $cableTypeIdsFromForm = [(int) $legacy];
             }
         }
-        $cableTypeIdsForQuery = self::normalizeCableTypeIdsIfAllSelected($cableTypeIdsFromForm, $allCableTypeIds);
+        $cableTypeUnsetFromForm = self::parseCableTypeUnset($request);
+        $cableTypeFilter = self::resolveCableTypeBrowseFilter(
+            $cableTypeIdsFromForm,
+            $cableTypeUnsetFromForm,
+            $allCableTypeIds,
+        );
 
         $statuses = self::parseStatusList($request);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
@@ -49,7 +55,7 @@ final class StockBrowseController extends AbstractController
 
         return $this->render('warehouse/stock_browse.html.twig', [
             'spools' => $spools->findFiltered(
-                $cableTypeIdsForQuery,
+                $cableTypeFilter,
                 $statuses,
                 '' !== $reelQ ? $reelQ : null,
                 500,
@@ -58,8 +64,11 @@ final class StockBrowseController extends AbstractController
             'searchQuery' => $reelQ,
             'cableTypeChoices' => $choiceEntities,
             'filterCableTypeIds' => $cableTypeIdsFromForm,
-            'cableTypeFilterIsAll' => $cableTypeIdsForQuery === [] && $cableTypeIdsFromForm !== [],
-            'cableTypeFilterIsNone' => $cableTypeIdsFromForm === [] && $cableTypeIdsForQuery === [],
+            'filterCableTypeUnset' => $cableTypeUnsetFromForm,
+            'cableTypeFilterIsAll' => !$cableTypeFilter->restrictsCableDimension()
+                && ($cableTypeIdsFromForm !== [] || $cableTypeUnsetFromForm),
+            'cableTypeFilterIsNone' => $cableTypeIdsFromForm === [] && !$cableTypeUnsetFromForm
+                && !$cableTypeFilter->restrictsCableDimension(),
             'allStatusesSelected' => \count($statuses) === \count(SpoolStatus::cases()),
             'filterStatusValues' => array_map(
                 static fn (SpoolStatus $s) => $s->value,
@@ -94,12 +103,16 @@ final class StockBrowseController extends AbstractController
         \sort($allCableTypeIds, \SORT_NUMERIC);
 
         $cableTypeIdsFromForm = self::parseIdList($request, 'cableTypeIds');
-        $cableTypeIdsForQuery = self::normalizeCableTypeIdsIfAllSelected($cableTypeIdsFromForm, $allCableTypeIds);
+        $cableTypeFilter = self::resolveCableTypeBrowseFilter(
+            $cableTypeIdsFromForm,
+            self::parseCableTypeUnset($request),
+            $allCableTypeIds,
+        );
         $statuses = self::parseStatusList($request);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
 
         try {
-            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeIdsForQuery, $statuses, 500, $onlyNeedsCorrection);
+            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeFilter, $statuses, 500, $onlyNeedsCorrection);
         } catch (\Throwable $e) {
             return $this->json([
                 'ok' => false,
@@ -338,26 +351,52 @@ final class StockBrowseController extends AbstractController
         return array_values($seen);
     }
 
+    private static function parseCableTypeUnset(Request $request): bool
+    {
+        $v = $request->query->get('cableTypeUnset');
+
+        return '1' === (string) $v || 1 === $v || true === $v;
+    }
+
     /**
-     * Zaškrtnuto „Vše“ = všechny typy v seznamu → v DB bez omezení (vč. cívek bez typu).
+     * Zaškrtnuto „Vše“ (všechny typy + bez typu) → bez omezení v DB.
+     * Všechny typy bez „bez typu“ → jen cívky s přiřazeným typem.
+     * Jen „bez typu“ → c.id IS NULL.
      *
      * @param list<int> $selected
      * @param list<int> $allIds
-     *
-     * @return list<int>
      */
-    private static function normalizeCableTypeIdsIfAllSelected(array $selected, array $allIds): array
-    {
-        if ($selected === [] || $allIds === []) {
-            return $selected;
+    private static function resolveCableTypeBrowseFilter(
+        array $selected,
+        bool $includeUnsetFromForm,
+        array $allIds,
+    ): CableTypeBrowseFilter {
+        if ($selected === [] && !$includeUnsetFromForm) {
+            return new CableTypeBrowseFilter();
         }
-        if (\count($selected) !== \count($allIds)) {
-            return $selected;
-        }
-        $a = $selected;
-        \sort($a, \SORT_NUMERIC);
 
-        return $a === $allIds ? [] : $selected;
+        $allCatalogSelected = false;
+        if ($selected !== [] && $allIds !== []) {
+            $a = $selected;
+            \sort($a, \SORT_NUMERIC);
+            $b = $allIds;
+            \sort($b, \SORT_NUMERIC);
+            $allCatalogSelected = $a === $b;
+        }
+
+        if ($allCatalogSelected) {
+            if ($includeUnsetFromForm) {
+                return new CableTypeBrowseFilter();
+            }
+
+            return new CableTypeBrowseFilter(onlyWithAssignedType: true);
+        }
+
+        if ($selected === [] && $includeUnsetFromForm) {
+            return new CableTypeBrowseFilter(includeUnset: true);
+        }
+
+        return new CableTypeBrowseFilter(ids: $selected, includeUnset: $includeUnsetFromForm);
     }
 
     /**
