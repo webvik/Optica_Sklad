@@ -136,12 +136,60 @@
             min-height: 2.65rem;
             padding: 0.5rem 1.05rem;
         }
+        .spool-card-edit-bar {
+            margin: 0 0 0.85rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.35rem 0.5rem;
+        }
+        .spool-card-edit-bar__hint {
+            color: #555;
+            font-size: 0.9rem;
+            line-height: 1.3;
+        }
+        a.spool-card-edit-link {
+            display: inline-flex;
+            width: auto;
+            flex: 0 0 auto;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            line-height: 1.2;
+            min-height: 2.55rem;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.92rem;
+            font-weight: 600;
+            border-radius: 6px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @media (max-width: 48rem) {
+            a.spool-card-edit-link {
+                min-height: 2.55rem;
+                padding: 0.4rem 0.6rem;
+                font-size: 0.92rem;
+                line-height: 1.2;
+                width: auto;
+            }
+        }
     </style>
 {% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <h1>Cívka {{ spool.reelNumber }}</h1>
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
+    {% if is_granted('ROLE_SKLAD_EDIT') %}
+        {% if editMode|default(false) and editCoreForm is defined and editCoreForm %}
+            {% include 'warehouse/spool/_spool_edit_core_data.html.twig' %}
+        {% else %}
+            <p class="spool-card-edit-bar">
+                <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_show', {id: spool.id, upravit: 1}) }}">Upravit údaje cívky</a>
+                <span class="spool-card-edit-bar__hint">— délka L, PS, vlákna, Ø</span>
+            </p>
+        {% endif %}
+    {% endif %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
     {% if assignCableForm is defined and assignCableForm %}
         <details class="assign-cable-type-disclosure" id="doplnit-typ">

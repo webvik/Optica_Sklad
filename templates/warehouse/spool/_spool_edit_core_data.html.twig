@@ -1,0 +1,51 @@
+{# Proměnné: spool, editCoreForm #}
+<div class="spool-edit-core" id="spool-edit-core">
+    <h2 style="font-size:1.1rem;margin:0 0 0.65rem;">Upravit údaje cívky</h2>
+    {{ form_start(editCoreForm, {
+        action: path('warehouse_spool_edit_core', { id: spool.id }),
+        method: 'post',
+        attr: { class: 'spool-form spool-form--edit-core', id: 'spool-edit-core-form' },
+    }) }}
+        <input type="hidden" name="_token" value="{{ csrf_token('spool_edit_core_' ~ spool.id) }}">
+        <div class="spool-form__field">
+            {{ form_label(editCoreForm.totalLengthM) }}
+            <div class="spool-form__value">
+                {{ form_widget(editCoreForm.totalLengthM) }}
+                {{ form_errors(editCoreForm.totalLengthM) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(editCoreForm.initialVisibleM) }}
+            <div class="spool-form__value">
+                {{ form_widget(editCoreForm.initialVisibleM) }}
+                {{ form_errors(editCoreForm.initialVisibleM) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(editCoreForm.fiberCount) }}
+            <div class="spool-form__value">
+                {{ form_widget(editCoreForm.fiberCount) }}
+                {{ form_errors(editCoreForm.fiberCount) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(editCoreForm.diameterMm) }}
+            <div class="spool-form__value">
+                {{ form_widget(editCoreForm.diameterMm) }}
+                {{ form_errors(editCoreForm.diameterMm) }}
+            </div>
+        </div>
+        <p style="margin:0 0 0.65rem;font-size:0.88rem;color:#555;max-width:36rem;">
+            Změna délky L nebo PS nepřepočítá automaticky zůstatek ani deník — po úpravě zkontrolujte součty a případně zapište korekci.
+        </p>
+        <div class="spool-form__field spool-form__row--actions">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value spool-form__value--actions">
+                <div class="spool-form__actions">
+                    <a class="ui-btn-secondary spool-form__btn" href="{{ path('warehouse_spool_show', {id: spool.id}) }}">Zrušit</a>
+                    <button type="submit" class="spool-form__btn">Uložit</button>
+                </div>
+            </div>
+        </div>
+    {{ form_end(editCoreForm, { render_rest: false }) }}
+</div>

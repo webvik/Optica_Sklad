@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\SpoolEventType;
 use App\Enum\SpoolStatus;
 use App\Form\SpoolAssignCableTypeFormType;
+use App\Form\SpoolEditCoreDataFormType;
 use App\Form\SpoolEventFormType;
 use App\Form\SpoolFormType;
 use App\Repository\CableFamilyRepository;
@@ -460,10 +461,54 @@ final class SpoolController extends AbstractController
         return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
     }
 
+    #[Route('/{id}/upravit-udaje', name: 'edit_core', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function editCoreData(Request $request, Spool $spool, EntityManagerInterface $em): Response
+    {
+        if (!$this->isCsrfTokenValid('spool_edit_core_'.$spool->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $form = $this->createForm(SpoolEditCoreDataFormType::class, $spool);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $fiber = $form->get('fiberCount')->getData();
+            $spool->setFiberCount(null !== $fiber && '' !== (string) $fiber ? (int) $fiber : null);
+            $diam = $form->get('diameterMm')->getData();
+            if (null === $diam || '' === (string) $diam) {
+                $spool->setDiameterMm(null);
+            } else {
+                $spool->setDiameterMm((string) $diam);
+            }
+            $u = $this->getUser();
+            if ($u instanceof User) {
+                $spool->setUpdatedBy($u);
+            }
+            $em->flush();
+            $this->addFlash('success', 'Údaje cívky byly uloženy. Deník se nepřepočítává automaticky — při potřebě proveďte korekci v záznamech.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $this->addFlash('error', 'Údaje se nepodařilo uložit. Zkontrolujte formulář.');
+
+        return $this->redirectToRoute('warehouse_spool_show', [
+            'id' => $spool->getId(),
+            'upravit' => 1,
+        ]);
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
     public function show(Request $request, Spool $spool, SpoolMeterService $meter, EntityManagerInterface $em): Response
     {
         $assignCableForm = null;
+        $editCoreForm = null;
+        $editMode = $request->query->getBoolean('upravit');
+        if ($editMode && $this->isGranted(WarehouseRole::EDIT)) {
+            $editCoreForm = $this->createForm(SpoolEditCoreDataFormType::class, $spool)->createView();
+        }
         if (null === $spool->getCableType()) {
             $assignCableForm = $this->createForm(SpoolAssignCableTypeFormType::class, $spool)->createView();
         }
@@ -568,6 +613,8 @@ final class SpoolController extends AbstractController
             'spool' => $spool,
             'form' => $form,
             'assignCableForm' => $assignCableForm,
+            'editCoreForm' => $editCoreForm,
+            'editMode' => $editMode,
         ]);
     }
 
