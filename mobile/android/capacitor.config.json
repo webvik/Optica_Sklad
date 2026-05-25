@@ -1,0 +1,17 @@
+{
+  "appId": "net.lowpartners.optica",
+  "appName": "Optický sklad",
+  "webDir": "www",
+  "server": {
+    "url": "https://optica.lowpartners.net",
+    "cleartext": false,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "optica.lowpartners.net",
+      "lowpartners.net"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

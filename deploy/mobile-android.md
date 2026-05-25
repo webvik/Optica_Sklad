@@ -28,7 +28,7 @@
 
 | | URL | Poznámka |
 |---|-----|----------|
-| Produkce | `https://optica.lowpartners.net` | výchozí v `capacitor.config.ts` |
+| Produkce | `https://optica.lowpartners.net` | výchozí v `capacitor.config.json` |
 | Beta | `https://lowpartners.net` | přepnutí `server.url` před buildem |
 
 ## Lokální vývoj obalu

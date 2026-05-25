@@ -34,11 +34,7 @@ V Android Studio: **Run** na zařízení nebo emulátoru.
 
 ## Beta místo produkce
 
-V `capacitor.config.ts` změň:
-
-```ts
-server: { url: 'https://lowpartners.net', ... }
-```
+V `capacitor.config.json` změň `server.url` na `https://lowpartners.net`
 
 Pak:
 
