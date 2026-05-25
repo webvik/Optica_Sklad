@@ -1,0 +1,9 @@
+node_modules/
+android/
+.idea/
+*.iml
+local.properties
+.gradle/
+build/
+captures/
+.DS_Store
