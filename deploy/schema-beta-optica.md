@@ -31,3 +31,9 @@ V kořeni projektu `/home/httpd/html/optica.lowpartners.net/`:
 ## Beta `lowpartners.net`
 
 Stávající `.env.local` / `.env.prod.local` na `/home/httpd/html/lowpartners.net/` **neměnit** kvůli testerům.
+
+## Zálohy DB a sync prod → beta / lokál
+
+Dumpy na serveru: `/home/httpd/html/backups_DB_alivegirl.net/` (viz `deploy/db-sync.md`, skripty `deploy/db-dump-prod-*.sh`).
+
+Lokál: MariaDB `optica_sklad`, uživatel `OpS_User` (`.env.local`). Na betě při syncu skladu **nepřenášet** `app_user` ani `user_audit_log`.
