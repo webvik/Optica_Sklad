@@ -13,13 +13,13 @@ final class MobileApkSettings
 {
     public function __construct(
         #[Autowire(env: 'bool:BETA_WELCOME_ENABLED')] private readonly bool $betaWelcomeEnabled,
-        #[Autowire(env: 'default::string:MOBILE_APK_DOWNLOAD_ENABLED')] private readonly string $mobileApkDownloadEnabledRaw = '',
+        #[Autowire(env: 'default:mobile_apk_download_enabled_default:MOBILE_APK_DOWNLOAD_ENABLED')] private readonly ?string $mobileApkDownloadEnabledRaw = null,
     ) {
     }
 
     public function isDownloadEnabled(): bool
     {
-        $raw = trim($this->mobileApkDownloadEnabledRaw);
+        $raw = trim($this->mobileApkDownloadEnabledRaw ?? '');
         if ('' !== $raw) {
             return filter_var($raw, FILTER_VALIDATE_BOOLEAN);
         }

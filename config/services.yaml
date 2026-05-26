@@ -10,6 +10,7 @@ parameters:
     env(BETA_WHATSAPP_PHONE): ''
     env(BETA_WELCOME_ENABLED): '1'
     env(MOBILE_APK_DOWNLOAD_ENABLED): ''
+    mobile_apk_download_enabled_default: ''
     env(AUDIT_HTTP_LOG_MODE): detailed
     env(AUDIT_LOG_FORM_FIELDS): '0'
     env(USER_AUDIT_LOG_RETENTION_DAYS): '30'
