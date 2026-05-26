@@ -1,0 +1,33 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Android aplikace — Optický sklad{% endblock %}
+
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+
+    <h1>Android aplikace</h1>
+
+    <p>
+        Toto je interní aplikace pro Android (APK), která otevírá web <code>optica.lowpartners.net</code> v režimu aplikace.
+        Pro běžné používání stačí internet a přihlašovací údaje.
+    </p>
+
+    <h2>Stažení</h2>
+    <p>
+        <a class="warehouse-pill" href="/download/optica-sklad.apk">Stáhnout Optický sklad (APK)</a>
+    </p>
+
+    <h2>Instalace</h2>
+    <ol>
+        <li>Stáhněte soubor <strong>APK</strong> do telefonu.</li>
+        <li>Otevřete stažený soubor (Obvykle: <em>Stažené soubory</em> / <em>Downloads</em>).</li>
+        <li>Pokud Android požádá, povolte instalaci z neznámého zdroje pro váš prohlížeč / správce souborů.</li>
+        <li>Nainstalujte a spusťte aplikaci <strong>Optický sklad</strong>.</li>
+    </ol>
+
+    <h2>Aktualizace</h2>
+    <p>
+        Při nové verzi stáhněte APK znovu a nainstalujte (přepíše se přes stávající aplikaci).
+    </p>
+{% endblock %}
+

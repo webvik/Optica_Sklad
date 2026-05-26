@@ -97,5 +97,8 @@
     {% else %}
         <h2>Přihlášení</h2>
         {% include '_login_form.html.twig' with { last_username: last_username|default(''), error: error|default(null) } only %}
+        <p style="margin-top: 1.1rem;">
+            <a class="warehouse-pill" href="{{ path('app_mobile_info') }}">Android aplikace (APK)</a>
+        </p>
     {% endif %}
 {% endblock %}
