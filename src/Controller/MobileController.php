@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\MobileApkSettings;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -12,7 +13,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class MobileController extends AbstractController
 {
     public function __construct(
-        #[Autowire(env: 'bool:BETA_WELCOME_ENABLED')] private readonly bool $betaWelcomeEnabled,
+        private readonly MobileApkSettings $mobileApkSettings,
         #[Autowire(param: 'kernel.project_dir')] private readonly string $projectDir,
     ) {
     }
@@ -30,7 +31,7 @@ final class MobileController extends AbstractController
     #[Route('/download/optica-sklad.apk', name: 'app_mobile_apk_download', methods: ['GET'])]
     public function apkDownload(): Response
     {
-        if ($this->betaWelcomeEnabled) {
+        if (!$this->mobileApkSettings->isDownloadEnabled()) {
             return $this->render('mobile/apk_prod_only.html.twig');
         }
 

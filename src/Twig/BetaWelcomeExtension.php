@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Service\MobileApkSettings;
 use App\Support\BetaWelcomeContent;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Twig\Extension\AbstractExtension;
@@ -14,6 +15,7 @@ final class BetaWelcomeExtension extends AbstractExtension
     public function __construct(
         #[Autowire(env: 'BETA_WHATSAPP_PHONE')] private readonly string $betaWhatsappPhoneDigits,
         #[Autowire(env: 'bool:BETA_WELCOME_ENABLED')] private readonly bool $betaWelcomeEnabled,
+        private readonly MobileApkSettings $mobileApkSettings,
     ) {
     }
 
@@ -50,10 +52,9 @@ final class BetaWelcomeExtension extends AbstractExtension
         return BetaWelcomeContent::whatsappDisplayLabel($this->betaWhatsappPhoneDigits);
     }
 
-    /** APK se na beta instanci nenabízí ke stažení. */
     public function mobileApkDownloadEnabled(): bool
     {
-        return !$this->betaWelcomeEnabled;
+        return $this->mobileApkSettings->isDownloadEnabled();
     }
 
     public function mobileApkProdPageUrl(): string
