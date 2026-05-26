@@ -4,9 +4,29 @@ Nativní obal otevírá produkční web v WebView. Logika zůstává na Symfony 
 
 ## Požadavky (PC — např. vik-pc)
 
-- **Node.js 18+** a `npm` (`sudo apt install npm` nebo nvm)
-- **Android Studio** + Android SDK (Platform Tools)
-- **JAVA_HOME** = JDK 17 (Android Studio → Settings → Build Tools)
+- **Node.js 18+** a `npm` (nvm)
+- **JDK 17** — `sudo apt install openjdk-17-jdk`
+- **Android SDK** — nejjednodušší přes **Android Studio** (bez SDK Gradle hlásí `SDK location not found`)
+
+### Instalace Android SDK (jednou)
+
+1. Stáhni a nainstaluj [Android Studio](https://developer.android.com/studio).
+2. První spuštění → průvodce stáhne SDK do `~/Android/Sdk`.
+3. V `~/.bashrc` (volitelně):
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+```
+
+4. V projektu:
+
+```bash
+chmod +x scripts/write-local-properties.sh
+./scripts/write-local-properties.sh
+```
+
+Vytvoří `android/local.properties` se řádkem `sdk.dir=...` (Gradle to vyžaduje).
 
 Ověření:
 
@@ -26,9 +46,17 @@ npx cap sync android
 
 ## Vývoj / emulátor
 
+Capacitor hledá Studio v `/usr/local/android-studio/` — pokud máš jinde, nastav cestu:
+
 ```bash
+export CAPACITOR_ANDROID_STUDIO_PATH="$HOME/Downloads/android-studio-panda4/android-studio/bin/studio"
+# nebo po přesunu: export CAPACITOR_ANDROID_STUDIO_PATH="$HOME/android-studio/bin/studio"
 npx cap open android
 ```
+
+Trvale do `~/.bashrc` (uprav cestu podle skutečného umístění).
+
+**Bez `cap open`:** ve Studiu **Open** → `.../Optica_Sklad/mobile/android/android`
 
 V Android Studio: **Run** na zařízení nebo emulátoru.
 
@@ -42,10 +70,30 @@ Pak:
 npx cap sync android
 ```
 
+## Ikona aplikace (stejná jako favicon webu)
+
+Zdroj: `assets/icon-full.svg` (= `public/favicon.svg`), žlutá `#FFCC00` + cívka.
+
+```bash
+npm install
+npm run icons:generate
+npm run android:assembleDebug
+```
+
+Po `cap sync` ikony nepřepisuje — při změně faviconu znovu `npm run icons:generate`.
+
+## Po každém `cap sync` (kamera pro sken)
+
+```bash
+chmod +x scripts/patch-android-manifest.sh
+./scripts/patch-android-manifest.sh
+```
+
 ## Release APK (debug pro interní distribuci)
 
 ```bash
 npx cap sync android
+./scripts/patch-android-manifest.sh
 cd android
 ./gradlew assembleDebug
 ```

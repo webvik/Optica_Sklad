@@ -4,15 +4,19 @@
   "version": "0.1.0",
   "description": "Android WebView shell for Optický sklad (Capacitor)",
   "scripts": {
-    "cap:sync": "cap sync android",
+    "cap:sync": "cap sync android && bash scripts/patch-android-manifest.sh",
     "cap:open": "cap open android",
-    "android:assembleDebug": "cd android && ./gradlew assembleDebug"
+    "android:sdk": "bash scripts/write-local-properties.sh",
+    "android:assembleDebug": "bash scripts/write-local-properties.sh && cd android && ./gradlew assembleDebug",
+    "android:apk": "npm run cap:sync && npm run android:assembleDebug",
+    "icons:generate": "node scripts/generate-app-icons.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
     "@capacitor/core": "^6.2.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.2.0"
+    "@capacitor/cli": "^6.2.0",
+    "sharp": "^0.33.5"
   }
 }
