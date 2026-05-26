@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Android aplikace — pouze produkce{% endblock %}
+
+{% block body %}
+    {% include '_app_menu_cz.html.twig' %}
+
+    <h1>Android aplikace</h1>
+
+    {% include 'mobile/_apk_unavailable_beta.html.twig' %}
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .mobile-apk-notice {
+            max-width: 42rem;
+            margin: 1rem 0 1.5rem;
+            padding: 1rem 1.15rem;
+            border: 1px solid #c5d4e8;
+            border-radius: 8px;
+            background: #f4f8fc;
+            line-height: 1.55;
+        }
+        .mobile-apk-notice__lead { margin: 0 0 .75rem; }
+        .mobile-apk-notice p { margin: 0 0 .65rem; }
+        .mobile-apk-notice p:last-child { margin-bottom: 0; }
+        .mobile-apk-notice__prod-link { display: inline-block; margin-top: .25rem; }
+    </style>
+{% endblock %}

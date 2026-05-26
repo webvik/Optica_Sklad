@@ -24,6 +24,8 @@ final class BetaWelcomeExtension extends AbstractExtension
             new TwigFunction('beta_welcome_paragraphs', $this->paragraphs(...)),
             new TwigFunction('beta_whatsapp_contact_url', $this->whatsappUrl(...)),
             new TwigFunction('beta_whatsapp_contact_label', $this->whatsappLabel(...)),
+            new TwigFunction('mobile_apk_download_enabled', $this->mobileApkDownloadEnabled(...)),
+            new TwigFunction('mobile_apk_prod_page_url', $this->mobileApkProdPageUrl(...)),
         ];
     }
 
@@ -46,5 +48,16 @@ final class BetaWelcomeExtension extends AbstractExtension
     public function whatsappLabel(): string
     {
         return BetaWelcomeContent::whatsappDisplayLabel($this->betaWhatsappPhoneDigits);
+    }
+
+    /** APK se na beta instanci nenabízí ke stažení. */
+    public function mobileApkDownloadEnabled(): bool
+    {
+        return !$this->betaWelcomeEnabled;
+    }
+
+    public function mobileApkProdPageUrl(): string
+    {
+        return BetaWelcomeContent::PROD_MOBILE_PAGE_URL;
     }
 }

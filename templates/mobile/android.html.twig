@@ -13,23 +13,48 @@
     </p>
 
     <h2>Stažení</h2>
-    <nav class="app-menu" aria-label="Stažení APK">
-        <ul class="app-menu__list">
-            <li><a class="app-menu__nav-link" href="/download/optica-sklad.apk">Stáhnout Optický sklad (APK)</a></li>
-        </ul>
-    </nav>
+    {% if mobile_apk_download_enabled() %}
+        <nav class="app-menu" aria-label="Stažení APK">
+            <ul class="app-menu__list">
+                <li><a class="app-menu__nav-link" href="{{ path('app_mobile_apk_download') }}">Stáhnout Optický sklad (APK)</a></li>
+            </ul>
+        </nav>
 
-    <h2>Instalace</h2>
-    <ol>
-        <li>Stáhněte soubor <strong>APK</strong> do telefonu.</li>
-        <li>Otevřete stažený soubor (Obvykle: <em>Stažené soubory</em> / <em>Downloads</em>).</li>
-        <li>Pokud Android požádá, povolte instalaci z neznámého zdroje pro váš prohlížeč / správce souborů.</li>
-        <li>Nainstalujte a spusťte aplikaci <strong>Optický sklad</strong>.</li>
-    </ol>
+        <h2>Instalace</h2>
+        <ol>
+            <li>Stáhněte soubor <strong>APK</strong> do telefonu.</li>
+            <li>Otevřete stažený soubor (Obvykle: <em>Stažené soubory</em> / <em>Downloads</em>).</li>
+            <li>Pokud Android požádá, povolte instalaci z neznámého zdroje pro váš prohlížeč / správce souborů.</li>
+            <li>Nainstalujte a spusťte aplikaci <strong>Optický sklad</strong>.</li>
+        </ol>
 
-    <h2>Aktualizace</h2>
-    <p>
-        Při nové verzi stáhněte APK znovu a nainstalujte (přepíše se přes stávající aplikaci).
-    </p>
+        <h2>Aktualizace</h2>
+        <p>
+            Při nové verzi stáhněte APK znovu a nainstalujte (přepíše se přes stávající aplikaci).
+        </p>
+    {% else %}
+        {% include 'mobile/_apk_unavailable_beta.html.twig' %}
+    {% endif %}
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    {% if not mobile_apk_download_enabled() %}
+    <style>
+        .mobile-apk-notice {
+            max-width: 42rem;
+            margin: 1rem 0 1.5rem;
+            padding: 1rem 1.15rem;
+            border: 1px solid #c5d4e8;
+            border-radius: 8px;
+            background: #f4f8fc;
+            line-height: 1.55;
+        }
+        .mobile-apk-notice__lead { margin: 0 0 .75rem; }
+        .mobile-apk-notice p { margin: 0 0 .65rem; }
+        .mobile-apk-notice p:last-child { margin-bottom: 0; }
+        .mobile-apk-notice__prod-link { display: inline-block; margin-top: .25rem; }
+    </style>
+    {% endif %}
 {% endblock %}
 

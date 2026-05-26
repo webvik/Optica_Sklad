@@ -9,6 +9,9 @@ namespace App\Support;
  */
 final class BetaWelcomeContent
 {
+    /** Stránka stažení APK — jen produkční instance. */
+    public const PROD_MOBILE_PAGE_URL = 'https://optica.lowpartners.net/mobil';
+
     /** @var list<string> */
     private const PARAGRAPHS = [
         'Vysvětlení týkající se aktuálního fungování programu během beta testování:',
