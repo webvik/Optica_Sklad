@@ -190,35 +190,111 @@
                 font-size: 1rem;
             }
         }
-        .work-top-area { max-width: 40rem; width: 100%; margin-bottom: 0.75rem; }
-        .work-top-area.is-search-collapsed .work-page-lede { display: none; }
-        .work-top-area.is-search-collapsed .work-search-form-wrap { display: none; }
-        .work-search-next-tl {
-            display: none;
-            box-sizing: border-box;
+        .work-page-chrome { max-width: 60rem; width: 100%; margin-bottom: 0.75rem; }
+        .work-top-area { max-width: 40rem; width: 100%; }
+        .work-page-chrome.is-search-collapsed .work-page-lede { display: none; }
+        .work-page-chrome.is-search-collapsed .work-search-form-wrap { display: none; }
+        .work-page-header {
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: 0.5rem;
+            justify-content: space-between;
+            gap: 0.45rem 0.5rem;
             width: 100%;
-            max-width: 40rem;
-            min-height: 2.6rem;
-            padding: 0.55rem 1rem;
-            font: inherit;
-            font-size: 1.05rem;
-            font-weight: 500;
-            cursor: pointer;
-            text-align: left;
-            border: 1px solid #b8c4d0;
-            border-radius: 6px;
-            background: #eef2f6;
-            color: #1a1a1a;
+            max-width: 60rem;
+            margin: 0 0 0.65rem;
         }
-        .work-search-next-tl:hover { background: #e2e8f0; }
-        .work-search-next-tl .work-search-next-ico { flex-shrink: 0; }
-        .work-top-area.is-search-collapsed .work-search-next-tl { display: inline-flex; }
-        @media (max-width: 36rem) {
-            .work-search-next-tl { min-height: 2.75rem; }
-            h1 { font-size: 1.35rem; }
+        .work-page-header h1 {
+            flex: 1 1 auto;
+            min-width: 0;
+            margin: 0;
+            line-height: 1.2;
+        }
+        .work-page-header__search-next {
+            display: none;
+            flex: 0 1 auto;
+            max-width: 100%;
+            gap: 0.4rem;
+            padding: 0.45rem 0.75rem;
+            font-size: 0.92rem;
+            white-space: normal;
+            text-align: center;
+            line-height: 1.15;
+        }
+        .work-page-header__search-next .work-search-next-ico { flex-shrink: 0; }
+        .work-page-chrome.is-search-collapsed .work-page-header__search-next { display: inline-flex; }
+        @media (max-width: 41.99rem) {
+            .work-page-header {
+                flex-wrap: nowrap;
+                align-items: center;
+                gap: 0.35rem;
+            }
+            .work-page-header h1 { font-size: 1.2rem; }
+            .work-page-header__search-next {
+                flex: 0 0 auto;
+                min-height: 2.75rem;
+                max-width: min(11.5rem, 46vw);
+                padding: 0.4rem 0.55rem;
+                font-size: 0.8rem;
+            }
+            .work-page-header__search-next .work-search-next-ico { width: 17px; height: 17px; }
             .work-result-h2 { font-size: 0.95rem !important; }
+        }
+        @media (min-width: 42rem) {
+            .work-page-header h1 { font-size: 1.65rem; }
+            .work-page-header__search-next { font-size: 0.95rem; max-width: 14rem; }
+        }
+        .work-spool-mobile-summary { display: none; margin: 0.15rem 0 0.75rem; line-height: 1.35; }
+        .work-spool-mobile-summary__row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 0.35rem 0.65rem;
+        }
+        .work-spool-mobile-summary__row--head { margin-bottom: 0.45rem; }
+        .work-spool-mobile-summary__row--metrics { gap: 0.5rem 1rem; }
+        .work-spool-mobile-summary__sare {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.35rem 0.5rem;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+        .work-spool-mobile-summary__lbl {
+            font-weight: 500;
+            font-size: 0.88rem;
+            color: #444;
+        }
+        .work-spool-mobile-summary__val {
+            font-weight: 700;
+            font-size: 1.12rem;
+            font-variant-numeric: tabular-nums;
+            color: #111;
+        }
+        .work-spool-mobile-summary__brief {
+            flex: 0 1 auto;
+            max-width: 100%;
+            font-size: 0.82rem;
+            color: #333;
+            text-align: right;
+        }
+        .work-spool-mobile-summary__metric {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.3rem 0.45rem;
+            min-width: 0;
+            flex: 1 1 8rem;
+        }
+        .work-spool-mobile-summary__warn { color: #a00; cursor: help; }
+        @media (max-width: 41.99rem) {
+            .work-results--single-selected .work-result-h2,
+            .work-results--single-selected .work-result-h2--count-only,
+            .work-results--single-selected .work-spool-table-wrap,
+            .work-results--single-selected .work-pick-hint { display: none !important; }
+            .work-results--single-selected .work-spool-mobile-summary { display: block; }
         }
         #work-scan-cancel { min-height: 2.75rem; min-width: 7rem; padding: 0.5rem 1.2rem; }
         .work-scan-sare-mode-row {
@@ -340,33 +416,37 @@
 {% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
-    <h1>Práce s optikou</h1>
-    <div id="work-top-area" class="work-top-area{% if searchPerformed and spools|length == 1 %} is-search-collapsed{% endif %}">
-    <p class="lede work-page-lede" id="work-page-lede">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po pauze se hledá samo. Při více shodách <strong>klikněte na řádek</strong>.<span id="work-data-lede"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}> U vybrané cívky můžete v bloku <em>Záznam pro práci</em> hned <strong>pod tabulkou</strong> zapsat <strong>zafuk</strong> tlačítkem <strong>Zapsat</strong>.</span></p>
+    <div id="work-page-chrome" class="work-page-chrome{% if searchPerformed and spools|length == 1 %} is-search-collapsed{% endif %}">
+        <div class="work-page-header">
+            <h1>Práce s optikou</h1>
+            <button type="button" id="work-search-expand-btn" class="work-page-header__search-next work-search-action-btn ui-btn-primary" title="Rozbalit hledání další cívky" aria-controls="work-top-area" aria-expanded="false">
+                <svg class="work-search-next-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+                    <circle cx="10.5" cy="10.5" r="6.5"></circle>
+                    <path d="M16 16l4.5 4.5"></path>
+                </svg>
+                <span>Hledat další cívku</span>
+            </button>
+        </div>
+        <div id="work-top-area" class="work-top-area">
+        <p class="lede work-page-lede" id="work-page-lede">Zadejte <strong>číslo saře</strong> a stiskněte <strong>Hledat</strong>, nebo pište — po pauze se hledá samo. Při více shodách <strong>klikněte na řádek</strong>.<span id="work-data-lede"{% if not (searchPerformed and spools|length == 1) %} hidden{% endif %}> U vybrané cívky můžete v bloku <em>Záznam pro práci</em> hned <strong>pod tabulkou</strong> zapsat <strong>zafuk</strong> tlačítkem <strong>Zapsat</strong>.</span></p>
 
-    <div class="work-search-shell">
-    <div class="work-search-form-wrap">
-    <form id="work-search-form" method="get" action="{{ path('warehouse_spool_index') }}" style="margin: 0;">
-        <p style="margin: 0;">
-            <label for="work-q" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">Číslo saře</label>
-            <span class="work-search-field-row" style="width: 100%;">
-                <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="např. 450-1470">
-                <span class="work-search-sare-scan-group">
-                    <button type="submit" class="work-search-action-btn ui-btn-primary">Hledat</button>
-                    <button type="button" id="work-scan-btn" class="work-search-action-btn ui-btn-secondary work-scan-tl" data-work-scan-mode="sare" title="Sken čísla saře: úzký pruh nad kódem → pole Číslo saře (upravte před Hledat)">Sken</button>
+        <div class="work-search-shell">
+        <div class="work-search-form-wrap">
+        <form id="work-search-form" method="get" action="{{ path('warehouse_spool_index') }}" style="margin: 0;">
+            <p style="margin: 0;">
+                <label for="work-q" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">Číslo saře</label>
+                <span class="work-search-field-row" style="width: 100%;">
+                    <input type="text" name="q" id="work-q" class="work-input-sare" value="{{ searchQuery|e('html_attr') }}" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="např. 450-1470">
+                    <span class="work-search-sare-scan-group">
+                        <button type="submit" class="work-search-action-btn ui-btn-primary">Hledat</button>
+                        <button type="button" id="work-scan-btn" class="work-search-action-btn ui-btn-secondary work-scan-tl" data-work-scan-mode="sare" title="Sken čísla saře: úzký pruh nad kódem → pole Číslo saře (upravte před Hledat)">Sken</button>
+                    </span>
                 </span>
-            </span>
-        </p>
-    </form>
-    </div>
-    <button type="button" id="work-search-expand-btn" class="work-search-next-tl" title="Rozbalit nápovědu a hledání další cívky" aria-controls="work-top-area" aria-expanded="false">
-        <svg class="work-search-next-ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
-            <circle cx="10.5" cy="10.5" r="6.5"></circle>
-            <path d="M16 16l4.5 4.5"></path>
-        </svg>
-        <span>Hledat další cívku</span>
-    </button>
-    </div>
+            </p>
+        </form>
+        </div>
+        </div>
+        </div>
     </div>
 
     <p id="work-ajax-hint" style="color: #666; font-size: .9em; min-height: 1.2em; margin: 0.35rem 0 0.6rem;" aria-live="polite"></p>
@@ -377,7 +457,16 @@
         {% if spools is empty %}
             <p style="color: #333;"><strong>Žádná shoda</strong> pro dotaz «{{ searchQuery|e }}».</p>
         {% else %}
+            <div class="work-results-block{% if spools|length == 1 %} work-results--single-selected{% endif %}">
+            {% if spools|length > 1 %}
             <h2 class="work-result-h2" style="font-size: 1.1rem; margin: 0.35rem 0 .5rem;">Výsledek ({{ spools|length }})</h2>
+            {% else %}
+            <h2 class="work-result-h2 work-result-h2--count-only" style="font-size: 1.1rem; margin: 0.35rem 0 .5rem;">Výsledek (1)</h2>
+            {% include 'warehouse/spool/_work_spool_mobile_summary.html.twig' with {
+                spool: spools[0],
+                rem: spoolRemaining[spools[0].id] ?? null,
+            } only %}
+            {% endif %}
             <div class="table-scroll table-scroll--wide work-spool-table-wrap">
             <table class="work-spool-table">
                 <thead>
@@ -408,6 +497,7 @@
             {% if spools|length > 1 %}
             <p id="work-pick-hint" class="work-pick-hint" style="margin: .75rem 0 .5rem; color: #444;">Vyberte správnou cívku <strong>kliknutím na řádek</strong> v tabulce; níže můžete zapsat zafuk, pod tím se načte karta a deník.</p>
             {% endif %}
+            </div>
         {% endif %}
     {% endif %}
         </div>
@@ -511,6 +601,7 @@
   var debounceMs = 380;
   var meterState = { s: null, bound: false };
   var lastSpoolsList = [];
+  var workPageChrome = document.getElementById('work-page-chrome');
   var workTopArea = document.getElementById('work-top-area');
   var expandSearchBtn = document.getElementById('work-search-expand-btn');
   /** Telemetrie skenu (mobil bez konzole): na stránce přidej ?scanDbg=1, logy v Monologu [work-scan-client]. */
@@ -545,9 +636,9 @@
   }
 
   function setSearchFormCollapsed(c) {
-    if (workTopArea) {
-      if (c) { workTopArea.classList.add('is-search-collapsed'); }
-      else { workTopArea.classList.remove('is-search-collapsed'); }
+    if (workPageChrome) {
+      if (c) { workPageChrome.classList.add('is-search-collapsed'); }
+      else { workPageChrome.classList.remove('is-search-collapsed'); }
     }
     if (expandSearchBtn) {
       expandSearchBtn.setAttribute('aria-expanded', c ? 'false' : 'true');
@@ -663,6 +754,58 @@
   function tableShell(rowsInner) {
     return '<div class="table-scroll table-scroll--wide work-spool-table-wrap"><table class="work-spool-table"><thead><tr><th>Číslo saře</th><th title="Poslední čtení metru">Běžný stav (m)</th><th>Zbývá (m)</th><th>Typ</th><th>Vláken</th><th>PS (m)</th></tr></thead><tbody>' + rowsInner + '</tbody></table></div>';
   }
+  function isWorkMobileLayout() {
+    return window.matchMedia('(max-width: 41.99rem)').matches;
+  }
+  function formatRemainingPlain(p) {
+    if (p == null) return '—';
+    var v = (p.currentRemainingM != null) ? esc(p.currentRemainingM) + ' m' : '—';
+    var w = p.remainingWarning ? String(p.remainingWarning) : '';
+    var bad = p.remainingDirectionOk === false || (w && w.length);
+    var flag = bad ? (' <span class="work-spool-mobile-summary__warn" title="' + esc(w) + '">⚠</span>') : '';
+    return v + flag;
+  }
+  function formatLastVisiblePlain(p) {
+    if (p == null || p.lastVisibleM == null) return '—';
+    return esc(p.lastVisibleM) + ' m';
+  }
+  function mobileSummaryHtml(p) {
+    var brief = esc((p.briefInventuraLabel != null && p.briefInventuraLabel !== '') ? p.briefInventuraLabel : '—');
+    return '<div class="work-spool-mobile-summary" data-spool-id="' + esc(p.id) + '">'
+      + '<div class="work-spool-mobile-summary__row work-spool-mobile-summary__row--head">'
+      + '<div class="work-spool-mobile-summary__sare"><span class="work-spool-mobile-summary__lbl">Číslo saře</span>'
+      + '<span class="work-spool-mobile-summary__val">' + esc(p.reelNumber) + '</span></div>'
+      + '<span class="work-spool-mobile-summary__brief">' + brief + '</span></div>'
+      + '<div class="work-spool-mobile-summary__row work-spool-mobile-summary__row--metrics">'
+      + '<div class="work-spool-mobile-summary__metric"><span class="work-spool-mobile-summary__lbl">Zbývá</span>'
+      + '<span class="work-spool-mobile-summary__val">' + formatRemainingPlain(p) + '</span></div>'
+      + '<div class="work-spool-mobile-summary__metric"><span class="work-spool-mobile-summary__lbl">Běžný stav</span>'
+      + '<span class="work-spool-mobile-summary__val">' + formatLastVisiblePlain(p) + '</span></div>'
+      + '</div></div>';
+  }
+  function buildResultsHtml(list, selectedSpool) {
+    var n = list.length;
+    var mobile = isWorkMobileLayout();
+    var single = n === 1;
+    var picked = selectedSpool || (single ? list[0] : null);
+    var mobileCard = mobile && !!picked;
+    var h = '<div class="work-results-block' + (mobileCard ? ' work-results--single-selected' : '') + '">';
+    if (!mobileCard) {
+      h += '<h2 class="work-result-h2" style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (' + n + ')</h2>';
+    } else if (!mobile && single) {
+      h += '<h2 class="work-result-h2 work-result-h2--count-only" style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (1)</h2>';
+    }
+    if (mobileCard) { h += mobileSummaryHtml(picked); }
+    var rows = list.map(function (p) {
+      return rowHtml(p, picked && String(picked.id) === String(p.id));
+    }).join('');
+    h += tableShell(rows);
+    if (n > 1 && !mobileCard) {
+      h += '<p id="work-pick-hint" class="work-pick-hint" style="margin:.75rem 0 .5rem;color:#444">Vyberte správnou cívku <strong>kliknutím na řádek</strong> (záznam a karta pod tabulkou).</p>';
+    }
+    h += '</div>';
+    return h;
+  }
   function formatLastVisibleCell(p) {
     if (p == null) return '—';
     return (p.lastVisibleM != null) ? esc(p.lastVisibleM) : '—';
@@ -690,11 +833,10 @@
   function collapseToSelected(p0) {
     if (!results || !p0) return;
     lastSpoolsList = [p0];
-    var h = '<h2 class="work-result-h2" style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (1)</h2>'
-      + tableShell(rowHtml(p0, true));
-    results.innerHTML = h;
+    results.innerHTML = buildResultsHtml([p0], p0);
     loadKarta(p0.id);
     setMeterSpool(p0);
+    setSearchFormCollapsed(true);
   }
   function showSpoolDetail(p0) {
     if (!p0) return;
@@ -799,6 +941,7 @@
   }
   if (expandSearchBtn) {
     expandSearchBtn.addEventListener('click', function () {
+      setSearchFormCollapsed(false);
       setMeterSpool(null);
       if (qIn) { qIn.focus(); try { qIn.select(); } catch (e) {} }
     });
@@ -827,15 +970,12 @@
       if (data && data.ok !== false) maybeOfferWorkSpoolRegistration(data.query);
       return;
     }
-    var rows = list.map(function (p) { return rowHtml(p, list.length === 1); }).join('');
-    var h = '<h2 class="work-result-h2" style="font-size:1.1rem;margin:.35rem 0 .5rem">Výsledek (' + list.length + ')</h2>' + tableShell(rows);
     if (list.length > 1) {
-      h += '<p id="work-pick-hint" class="work-pick-hint" style="margin:.75rem 0 .5rem;color:#444">Vyberte správnou cívku <strong>kliknutím na řádek</strong> (záznam a karta pod tabulkou).</p>';
       setMeterSpool(null);
     } else {
       setMeterSpool(list[0]);
     }
-    results.innerHTML = h;
+    results.innerHTML = buildResultsHtml(list, list.length === 1 ? list[0] : null);
     if (list.length === 1) {
       loadKarta(list[0].id);
       highlightSpoolRow(list[0].id);
@@ -910,7 +1050,7 @@
       }
     } catch (err) {}
   }
-  if (workTopArea && !workTopArea.classList.contains('is-search-collapsed') && expandSearchBtn) {
+  if (workPageChrome && !workPageChrome.classList.contains('is-search-collapsed') && expandSearchBtn) {
     expandSearchBtn.setAttribute('aria-expanded', 'true');
   }
   syncReturnQ();

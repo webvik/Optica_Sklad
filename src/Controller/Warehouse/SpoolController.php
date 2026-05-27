@@ -654,6 +654,7 @@ final class SpoolController extends AbstractController
             'status' => $s->getStatus()->value,
             'statusLabel' => $this->spoolStatusLabel($s->getStatus()),
             'family' => $s->getFamily(),
+            'briefInventuraLabel' => $s->getBriefInventuraLabel(),
             'lastEvents' => $eventsOut,
         ];
     }

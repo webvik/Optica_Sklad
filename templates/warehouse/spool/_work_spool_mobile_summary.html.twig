@@ -1,0 +1,20 @@
+{# Proměnné: spool, rem (pole z SpoolMeterService::remainingForTableDisplay nebo null) #}
+<div class="work-spool-mobile-summary" data-spool-id="{{ spool.id }}">
+    <div class="work-spool-mobile-summary__row work-spool-mobile-summary__row--head">
+        <div class="work-spool-mobile-summary__sare">
+            <span class="work-spool-mobile-summary__lbl">Číslo saře</span>
+            <span class="work-spool-mobile-summary__val">{{ spool.reelNumber }}</span>
+        </div>
+        <span class="work-spool-mobile-summary__brief">{{ spool.briefInventuraLabel }}</span>
+    </div>
+    <div class="work-spool-mobile-summary__row work-spool-mobile-summary__row--metrics">
+        <div class="work-spool-mobile-summary__metric">
+            <span class="work-spool-mobile-summary__lbl">Zbývá</span>
+            <span class="work-spool-mobile-summary__val">{% if rem is not null %}{{ rem.remaining }} m{% if rem.warning %} <span class="work-spool-mobile-summary__warn" title="{{ rem.warning|e('html_attr') }}">⚠</span>{% endif %}{% else %}—{% endif %}</span>
+        </div>
+        <div class="work-spool-mobile-summary__metric">
+            <span class="work-spool-mobile-summary__lbl">Běžný stav</span>
+            <span class="work-spool-mobile-summary__val">{% if spool.lastVisibleM is not null %}{{ spool.lastVisibleM }} m{% else %}—{% endif %}</span>
+        </div>
+    </div>
+</div>
