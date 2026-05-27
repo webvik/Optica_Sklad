@@ -244,7 +244,7 @@
             .work-page-header h1 { font-size: 1.65rem; }
             .work-page-header__search-next { font-size: 0.95rem; max-width: 14rem; }
         }
-        .work-spool-mobile-summary { display: none; margin: 0.15rem 0 0.75rem; line-height: 1.35; }
+        .work-spool-mobile-summary { display: none; margin: 0.15rem 0 0.75rem; line-height: 1.42; }
         .work-spool-mobile-summary__row {
             display: flex;
             flex-wrap: wrap;
@@ -264,19 +264,19 @@
         }
         .work-spool-mobile-summary__lbl {
             font-weight: 500;
-            font-size: 0.88rem;
+            font-size: 0.94rem;
             color: #444;
         }
         .work-spool-mobile-summary__val {
             font-weight: 700;
-            font-size: 1.12rem;
+            font-size: 1.22rem;
             font-variant-numeric: tabular-nums;
             color: #111;
         }
         .work-spool-mobile-summary__brief {
             flex: 0 1 auto;
             max-width: 100%;
-            font-size: 0.95rem;
+            font-size: 1.02rem;
             font-weight: 600;
             color: #222;
             text-align: right;
@@ -290,6 +290,77 @@
             flex: 1 1 8rem;
         }
         .work-spool-mobile-summary__warn { color: #a00; cursor: help; }
+        /* Mobilní hamburger — jen tato stránka */
+        .work-mobile-menu-open {
+            display: none;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0 0 0.65rem;
+            min-height: 2.75rem;
+            padding: 0.45rem 0.85rem;
+            font-size: 1rem;
+        }
+        .work-mobile-menu-open__icon { font-size: 1.15rem; line-height: 1; }
+        .work-mobile-menu-drawer[hidden] { display: none !important; }
+        .work-mobile-menu-drawer {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            display: flex;
+            align-items: stretch;
+            justify-content: flex-end;
+        }
+        .work-mobile-menu-drawer__backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 40, 71, 0.45);
+        }
+        .work-mobile-menu-drawer__panel {
+            position: relative;
+            z-index: 1;
+            width: min(20rem, 92vw);
+            max-width: 100%;
+            height: 100%;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            background: #fff;
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
+            padding: 0.65rem 0.75rem max(1rem, env(safe-area-inset-bottom));
+            padding-top: max(0.65rem, env(safe-area-inset-top));
+        }
+        .work-mobile-menu-drawer__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.45rem;
+            border-bottom: 1px solid #ddd;
+        }
+        .work-mobile-menu-drawer__title { font-weight: 700; font-size: 1.05rem; color: #1e4a73; }
+        .work-mobile-menu-drawer__close {
+            -webkit-appearance: none;
+            appearance: none;
+            border: 0;
+            background: transparent;
+            font-size: 1.65rem;
+            line-height: 1;
+            padding: 0.15rem 0.35rem;
+            cursor: pointer;
+            color: #333;
+            min-width: 2.5rem;
+            min-height: 2.5rem;
+        }
+        .work-mobile-menu-drawer__body .app-menu { margin-bottom: 0; }
+        .work-mobile-menu-drawer__body hr { margin: 0 0 0.75rem; }
+        @media (max-width: 41.99rem) {
+            .work-mobile-menu-open { display: inline-flex; }
+            .work-page-menu__desktop { display: none !important; }
+        }
+        @media (min-width: 42rem) {
+            .work-mobile-menu-open,
+            .work-mobile-menu-drawer { display: none !important; }
+        }
         @media (max-width: 41.99rem) {
             .work-results--single-selected .work-result-h2,
             .work-results--single-selected .work-result-h2--count-only,
@@ -416,7 +487,7 @@
     </style>
 {% endblock %}
 {% block body %}
-    {% include '_app_menu_cz.html.twig' %}
+    {% include 'warehouse/spool/_work_mobile_menu.html.twig' %}
     <div id="work-page-chrome" class="work-page-chrome{% if searchPerformed and spools|length == 1 %} is-search-collapsed{% endif %}">
         <div class="work-page-header">
             <h1>Práce s optikou</h1>
@@ -583,6 +654,45 @@
     <script crossorigin referrerpolicy="no-referrer" src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>
 (function () {
+  (function initWorkMobileMenu() {
+    var openBtn = document.getElementById('work-mobile-menu-open');
+    var drawer = document.getElementById('work-mobile-menu-drawer');
+    if (!openBtn || !drawer) return;
+    var lastFocus = null;
+    function setMenuOpen(on) {
+      if (on) {
+        lastFocus = document.activeElement;
+        drawer.hidden = false;
+        openBtn.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+        var closeBtn = drawer.querySelector('.work-mobile-menu-drawer__close');
+        if (closeBtn) closeBtn.focus();
+      } else {
+        drawer.hidden = true;
+        openBtn.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+        if (lastFocus && lastFocus.focus) {
+          try { lastFocus.focus(); } catch (eMenu) {}
+        }
+      }
+    }
+    openBtn.addEventListener('click', function () {
+      setMenuOpen(!!drawer.hidden);
+    });
+    drawer.querySelectorAll('[data-work-menu-close]').forEach(function (el) {
+      el.addEventListener('click', function () { setMenuOpen(false); });
+    });
+    drawer.addEventListener('click', function (ev) {
+      if (ev.target.closest('a[href]')) setMenuOpen(false);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !drawer.hidden) {
+        ev.preventDefault();
+        setMenuOpen(false);
+      }
+    });
+  })();
+
   var form = document.getElementById('work-search-form');
   var qIn = document.getElementById('work-q');
   var hint = document.getElementById('work-ajax-hint');
