@@ -1005,7 +1005,7 @@
         }
         if (hint) {
           if (!data || data.count === 0) hint.textContent = 'Žádná shoda — podle zadaného saře.';
-          else if (data.count === 1) hint.textContent = 'Jedna shoda — vyplňte Záznam pod tabulkou a stiskněte Zapsat.';
+          else if (data.count === 1) hint.textContent = '';
           else hint.textContent = 'Nalezeno ' + data.count + ' cívek — vyberte řádek.';
         }
         if (window.history && window.history.replaceState) {
