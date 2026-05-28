@@ -38,5 +38,5 @@ Export skladové karty do Excelu musí kopírovat **papírový** layout (DATUM /
 
 1. Šablona: `deploy/excel/skladova-karta.template.xlsx` (kopie etalonu z Doc).
 2. Deník řazen podle `occurredAt`; ZŮSTATEK = běžící součet `totalLengthM − Σ usedMeters`.
-3. Max. 40 řádků deníku (řádky 9–48); delší deník se ořízne (varování ve flash po stažení).
+3. Deník: list 1 řádky 9–48 (max 40 záznamů), list 2 stejný layout — zadní strana duplexu (dalších 40). Celkem max 80 záznamů; delší deník se ořízne.
 4. POC: tisk z Excelu vs. referenční papír.

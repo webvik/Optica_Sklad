@@ -4,8 +4,8 @@
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
     <p style="margin-top: 0.9rem; margin-bottom: 0;">
-        <a href="{{ path('warehouse_spool_skladova_karta_preview', {id: spool.id}) }}">Skladová karta (náhled)</a>
-        ·
         <a href="{{ path('warehouse_spool_show', {id: spool.id}) }}">Plná karta →</a>
+        ·
+        <a href="{{ path('warehouse_spool_skladova_karta_preview', {id: spool.id}) }}">Skladová karta (náhled)</a>
     </p>
 </div>
