@@ -382,17 +382,18 @@ final class SpoolMeterService
         ?string $note,
         ?User $user,
     ): SpoolEvent {
-        if ($remainderM < 1) {
-            throw new \InvalidArgumentException('Zbytek ke zrušení musí být alespoň 1 m.');
+        if ($remainderM < 0) {
+            throw new \InvalidArgumentException('Zbytek ke zrušení nemůže být záporný.');
         }
         $book = $spool->getCurrentRemainingM();
         if (null === $book) {
             $book = $spool->getTotalLengthM();
         }
         if ($book < 1) {
-            throw new RuntimeException('V evidenci není kabel ke zrušení (zůstatek 0 m).');
-        }
-        if ($remainderM > $book) {
+            if (0 !== $remainderM) {
+                throw new RuntimeException('Při zůstatku 0 m v evidenci lze vyřadit pouze se zbytkem 0 m.');
+            }
+        } elseif ($remainderM > $book) {
             throw new RuntimeException('Zbytek ('.$remainderM.' m) je větší než zůstatek v evidenci ('.$book.' m).');
         }
         $event = new SpoolEvent();

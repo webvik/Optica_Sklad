@@ -49,8 +49,8 @@ final class SpoolEventFormType extends AbstractType
                 'label' => 'Zbytek ke zrušení (m)',
                 'required' => false,
                 'mapped' => false,
-                'attr' => ['class' => 'js-spool-writeoff-remainder', 'min' => 1],
-                'help' => 'Fyzický kabel, který končí (motek, odpad); obvykle = zůstatek v evidenci. V poznámce lze upřesnit.',
+                'attr' => ['class' => 'js-spool-writeoff-remainder', 'min' => 0],
+                'help' => 'Fyzický kabel, který končí (motek, odpad); obvykle = zůstatek v evidenci. U kompletně využitého kabelu lze 0 m. V poznámce lze upřesnit.',
                 'help_attr' => ['class' => 'spool-form__help--writeoff-zbytek'],
             ])
             ->add('projectLabel', TextType::class, [
@@ -75,7 +75,7 @@ final class SpoolEventFormType extends AbstractType
             if (null === $book) {
                 $book = $spool->getTotalLengthM();
             }
-            if ($book >= 1) {
+            if (null !== $book && $book >= 0) {
                 $form->get('writeoffRemainderM')->setData($book);
             }
         });
@@ -97,11 +97,6 @@ final class SpoolEventFormType extends AbstractType
             if (null === $book) {
                 $book = $spool->getTotalLengthM();
             }
-            if ($book < 1) {
-                $e->getForm()->addError(new FormError('V evidenci není kabel ke zrušení (zůstatek 0 m).'));
-
-                return;
-            }
             $f = $e->getForm();
             if (!$f->has('writeoffRemainderM')) {
                 return;
@@ -113,8 +108,17 @@ final class SpoolEventFormType extends AbstractType
                 return;
             }
             $r = (int) $raw;
-            if ($r < 1) {
-                $f->get('writeoffRemainderM')->addError(new FormError('Zbytek musí být alespoň 1 m.'));
+            if ($r < 0) {
+                $f->get('writeoffRemainderM')->addError(new FormError('Zbytek nemůže být záporný.'));
+
+                return;
+            }
+            if ($book < 1) {
+                if (0 !== $r) {
+                    $f->get('writeoffRemainderM')->addError(
+                        new FormError('Při zůstatku 0 m v evidenci vyřaďte se zbytkem 0 m (kabel byl kompletně využit).')
+                    );
+                }
 
                 return;
             }
