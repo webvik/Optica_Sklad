@@ -16,7 +16,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Export skladové karty cívky do .xlsx z šablony (layout jako papírová karta).
- * Dva listy = přední a zadní strana duplexu (deník až 80 řádků).
  */
 final class SkladovaKartaExcelExporter
 {
@@ -49,79 +48,22 @@ final class SkladovaKartaExcelExporter
         $karta = $this->dataBuilder->build($spool);
 
         $spreadsheet = IOFactory::load($path);
-        $this->prepareWorkbookSheets($spreadsheet);
+        while ($spreadsheet->getSheetCount() > 1) {
+            $spreadsheet->removeSheetByIndex($spreadsheet->getSheetCount() - 1);
+        }
+        $ws = $spreadsheet->getActiveSheet();
 
-        $diaryRows = $karta['diaryRows'];
-        $perPage = SkladovaKartaDataBuilder::MAX_DIARY_ROWS_PER_PAGE;
-        $sheet1Rows = \array_slice($diaryRows, 0, $perPage);
-        $sheet2Rows = \array_slice($diaryRows, $perPage, $perPage);
-
-        $front = $spreadsheet->getSheet(0);
-        $this->fillHeader($front, $spool, $karta);
-        $this->clearDiaryDataArea($front);
-        $this->fillDiary($front, $sheet1Rows);
-
-        $back = $spreadsheet->getSheet(1);
-        $this->fillHeader($back, $spool, $karta);
-        $this->clearDiaryDataArea($back);
-        $this->fillDiary($back, $sheet2Rows);
+        $this->fillHeader($ws, $spool, $karta);
+        $this->clearDiaryDataArea($ws);
+        $this->fillDiary($ws, $karta['diaryRows']);
 
         $filename = $this->filename($spool);
 
         return [
             'response' => $this->stream($spreadsheet, $filename),
             'truncated' => $karta['truncated'],
-            'diaryRows' => \count($diaryRows),
+            'diaryRows' => \count($karta['diaryRows']),
         ];
-    }
-
-    /**
-     * List 1 + list 2 pro duplex; prázdný třetí list ze šablony odstranit.
-     */
-    private function prepareWorkbookSheets(Spreadsheet $spreadsheet): void
-    {
-        while ($spreadsheet->getSheetCount() > 2) {
-            $spreadsheet->removeSheetByIndex($spreadsheet->getSheetCount() - 1);
-        }
-
-        $front = $spreadsheet->getSheet(0);
-        if ($spreadsheet->getSheetCount() < 2) {
-            $back = clone $front;
-            $back->setTitle('Strana 2');
-            $spreadsheet->addSheet($back, 1);
-
-            return;
-        }
-
-        $back = $spreadsheet->getSheet(1);
-        if ($back->getHighestRow() < self::DIARY_FIRST_ROW) {
-            $this->copySheetLayout($front, $back);
-        }
-        $back->setTitle('Strana 2');
-        $front->setTitle('Strana 1');
-    }
-
-    private function copySheetLayout(Worksheet $from, Worksheet $to): void
-    {
-        foreach ($to->getMergeCells() as $mergeRange) {
-            $to->unmergeCells($mergeRange);
-        }
-        foreach ($from->getMergeCells() as $mergeRange) {
-            $to->mergeCells($mergeRange);
-        }
-
-        for ($row = 1; $row <= self::DIARY_LAST_ROW; ++$row) {
-            for ($col = 1; $col <= 12; ++$col) {
-                $addr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col).$row;
-                $to->setCellValue($addr, $from->getCell($addr)->getValue());
-                $to->duplicateStyle($from->getStyle($addr), $addr);
-            }
-        }
-
-        $to->getPageSetup()->setOrientation($from->getPageSetup()->getOrientation());
-        $to->getPageSetup()->setPaperSize($from->getPageSetup()->getPaperSize());
-        $to->getPageSetup()->setFitToWidth($from->getPageSetup()->getFitToWidth());
-        $to->getPageSetup()->setFitToHeight($from->getPageSetup()->getFitToHeight());
     }
 
     /**
