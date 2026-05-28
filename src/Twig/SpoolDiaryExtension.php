@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig;
 
+use App\Entity\Spool;
 use App\Entity\SpoolEvent;
 use App\Service\Warehouse\SpoolMeterService;
 use Twig\Extension\AbstractExtension;
@@ -20,7 +21,13 @@ final class SpoolDiaryExtension extends AbstractExtension
     {
         return [
             new TwigFunction('spool_diary_cells', $this->diaryCells(...)),
+            new TwigFunction('spool_cable_end_visible_m', $this->cableEndVisibleM(...)),
         ];
+    }
+
+    public function cableEndVisibleM(Spool $spool): ?int
+    {
+        return $this->meter->estimateCableEndVisibleM($spool);
     }
 
     /**

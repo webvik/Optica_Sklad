@@ -1,0 +1,5 @@
+{# Proměnná: spool #}
+{% set cable_end_m = spool_cable_end_visible_m(spool) %}
+{% if cable_end_m is not null %}
+<span class="spool-cable-end-suffix" title="Odhad konce volného kabelu na cívce (směr metru a zůstatek)"> (konec ≈ {{ cable_end_m }} m)</span>
+{% endif %}

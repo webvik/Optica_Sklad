@@ -113,6 +113,30 @@ final class SpoolMeterService
         return $stored;
     }
 
+    /**
+     * Odhad čtení metru u konce volného kabelu na cívce: referenční m (poslední krok) ± zůstatek dle směru metru.
+     */
+    public function estimateCableEndVisibleM(Spool $spool): ?int
+    {
+        $remaining = $spool->getCurrentRemainingM();
+        if (null === $remaining) {
+            $remaining = $spool->getTotalLengthM();
+        }
+        $ref = $this->previewPrevVisibleForMeterStep($spool);
+        $sign = $spool->getMeterSign();
+        if (null === $sign) {
+            $last = $spool->getLastVisibleM();
+            $m0 = $spool->getInitialVisibleM();
+            if (null !== $last && $last !== $m0) {
+                $sign = $last > $m0 ? 1 : -1;
+            } else {
+                return null;
+            }
+        }
+
+        return $ref + $sign * $remaining;
+    }
+
     public function applyMeterReading(
         Spool $spool,
         int $newVisibleM,
