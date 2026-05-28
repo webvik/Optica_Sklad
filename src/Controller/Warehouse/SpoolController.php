@@ -16,6 +16,8 @@ use App\Form\SpoolFormType;
 use App\Repository\CableFamilyRepository;
 use App\Repository\SpoolRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
+use App\Service\Warehouse\SkladovaKartaDataBuilder;
+use App\Service\Warehouse\SkladovaKartaExcelExporter;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
 use App\Security\WarehouseRole;
@@ -498,6 +500,29 @@ final class SpoolController extends AbstractController
             'id' => $spool->getId(),
             'upravit' => 1,
         ]);
+    }
+
+    #[Route('/{id}/skladova-karta', name: 'skladova_karta_preview', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function skladovaKartaPreview(Spool $spool, SkladovaKartaDataBuilder $dataBuilder): Response
+    {
+        return $this->render('warehouse/spool/skladova_karta_preview.html.twig', [
+            'spool' => $spool,
+            'karta' => $dataBuilder->build($spool),
+        ]);
+    }
+
+    #[Route('/{id}/skladova-karta.xlsx', name: 'skladova_karta', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function skladovaKarta(Spool $spool, SkladovaKartaExcelExporter $exporter): Response
+    {
+        $result = $exporter->download($spool);
+        if ($result['truncated']) {
+            $this->addFlash(
+                'warning',
+                'Deník má více než 40 řádků — do Excelu bylo exportováno jen prvních 40 záznamů (podle data).',
+            );
+        }
+
+        return $result['response'];
     }
 
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]

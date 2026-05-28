@@ -1,0 +1,179 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Skladová karta {{ spool.reelNumber }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .sk-karta-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 0.75rem;
+            align-items: center;
+            margin: 0 0 1rem;
+        }
+        .sk-karta-toolbar a {
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.5rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.92rem;
+        }
+        .sk-karta-toolbar a.sk-karta-toolbar__primary {
+            background: #1e4a73;
+            color: #fff;
+        }
+        .sk-karta-toolbar a.sk-karta-toolbar__secondary {
+            border: 1px solid #1e4a73;
+            color: #1e4a73;
+            background: #fff;
+        }
+        .sk-karta {
+            max-width: 42rem;
+            margin: 0 auto;
+            border: 1px solid #bbb;
+            padding: 0.75rem;
+            background: #fff;
+            font-size: 0.9rem;
+        }
+        .sk-karta__title {
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0 0 0.65rem;
+            letter-spacing: 0.02em;
+        }
+        .sk-karta__grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.35rem 0.75rem;
+            margin-bottom: 0.65rem;
+        }
+        .sk-karta__grid dt {
+            margin: 0;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+        }
+        .sk-karta__grid dd {
+            margin: 0;
+            font-variant-numeric: tabular-nums;
+        }
+        .sk-karta__note {
+            margin: 0 0 0.65rem;
+            padding: 0.35rem 0.5rem;
+            background: #f6f8fa;
+            border-radius: 4px;
+        }
+        .sk-karta-diary {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        .sk-karta-diary th,
+        .sk-karta-diary td {
+            border: 1px solid #999;
+            padding: 0.28rem 0.35rem;
+            vertical-align: top;
+        }
+        .sk-karta-diary th {
+            background: #e8eef4;
+            font-weight: 700;
+            text-align: center;
+            font-size: 0.75rem;
+        }
+        .sk-karta-diary .num { text-align: right; white-space: nowrap; }
+        .sk-karta-warn {
+            margin: 0.65rem 0 0;
+            color: #a60;
+            font-size: 0.85rem;
+        }
+        .sk-karta-hint {
+            margin: 0.75rem 0 0;
+            color: #555;
+            font-size: 0.82rem;
+        }
+        @media print {
+            .app-menu, .sk-karta-toolbar, .sk-karta-hint { display: none !important; }
+            body { padding: 0; }
+            .sk-karta { border: none; max-width: none; }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="sk-karta-toolbar">
+        <a class="sk-karta-toolbar__secondary" href="{{ path('warehouse_spool_show', {id: spool.id}) }}">← Karta cívky</a>
+        <a class="sk-karta-toolbar__secondary" href="{{ path('warehouse_spool_skladova_karta', {id: spool.id}) }}">Stáhnout Excel</a>
+    </div>
+
+    <article class="sk-karta" aria-label="Skladová karta">
+        <h1 class="sk-karta__title">SKLADOVÁ KARTA</h1>
+
+        <dl class="sk-karta__grid">
+            <div>
+                <dt>Šarže</dt>
+                <dd>{{ spool.reelNumber }}</dd>
+            </div>
+            <div>
+                <dt>Datum naskladnění</dt>
+                <dd>{% if karta.registeredAt %}{{ karta.registeredAt|date('d.m.Y') }}{% else %}—{% endif %}</dd>
+            </div>
+            <div>
+                <dt>Počet vláken</dt>
+                <dd>{{ karta.fiberLabel }}</dd>
+            </div>
+            <div>
+                <dt>Typ OK</dt>
+                <dd>{{ karta.familyLabel }}</dd>
+            </div>
+            <div>
+                <dt>Celková metráž (m)</dt>
+                <dd>{{ spool.totalLengthM }}</dd>
+            </div>
+            <div>
+                <dt>Počáteční stav (m)</dt>
+                <dd>{{ spool.initialVisibleM }}</dd>
+            </div>
+        </dl>
+
+        {% if karta.note != '' %}
+            <p class="sk-karta__note"><strong>Poznámka:</strong> {{ karta.note }}</p>
+        {% endif %}
+
+        <table class="sk-karta-diary">
+            <thead>
+                <tr>
+                    <th>Datum</th>
+                    <th>Začátek</th>
+                    <th>Konec</th>
+                    <th>Zůstatek</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in karta.diaryRows %}
+                    <tr>
+                        <td>{{ row.occurredAt|date('d.m.Y') }}</td>
+                        <td>{{ row.projectLabel }}</td>
+                        <td class="num">{% if row.visibleM is not null %}{{ row.visibleM }}{% endif %}</td>
+                        <td class="num">{{ row.remainingM }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align:center;color:#666;">Deník je prázdný</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if karta.truncated %}
+            <p class="sk-karta-warn">Deník má {{ karta.totalDiaryCount }} záznamů — zobrazeno prvních {{ constant('App\\Service\\Warehouse\\SkladovaKartaDataBuilder::MAX_DIARY_ROWS') }} (jako v Excelu).</p>
+        {% endif %}
+    </article>
+
+    <p class="sk-karta-hint">Náhled v prohlížeči (bez stahování). Pro tisk nebo úřední formulář použijte Excel.</p>
+{% endblock %}

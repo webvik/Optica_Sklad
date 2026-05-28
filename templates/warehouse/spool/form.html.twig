@@ -406,10 +406,11 @@
             display: block;
         }
         .spool-cable-family-filter[hidden] { display: none !important; }
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
     </style>
 {% endblock %}
 {% block body %}
-    {% include '_app_menu_cz.html.twig' %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
     <h1>{{ title }}</h1>
     {% set cable_type_meta = {} %}
     {% for ch in form.cableType.vars.choices|default([]) %}
@@ -587,6 +588,7 @@
 {% endblock %}
 {% block javascripts %}
     {{ parent() }}
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
     <script type="application/json" id="spool-reel-check-cfg">{{ { lookupUrl: spool_reel_check_lookup_url }|json_encode(256)|raw }}</script>
     <script crossorigin referrerpolicy="no-referrer" src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script>

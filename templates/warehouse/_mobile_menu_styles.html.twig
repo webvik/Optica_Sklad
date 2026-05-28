@@ -1,0 +1,71 @@
+{# Mobilní hamburger: skryté menu na úzké obrazovce, plné menu od 42rem. Vložit do rodičovského <style>. #}
+    .wh-mobile-menu-open {
+        display: none;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0 0 0.65rem;
+        min-height: 2.75rem;
+        padding: 0.45rem 0.85rem;
+        font-size: 1rem;
+    }
+    .wh-mobile-menu-open__icon { font-size: 1.15rem; line-height: 1; }
+    .wh-mobile-menu-drawer[hidden] { display: none !important; }
+    .wh-mobile-menu-drawer {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        display: flex;
+        align-items: stretch;
+        justify-content: flex-end;
+    }
+    .wh-mobile-menu-drawer__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 40, 71, 0.45);
+    }
+    .wh-mobile-menu-drawer__panel {
+        position: relative;
+        z-index: 1;
+        width: min(20rem, 92vw);
+        max-width: 100%;
+        height: 100%;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #fff;
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
+        padding: 0.65rem 0.75rem max(1rem, env(safe-area-inset-bottom));
+        padding-top: max(0.65rem, env(safe-area-inset-top));
+    }
+    .wh-mobile-menu-drawer__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.45rem;
+        border-bottom: 1px solid #ddd;
+    }
+    .wh-mobile-menu-drawer__title { font-weight: 700; font-size: 1.05rem; color: #1e4a73; }
+    .wh-mobile-menu-drawer__close {
+        -webkit-appearance: none;
+        appearance: none;
+        border: 0;
+        background: transparent;
+        font-size: 1.65rem;
+        line-height: 1;
+        padding: 0.15rem 0.35rem;
+        cursor: pointer;
+        color: #333;
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+    }
+    .wh-mobile-menu-drawer__body .app-menu { margin-bottom: 0; }
+    .wh-mobile-menu-drawer__body hr { margin: 0 0 0.75rem; }
+    @media (max-width: 41.99rem) {
+        .wh-mobile-menu-open { display: inline-flex; }
+        .wh-page-menu__desktop { display: none !important; }
+    }
+    @media (min-width: 42rem) {
+        .wh-mobile-menu-open,
+        .wh-mobile-menu-drawer { display: none !important; }
+    }

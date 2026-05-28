@@ -182,15 +182,19 @@
     {% include '_app_menu_cz.html.twig' %}
     <h1>Cívka {{ spool.reelNumber }}</h1>
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
-    {% if is_granted('ROLE_SKLAD_EDIT') %}
-        {% if editMode|default(false) and editCoreForm is defined and editCoreForm %}
-            {% include 'warehouse/spool/_spool_edit_core_data.html.twig' %}
-        {% else %}
-            <p class="spool-card-edit-bar">
+    <p class="spool-card-edit-bar">
+        <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_skladova_karta_preview', {id: spool.id}) }}">Skladová karta</a>
+        <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_skladova_karta', {id: spool.id}) }}">Excel</a>
+        {% if is_granted('ROLE_SKLAD_EDIT') %}
+            {% if editMode|default(false) and editCoreForm is defined and editCoreForm %}
+            {% else %}
                 <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_show', {id: spool.id, upravit: 1}) }}">Upravit údaje cívky</a>
                 <span class="spool-card-edit-bar__hint">— délka L, PS, vlákna, Ø</span>
-            </p>
+            {% endif %}
         {% endif %}
+    </p>
+    {% if is_granted('ROLE_SKLAD_EDIT') and editMode|default(false) and editCoreForm is defined and editCoreForm %}
+        {% include 'warehouse/spool/_spool_edit_core_data.html.twig' %}
     {% endif %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
     {% if assignCableForm is defined and assignCableForm %}

@@ -202,10 +202,11 @@
         #browse-cable-type-panel .browse-filter-checkpanel__row {
             align-items: start;
         }
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
     </style>
 {% endblock %}
 {% block body %}
-    {% include '_app_menu_cz.html.twig' %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
     <h1>Přehled skladu</h1>
     <p class="browse-inventura-btn-line"><a href="{{ path('warehouse_browse_inventura') }}" class="warehouse-pill">Inventura</a></p>
     <p class="lede">Přehled cívek podle typu a stavu; vhodné pro <strong>kontrolu zásob</strong> a přípravu <strong>inventury</strong> (samostatný inventurní režim můžeme doplnit).</p>
@@ -321,6 +322,7 @@
 
     <p><a href="{{ path('warehouse_dashboard') }}">Číselný přehled (dashboard)</a> ·
        <a href="{{ path('warehouse_spool_index') }}">Běžná práce s cívkami</a></p>
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
 <script>
 (function () {
   var mobileMq = window.matchMedia('(max-width: 41.99rem)');
