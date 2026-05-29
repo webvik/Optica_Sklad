@@ -12,7 +12,9 @@ use App\Entity\SpoolEvent;
  */
 final class SkladovaKartaDataBuilder
 {
-    public const MAX_DIARY_ROWS = 40;
+    public const MAX_DIARY_ROWS_PER_PAGE = 40;
+
+    public const MAX_DIARY_ROWS = self::MAX_DIARY_ROWS_PER_PAGE * 2;
 
     public function __construct(
         private readonly SpoolMeterService $meter,

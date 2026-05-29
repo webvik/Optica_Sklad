@@ -508,7 +508,7 @@ final class SpoolController extends AbstractController
         if ($result['truncated']) {
             $this->addFlash(
                 'warning',
-                'Deník má více než 40 řádků — do Excelu bylo exportováno jen prvních 40 záznamů (podle data).',
+                'Deník má více než 80 řádků — do Excelu bylo exportováno jen prvních 80 záznamů (40 na Strana 1, 40 na Strana 2).',
             );
         }
 
