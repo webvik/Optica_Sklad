@@ -12,9 +12,13 @@ use App\Entity\SpoolEvent;
  */
 final class SkladovaKartaDataBuilder
 {
-    public const MAX_DIARY_ROWS_PER_PAGE = 40;
+    /** Deník na přední straně (řádky 9–25). */
+    public const MAX_DIARY_ROWS_PER_PAGE = 17;
 
-    public const MAX_DIARY_ROWS = self::MAX_DIARY_ROWS_PER_PAGE * 2;
+    /** Deník na zadní straně (řádky 27–48). */
+    public const MAX_DIARY_ROWS_PAGE2 = 22;
+
+    public const MAX_DIARY_ROWS = self::MAX_DIARY_ROWS_PER_PAGE + self::MAX_DIARY_ROWS_PAGE2;
 
     public function __construct(
         private readonly SpoolMeterService $meter,

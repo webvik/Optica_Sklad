@@ -16,15 +16,21 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Export skladové karty cívky do .xlsx z šablony (layout jako papírová karta).
- * Dva listy = přední a zadní strana duplexu (deník až 80 řádků).
+ * Jeden list, dvě tiskové stránky (duplex): řádky 1–25 + 26–48 (ř. 26 = hlavička deníku zadní strany).
  */
 final class SkladovaKartaExcelExporter
 {
     private const TEMPLATE_REL = '/deploy/excel/skladova-karta.template.xlsx';
 
-    private const DIARY_FIRST_ROW = 9;
+    /** Deník — přední strana (pod hlavičkou karty). */
+    private const DIARY_PAGE1_FIRST_ROW = 9;
 
-    private const DIARY_LAST_ROW = 48;
+    private const DIARY_PAGE1_LAST_ROW = 25;
+
+    /** Deník — zadní strana (řádek 26 = popisky sloupců ve šabloně). */
+    private const DIARY_PAGE2_FIRST_ROW = 27;
+
+    private const DIARY_PAGE2_LAST_ROW = 48;
 
     /** Formát data na kartě (bez času). */
     private const DATE_FORMAT = 'dd.mm.yyyy';
@@ -49,15 +55,19 @@ final class SkladovaKartaExcelExporter
         $karta = $this->dataBuilder->build($spool);
 
         $spreadsheet = IOFactory::load($path);
-        $this->trimExtraSheets($spreadsheet);
+        $this->keepSingleSheet($spreadsheet);
+        $ws = $spreadsheet->getActiveSheet();
+        $this->ensureDuplexPrintLayout($ws);
 
         $perPage = SkladovaKartaDataBuilder::MAX_DIARY_ROWS_PER_PAGE;
         $diaryRows = $karta['diaryRows'];
-        $sheet1Rows = \array_slice($diaryRows, 0, $perPage);
-        $sheet2Rows = \array_slice($diaryRows, $perPage, $perPage);
+        $page1Rows = \array_slice($diaryRows, 0, $perPage);
+        $page2Rows = \array_slice($diaryRows, $perPage, SkladovaKartaDataBuilder::MAX_DIARY_ROWS_PAGE2);
 
-        $this->fillSheet($spreadsheet->getSheet(0), $spool, $karta, $sheet1Rows);
-        $this->fillSheet($spreadsheet->getSheet(1), $spool, $karta, $sheet2Rows);
+        $this->fillHeader($ws, $spool, $karta);
+        $this->clearDiaryDataAreas($ws);
+        $this->fillDiaryBlock($ws, self::DIARY_PAGE1_FIRST_ROW, $page1Rows);
+        $this->fillDiaryBlock($ws, self::DIARY_PAGE2_FIRST_ROW, $page2Rows);
 
         $filename = $this->filename($spool);
 
@@ -68,34 +78,22 @@ final class SkladovaKartaExcelExporter
         ];
     }
 
-    /**
-     * Šablona má dva listy se stejným layoutem; odstranit jen případné prázdné listy navíc.
-     */
-    private function trimExtraSheets(Spreadsheet $spreadsheet): void
+    private function keepSingleSheet(Spreadsheet $spreadsheet): void
     {
-        while ($spreadsheet->getSheetCount() > 2) {
+        while ($spreadsheet->getSheetCount() > 1) {
             $spreadsheet->removeSheetByIndex($spreadsheet->getSheetCount() - 1);
-        }
-
-        if ($spreadsheet->getSheetCount() < 2) {
-            throw new \RuntimeException('Šablona skladové karty musí mít dva listy (Strana 1 a Strana 2).');
         }
     }
 
-    /**
-     * @param array{
-     *   registeredAt: ?\DateTimeImmutable,
-     *   fiberLabel: string,
-     *   familyLabel: string,
-     *   note: string
-     * } $karta
-     * @param list<array{occurredAt: \DateTimeImmutable, projectLabel: string, visibleM: ?int, remainingM: int}> $diaryRows
-     */
-    private function fillSheet(Worksheet $ws, Spool $spool, array $karta, array $diaryRows): void
+    /** Jeden list, zlom stránky po ř. 25 → ř. 26 (hlavička deníku) začíná stranu 2. */
+    private function ensureDuplexPrintLayout(Worksheet $ws): void
     {
-        $this->fillHeader($ws, $spool, $karta);
-        $this->clearDiaryDataArea($ws);
-        $this->fillDiary($ws, $diaryRows);
+        $ps = $ws->getPageSetup();
+        $ps->setFitToPage(false);
+        $ps->setFitToWidth(0);
+        $ps->setFitToHeight(0);
+        $ps->setScale(100);
+        $ws->setBreak('A25', Worksheet::BREAK_ROW);
     }
 
     /**
@@ -120,26 +118,34 @@ final class SkladovaKartaExcelExporter
         $ws->setCellValue('H3', $karta['familyLabel']);
 
         if ('' !== $karta['note']) {
-            $ws->setCellValue('G5', $karta['note']);
+            $ws->setCellValue('F5', $karta['note']);
         }
     }
 
-    private function clearDiaryDataArea(Worksheet $ws): void
+    private function clearDiaryDataAreas(Worksheet $ws): void
     {
-        for ($row = self::DIARY_FIRST_ROW; $row <= self::DIARY_LAST_ROW; ++$row) {
-            $ws->setCellValue('A'.$row, null);
-            $ws->setCellValue('C'.$row, null);
-            $ws->setCellValue('E'.$row, null);
-            $ws->setCellValue('H'.$row, null);
+        for ($row = self::DIARY_PAGE1_FIRST_ROW; $row <= self::DIARY_PAGE1_LAST_ROW; ++$row) {
+            $this->clearDiaryRow($ws, $row);
         }
+        for ($row = self::DIARY_PAGE2_FIRST_ROW; $row <= self::DIARY_PAGE2_LAST_ROW; ++$row) {
+            $this->clearDiaryRow($ws, $row);
+        }
+    }
+
+    private function clearDiaryRow(Worksheet $ws, int $row): void
+    {
+        $ws->setCellValue('A'.$row, null);
+        $ws->setCellValue('C'.$row, null);
+        $ws->setCellValue('E'.$row, null);
+        $ws->setCellValue('H'.$row, null);
     }
 
     /**
      * @param list<array{occurredAt: \DateTimeImmutable, projectLabel: string, visibleM: ?int, remainingM: int}> $rows
      */
-    private function fillDiary(Worksheet $ws, array $rows): void
+    private function fillDiaryBlock(Worksheet $ws, int $startRow, array $rows): void
     {
-        $row = self::DIARY_FIRST_ROW;
+        $row = $startRow;
         foreach ($rows as $entry) {
             $this->setDateCell($ws, 'A'.$row, $entry['occurredAt']);
             $ws->setCellValue('C'.$row, $entry['projectLabel']);
