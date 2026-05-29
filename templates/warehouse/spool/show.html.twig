@@ -176,15 +176,15 @@
                 width: auto;
             }
         }
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
     </style>
 {% endblock %}
 {% block body %}
-    {% include '_app_menu_cz.html.twig' %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
     <h1>Cívka {{ spool.reelNumber }}</h1>
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
     <p class="spool-card-edit-bar">
-        <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_skladova_karta_preview', {id: spool.id}) }}">Skladová karta</a>
-        <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_skladova_karta', {id: spool.id}) }}">Excel</a>
+        <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_skladova_karta', {id: spool.id}) }}">Skladová karta (Excel)</a>
         {% if is_granted('ROLE_SKLAD_EDIT') %}
             {% if editMode|default(false) and editCoreForm is defined and editCoreForm %}
             {% else %}
@@ -388,4 +388,8 @@
 })();
     </script>
     <p><a href="{{ path('warehouse_spool_index') }}">← zpět na práci s optikou</a></p>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
 {% endblock %}

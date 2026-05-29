@@ -2,10 +2,7 @@
 
 Etalon layoutu: `Optica_Sklad_Doc/SKLADOVÁ KARTA.xlsx` (list 1, rozsah cca A1:L48).
 
-Implementace: `deploy/excel/skladova-karta.template.xlsx` + `SkladovaKartaExcelExporter` (jen hodnoty, layout ze šablony).
-
-- **Náhled v prohlížeči** (mobil, bez stahování): `GET /sklad/spool/{id}/skladova-karta` — HTML stejná data jako Excel.
-- **Stažení Excelu**: `GET /sklad/spool/{id}/skladova-karta.xlsx`
+Implementace: `deploy/excel/skladova-karta.template.xlsx` + `SkladovaKartaExcelExporter` (jen hodnoty, layout ze šablony). Route: `GET /sklad/spool/{id}/skladova-karta.xlsx`
 
 ## Sloupce deníku na papíru (zavedená praxe — dodržet)
 

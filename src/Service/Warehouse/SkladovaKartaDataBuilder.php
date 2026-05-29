@@ -8,7 +8,7 @@ use App\Entity\Spool;
 use App\Entity\SpoolEvent;
 
 /**
- * Sdílená data skladové karty (Excel export + HTML náhled).
+ * Data pro export skladové karty do Excelu.
  */
 final class SkladovaKartaDataBuilder
 {
