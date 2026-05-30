@@ -4,6 +4,8 @@ Etalon layoutu: `Optica_Sklad_Doc/SKLADOVÁ KARTA.xlsx` (list 1, rozsah cca A1:L
 
 Implementace: `deploy/excel/skladova-karta.template.xlsx` + `SkladovaKartaExcelExporter` (jen hodnoty, layout ze šablony). Route: `GET /sklad/spool/{id}/skladova-karta.xlsx`
 
+**UI:** na desktopu (≥42rem) odkaz „Skladová karta (Excel)“ — stažení souboru. Na mobilu místo toho „Skladová karta — WhatsApp“: výběr aktivního uživatele s vyplněným telefonem v administraci účtů, krátký text („Prosím vytiskni tento soubor…“), odeslání přes Web Share API (soubor + text) nebo fallback `wa.me` + stažení přílohy.
+
 ## Sloupce deníku na papíru (zavedená praxe — dodržet)
 
 | Sloupec na kartě | Význam | Zdroj v Optickém skladu |

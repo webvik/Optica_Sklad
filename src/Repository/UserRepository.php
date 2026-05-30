@@ -36,4 +36,24 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             $this->getEntityManager()->flush();
         }
     }
+
+    /**
+     * @return list<User>
+     */
+    public function findActiveWithPhoneOrdered(): array
+    {
+        /** @var list<User> $rows */
+        $rows = $this->createQueryBuilder('u')
+            ->andWhere('u.isActive = :active')
+            ->andWhere('u.phone IS NOT NULL')
+            ->andWhere("TRIM(u.phone) != ''")
+            ->setParameter('active', true)
+            ->orderBy('u.lastName', 'ASC')
+            ->addOrderBy('u.firstName', 'ASC')
+            ->addOrderBy('u.username', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
 }

@@ -1,0 +1,37 @@
+{# Desktop: stažení Excelu. Mobil (≤41.99rem): WhatsApp s výběrem uživatele. #}
+{% set skKartaUrl = path('warehouse_spool_skladova_karta', {id: spool.id}) %}
+{% set skKartaFilename = 'skladova-karta-' ~ spool.reelNumber ~ '.xlsx' %}
+{% set skKartaDefaultMsg = 'Prosím vytiskni tento soubor — skladová karta cívky ' ~ spool.reelNumber ~ '.' %}
+{% set waContacts = skladova_karta_whatsapp_contacts() %}
+
+<a class="app-menu__nav-link spool-card-edit-link spool-karta-desktop" href="{{ skKartaUrl }}">Skladová karta (Excel)</a>
+
+{% if waContacts is not empty %}
+    <button type="button"
+            class="app-menu__nav-link spool-card-edit-link spool-karta-mobile spool-karta-wa-toggle"
+            aria-expanded="false"
+            aria-controls="spool-karta-wa-panel"
+            data-karta-url="{{ skKartaUrl }}"
+            data-karta-filename="{{ skKartaFilename }}">Skladová karta — WhatsApp</button>
+    <div id="spool-karta-wa-panel" class="spool-karta-wa-panel" hidden>
+        <p class="spool-karta-wa-panel__lead">Odeslat soubor k tisku vybranému uživateli:</p>
+        <fieldset class="spool-karta-wa-contacts">
+            <legend class="visually-hidden">Příjemce</legend>
+            {% for c in waContacts %}
+                <label class="spool-karta-wa-contact">
+                    <input type="radio" name="spool-karta-wa-contact" value="{{ c.phone }}" data-label="{{ c.label|e('html_attr') }}"{% if loop.first %} checked{% endif %}>
+                    <span class="spool-karta-wa-contact__name">{{ c.label }}</span>
+                    {% if c.phoneDisplay %}
+                        <span class="spool-karta-wa-contact__phone">{{ c.phoneDisplay }}</span>
+                    {% endif %}
+                </label>
+            {% endfor %}
+        </fieldset>
+        <label class="spool-karta-wa-msg-label" for="spool-karta-wa-msg">Text zprávy</label>
+        <textarea id="spool-karta-wa-msg" class="spool-karta-wa-msg" rows="3">{{ skKartaDefaultMsg }}</textarea>
+        <button type="button" class="app-menu__nav-link spool-card-edit-link spool-karta-wa-send">Odeslat přes WhatsApp</button>
+        <p class="spool-karta-wa-hint" id="spool-karta-wa-hint" role="status" hidden></p>
+    </div>
+{% else %}
+    <span class="spool-karta-mobile spool-karta-wa-empty">Skladová karta — WhatsApp: žádný aktivní uživatel nemá vyplněný telefon (správa účtů).</span>
+{% endif %}
