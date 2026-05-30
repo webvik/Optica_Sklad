@@ -30,7 +30,7 @@ final class SkladovaKartaDataBuilder
      *   registeredAt: ?\DateTimeImmutable,
      *   fiberLabel: string,
      *   familyLabel: string,
-     *   note: string,
+     *   poznamka: string,
      *   diaryRows: list<array{occurredAt: \DateTimeImmutable, projectLabel: string, visibleM: ?int, remainingM: int}>,
      *   truncated: bool,
      *   totalDiaryCount: int
@@ -49,7 +49,7 @@ final class SkladovaKartaDataBuilder
             'registeredAt' => $spool->getRegisteredAt() ?? $spool->getCreatedAt(),
             'fiberLabel' => $spool->getEffectiveFiberCount().' vl',
             'familyLabel' => '' !== $family ? mb_strtoupper($family, 'UTF-8') : '—',
-            'note' => trim((string) ($spool->getNote() ?? '')),
+            'poznamka' => $this->formatPoznamkaDiameter($spool),
             'diaryRows' => $diaryRows,
             'truncated' => $truncated,
             'totalDiaryCount' => $total,
@@ -93,5 +93,16 @@ final class SkladovaKartaDataBuilder
         }
 
         return $rows;
+    }
+
+    /** POZNÁMKA na papírové kartě = průměr kabelu (mm), ne text poznámky cívky. */
+    private function formatPoznamkaDiameter(Spool $spool): string
+    {
+        $d = trim((string) ($spool->getEffectiveDiameterMm() ?? ''));
+        if ('' === $d) {
+            return '';
+        }
+
+        return str_replace('.', ',', $d);
     }
 }

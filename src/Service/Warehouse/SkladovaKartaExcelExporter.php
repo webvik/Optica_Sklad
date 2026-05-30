@@ -101,7 +101,7 @@ final class SkladovaKartaExcelExporter
      *   registeredAt: ?\DateTimeImmutable,
      *   fiberLabel: string,
      *   familyLabel: string,
-     *   note: string
+     *   poznamka: string
      * } $karta
      */
     private function fillHeader(Worksheet $ws, Spool $spool, array $karta): void
@@ -117,8 +117,8 @@ final class SkladovaKartaExcelExporter
         $ws->setCellValue('I2', $karta['fiberLabel']);
         $ws->setCellValue('H3', $karta['familyLabel']);
 
-        if ('' !== $karta['note']) {
-            $ws->setCellValue('F5', $karta['note']);
+        if ('' !== $karta['poznamka']) {
+            $ws->setCellValue('F5', $karta['poznamka']);
         }
     }
 

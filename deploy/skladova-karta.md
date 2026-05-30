@@ -29,7 +29,8 @@ Export skladové karty do Excelu musí kopírovat **papírový** layout (DATUM /
 - CELKOVÁ METRÁŽ → `Spool.totalLengthM`
 - POČET VLÁKEN / typ → `effectiveFiberCount`, `family`, popis kabelu
 - POČÁTEČNÍ STAV → `Spool.initialVisibleM`
-- DATUM NASKLADNĚNÍ → doplnit při mapování buněk (datum příjmu / první evidence)
+- DATUM NASKLADNĚNÍ → `registeredAt` / `createdAt` (buňka D2)
+- POZNÁMKA → průměr kabelu (mm), buňka F5: `Spool.effectiveDiameterMm` (cívka nebo typ z katalogu)
 
 ## Technický postup
 
