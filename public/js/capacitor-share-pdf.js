@@ -1,6 +1,8 @@
 (function (global) {
   'use strict';
 
+  var BASE64_CHUNK = 240000;
+
   function isOpticaAndroidApp() {
     var cap = global.Capacitor;
     if (cap) {
@@ -13,8 +15,29 @@
 
   function getCapacitorPlugin(name) {
     var cap = global.Capacitor;
-    if (!cap || typeof cap.registerPlugin !== 'function') return null;
-    return cap.registerPlugin(name);
+    if (!cap) return null;
+    if (cap.Plugins && cap.Plugins[name]) return cap.Plugins[name];
+    if (typeof cap.registerPlugin === 'function') return cap.registerPlugin(name);
+    return null;
+  }
+
+  function pluginCall(pluginName, methodName, options) {
+    var cap = global.Capacitor;
+    if (cap && typeof cap.nativePromise === 'function') {
+      return cap.nativePromise(pluginName, methodName, options);
+    }
+    var plugin = getCapacitorPlugin(pluginName);
+    if (plugin && typeof plugin[methodName] === 'function') {
+      return plugin[methodName](options);
+    }
+    return Promise.reject(new Error('Plugin ' + pluginName + '.' + methodName + ' unavailable'));
+  }
+
+  function absoluteUrl(url) {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    var origin = global.location && global.location.origin ? global.location.origin : '';
+    return origin + (url.charAt(0) === '/' ? url : '/' + url);
   }
 
   function blobToBase64(blob) {
@@ -48,19 +71,38 @@
     return global.navigator.clipboard.writeText(text).then(function () { return true; }).catch(function () { return false; });
   }
 
-  function shareViaOpticaPlugin(blob, filename, text) {
-    var OpticaShare = getCapacitorPlugin('OpticaShare');
-    if (!OpticaShare || typeof OpticaShare.sharePdf !== 'function') {
-      return Promise.resolve(false);
-    }
-    return blobToBase64(blob).then(function (b64) {
-      return OpticaShare.sharePdf({
-        filename: safeFilename(filename),
-        data: b64,
-        dialogTitle: 'Sdílet',
-      });
+  function shareViaUrl(downloadUrl, filename, text) {
+    return pluginCall('OpticaShare', 'sharePdfFromUrl', {
+      url: absoluteUrl(downloadUrl),
+      filename: safeFilename(filename),
+      dialogTitle: 'Sdílet',
     }).then(function () {
       return copyText(text).then(function () { return true; });
+    }).catch(function () {
+      return false;
+    });
+  }
+
+  function shareViaOpticaChunks(blob, filename, text) {
+    return blobToBase64(blob).then(function (b64) {
+      var name = safeFilename(filename);
+      return pluginCall('OpticaShare', 'sharePdfBegin', { filename: name }).then(function () {
+        var chain = Promise.resolve();
+        for (var i = 0; i < b64.length; i += BASE64_CHUNK) {
+          (function (chunk) {
+            chain = chain.then(function () {
+              return pluginCall('OpticaShare', 'sharePdfAppend', { data: chunk });
+            });
+          })(b64.slice(i, i + BASE64_CHUNK));
+        }
+        return chain.then(function () {
+          return pluginCall('OpticaShare', 'sharePdfFinish', { dialogTitle: 'Sdílet' });
+        });
+      }).then(function () {
+        return copyText(text).then(function () { return true; });
+      });
+    }).catch(function () {
+      return false;
     });
   }
 
@@ -71,11 +113,7 @@
 
     var path = safeFilename(filename);
     return blobToBase64(blob).then(function (b64) {
-      return Filesystem.writeFile({
-        path: path,
-        data: b64,
-        directory: 'CACHE',
-      });
+      return Filesystem.writeFile({ path: path, data: b64, directory: 'CACHE' });
     }).then(function (writeResult) {
       var fileUri = writeResult && writeResult.uri;
       if (fileUri && fileUri.indexOf('file:') === 0) return fileUri;
@@ -83,45 +121,58 @@
         return uriResult && uriResult.uri;
       });
     }).then(function (fileUri) {
-      if (!fileUri || fileUri.indexOf('file:') !== 0) {
-        throw new Error('Capacitor Share: chybí file:// URI');
-      }
-      return Share.share({
-        files: [fileUri],
-        dialogTitle: 'Sdílet',
-      });
+      if (!fileUri || fileUri.indexOf('file:') !== 0) throw new Error('missing file uri');
+      return Share.share({ files: [fileUri], dialogTitle: 'Sdílet' });
     }).then(function () {
       return copyText(text).then(function () { return true; });
+    }).catch(function () {
+      return false;
     });
   }
 
   global.opticaIsAndroidApp = isOpticaAndroidApp;
 
-  /**
-   * Sdílení PDF v Android WebView (nativní plugin nebo Capacitor Share).
-   * @returns {Promise<boolean>} true pokud se dialog otevřel
-   */
-  global.opticaCapacitorSharePdf = function (blobOrFile, filename, text) {
+  global.opticaCapacitorSharePdfFromUrl = function (downloadUrl, filename, text) {
+    if (!isOpticaAndroidApp() || !downloadUrl) return Promise.resolve(false);
+    return shareViaUrl(downloadUrl, filename, text).catch(function (err) {
+      if (isShareCanceled(err)) throw err;
+      return false;
+    });
+  };
+
+  global.opticaCapacitorSharePdf = function (blobOrFile, filename, text, downloadUrl) {
     if (!isOpticaAndroidApp()) return Promise.resolve(false);
+
+    if (downloadUrl) {
+      return shareViaUrl(downloadUrl, filename, text).then(function (ok) {
+        if (ok) return true;
+      }).then(function (ok) {
+        if (ok) return true;
+        var blob = blobOrFile instanceof Blob ? blobOrFile : null;
+        if (!blob) return false;
+        return shareViaOpticaChunks(blob, filename, text).then(function (chunkOk) {
+          if (chunkOk) return true;
+          return shareViaCapacitorPlugins(blob, filename, text);
+        });
+      });
+    }
 
     var blob = blobOrFile instanceof Blob ? blobOrFile : null;
     if (!blob) return Promise.resolve(false);
 
-    return shareViaOpticaPlugin(blob, filename, text)
-      .then(function (ok) {
-        if (ok) return true;
-        return shareViaCapacitorPlugins(blob, filename, text);
-      })
-      .catch(function (err) {
-        if (isShareCanceled(err)) {
-          var abort = new Error('Share canceled');
-          abort.name = 'AbortError';
-          throw abort;
-        }
-        if (global.console && global.console.warn) {
-          global.console.warn('opticaCapacitorSharePdf failed', err);
-        }
-        return false;
-      });
+    return shareViaOpticaChunks(blob, filename, text).then(function (ok) {
+      if (ok) return true;
+      return shareViaCapacitorPlugins(blob, filename, text);
+    }).catch(function (err) {
+      if (isShareCanceled(err)) {
+        var abort = new Error('Share canceled');
+        abort.name = 'AbortError';
+        throw abort;
+      }
+      if (global.console && global.console.warn) {
+        global.console.warn('opticaCapacitorSharePdf failed', err);
+      }
+      return false;
+    });
   };
 })(typeof window !== 'undefined' ? window : this);

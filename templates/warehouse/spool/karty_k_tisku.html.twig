@@ -301,15 +301,9 @@
     try { return navigator.canShare(payload); } catch (e) { return false; }
   }
 
-  function isOpticaAndroidApp() {
-    if (typeof window.opticaIsAndroidApp === 'function') return window.opticaIsAndroidApp();
-    var cap = window.Capacitor;
-    return !!(cap && cap.getPlatform && cap.getPlatform() === 'android');
-  }
-
-  function tryCapacitorSharePdf(file, message) {
+  function tryCapacitorSharePdf(file, message, shareUrl) {
     if (typeof window.opticaCapacitorSharePdf !== 'function') return Promise.resolve(null);
-    return window.opticaCapacitorSharePdf(file, file.name, message || '').then(function (ok) {
+    return window.opticaCapacitorSharePdf(file, file.name, message || '', shareUrl || '').then(function (ok) {
       if (ok === false) return null;
       return message ? 'with-text' : 'files-only';
     }).catch(function (err) {
@@ -336,7 +330,7 @@
   }
 
   function trySharePdf(file, message, shareUrl) {
-    return tryCapacitorSharePdf(file, message).then(function (mode) {
+    return tryCapacitorSharePdf(file, message, shareUrl).then(function (mode) {
       if (mode) return mode;
       var fullMessage = buildShareMessage(message, shareUrl);
       return tryWebSharePdf(file, fullMessage);
@@ -384,38 +378,56 @@
       setWaHint('Připravuji PDF…', true);
       var message = (waMsg && waMsg.value ? waMsg.value : '').trim();
 
-      Promise.all([fetchPdfPack(ids), fetchShareUrl(ids)])
-        .then(function (results) {
-          var pack = results[0];
-          var shareUrl = results[1];
-          var file = new File([pack.blob], pack.filename, { type: 'application/pdf' });
-          var fallbackMessage = buildShareMessage(message, shareUrl);
-          return trySharePdf(file, message, shareUrl).then(function (mode) {
-            if (mode === 'with-text') {
-              setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
-              return 'done';
-            }
-            if (mode === 'files-only') {
-              return copyText(fallbackMessage).then(function () {
-                setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce a vložte text ze schránky (podržte prst → Vložit).', true);
-                return 'done';
-              });
-            }
-            return fallbackMessage;
-          });
-        })
-        .then(function (status) {
-          if (status === 'done') return;
-          if (typeof status !== 'string' || !status) return;
-          if (isOpticaAndroidApp()) {
-            setWaHint('PDF se nepodařilo sdílet nativně — nainstalujte nejnovější APK a zkuste znovu.', true);
-            return;
+      function afterShareAttempt(shareUrl, file, fallbackMessage) {
+        return trySharePdf(file, message, shareUrl).then(function (mode) {
+          if (mode === 'with-text') {
+            setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
+            return 'done';
           }
-          return copyText(status).then(function () {
-            openWhatsAppWithText(status);
-            setWaHint('WhatsApp otevřen — ve zprávě je odkaz ke stažení PDF (48 h).', true);
+          if (mode === 'files-only') {
+            return copyText(fallbackMessage).then(function () {
+              setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce a vložte text ze schránky (podržte prst → Vložit).', true);
+              return 'done';
+            });
+          }
+          return fallbackMessage;
+        });
+      }
+
+      function finishStatus(status) {
+        if (status === 'done') return;
+        if (typeof status !== 'string' || !status) return;
+        return copyText(status).then(function () {
+          openWhatsAppWithText(status);
+          setWaHint('WhatsApp otevřen — ve zprávě je odkaz ke stažení PDF (48 h).', true);
+        });
+      }
+
+      var useNativeUrl = typeof window.opticaIsAndroidApp === 'function' && window.opticaIsAndroidApp()
+        && typeof window.opticaCapacitorSharePdfFromUrl === 'function';
+
+      var flow = useNativeUrl
+        ? fetchShareUrl(ids).then(function (shareUrl) {
+            return window.opticaCapacitorSharePdfFromUrl(shareUrl, 'skladove-karty.pdf', message).then(function (ok) {
+              if (ok) {
+                setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
+                return 'done';
+              }
+              return fetchPdfPack(ids).then(function (pack) {
+                var file = new File([pack.blob], pack.filename, { type: 'application/pdf' });
+                return afterShareAttempt(shareUrl, file, buildShareMessage(message, shareUrl));
+              });
+            });
+          })
+        : Promise.all([fetchPdfPack(ids), fetchShareUrl(ids)]).then(function (results) {
+            var pack = results[0];
+            var shareUrl = results[1];
+            var file = new File([pack.blob], pack.filename, { type: 'application/pdf' });
+            return afterShareAttempt(shareUrl, file, buildShareMessage(message, shareUrl));
           });
-        })
+
+      flow
+        .then(finishStatus)
         .catch(function (err) {
           if (err && err.name === 'AbortError') {
             setWaHint('', false);

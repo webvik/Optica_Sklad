@@ -13,6 +13,6 @@
   },
   "android": {
     "allowMixedContent": false,
-    "appendUserAgent": " OpticaSkladApp/2"
+    "appendUserAgent": " OpticaSkladApp/3"
   }
 }
