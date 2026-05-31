@@ -204,24 +204,6 @@
             margin: 0 0 0.5rem;
             font-size: 0.9rem;
         }
-        .spool-karta-wa-contacts {
-            margin: 0 0 0.65rem;
-            padding: 0;
-            border: 0;
-        }
-        .spool-karta-wa-contact {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: baseline;
-            gap: 0.25rem 0.5rem;
-            margin: 0 0 0.45rem;
-            font-size: 0.92rem;
-            cursor: pointer;
-        }
-        .spool-karta-wa-contact__phone {
-            color: #5a6b7d;
-            font-size: 0.85rem;
-        }
         .spool-karta-wa-msg-label {
             display: block;
             margin: 0 0 0.25rem;
@@ -251,28 +233,9 @@
             margin: 0 0 0.45rem;
             color: #5a6b7d;
         }
-        .spool-karta-wa-empty {
-            flex: 0 0 auto;
-            font-size: 0.88rem;
-            color: #5a6b7d;
-            max-width: 22rem;
-            line-height: 1.35;
-        }
-        .visually-hidden {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
         @media (max-width: 41.99rem) {
             .spool-karta-desktop { display: none !important; }
-            .spool-karta-mobile.spool-karta-wa-toggle,
-            .spool-karta-mobile.spool-karta-wa-empty { display: inline-flex; }
+            .spool-karta-mobile.spool-karta-wa-toggle { display: inline-flex; }
         }
         {% include 'warehouse/_mobile_menu_styles.html.twig' %}
     </style>
@@ -519,12 +482,6 @@
     if (open) setHint('', false);
   });
 
-  function selectedContact() {
-    var checked = panel.querySelector('input[name="spool-karta-wa-contact"]:checked');
-    if (!checked) return null;
-    return { phone: checked.value, label: checked.getAttribute('data-label') || '' };
-  }
-
   function makeFile(blob, filename, mime) {
     return new File([blob], filename, { type: mime });
   }
@@ -546,26 +503,36 @@
     });
   }
 
-  function canShareFiles(files) {
+  function canSharePayload(payload) {
     if (!navigator.share) return false;
     if (!navigator.canShare) return true;
     try {
-      return navigator.canShare({ files: files });
+      return navigator.canShare(payload);
     } catch (e) {
       return false;
     }
   }
 
-  function shareFilesOnly(files) {
-    if (!canShareFiles(files)) return Promise.resolve(false);
-    return navigator.share({ files: files }).then(function () { return true; }).catch(function (err) {
-      if (err && err.name === 'AbortError') throw err;
-      return false;
-    });
+  function sharePdf(pdfFile, message) {
+    var withText = { files: [pdfFile], text: message };
+    if (canSharePayload(withText)) {
+      return navigator.share(withText).then(function () { return 'with-text'; }).catch(function (err) {
+        if (err && err.name === 'AbortError') throw err;
+        return null;
+      });
+    }
+    var filesOnly = { files: [pdfFile] };
+    if (canSharePayload(filesOnly)) {
+      return navigator.share(filesOnly).then(function () { return 'files-only'; }).catch(function (err) {
+        if (err && err.name === 'AbortError') throw err;
+        return null;
+      });
+    }
+    return Promise.resolve(null);
   }
 
-  function openWhatsAppChat(phone, text) {
-    window.location.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+  function openWhatsAppWithText(text) {
+    window.location.href = 'https://wa.me/?text=' + encodeURIComponent(text);
   }
 
   function buildShareMessage(message) {
@@ -574,11 +541,6 @@
   }
 
   sendBtn.addEventListener('click', function () {
-    var contact = selectedContact();
-    if (!contact || !contact.phone) {
-      setHint('Vyberte příjemce.', true);
-      return;
-    }
     var message = (msgEl.value || '').trim();
     if (!message) {
       setHint('Doplňte text zprávy.', true);
@@ -594,10 +556,14 @@
     fetchBlob(cfg.pdfUrl)
       .then(function (pdfBlob) {
         var pdfFile = makeFile(pdfBlob, cfg.filename, 'application/pdf');
-        return shareFilesOnly([pdfFile]).then(function (shared) {
-          if (shared) {
+        return sharePdf(pdfFile, fullMessage).then(function (mode) {
+          if (mode === 'with-text') {
+            setHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
+            return 'done';
+          }
+          if (mode === 'files-only') {
             return copyText(fullMessage).then(function () {
-              setHint('PDF odeslán — ve WhatsApp vyberte ' + contact.label + ' a vložte text ze schránky (podržte prst → Vložit).', true);
+              setHint('PDF odeslán — ve WhatsApp vyberte příjemce a vložte text ze schránky (podržte prst → Vložit).', true);
               return 'done';
             });
           }
@@ -607,8 +573,8 @@
       .then(function (status) {
         if (status === 'done') return;
         return copyText(fullMessage).then(function () {
-          openWhatsAppChat(contact.phone, fullMessage);
-          setHint('WhatsApp otevřen pro ' + contact.label + ' — ve zprávě je odkaz ke stažení PDF (48 h).', true);
+          openWhatsAppWithText(fullMessage);
+          setHint('WhatsApp otevřen — vyberte příjemce; ve zprávě je odkaz ke stažení PDF (48 h).', true);
         });
       })
       .catch(function (err) {
