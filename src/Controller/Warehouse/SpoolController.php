@@ -17,6 +17,8 @@ use App\Repository\CableFamilyRepository;
 use App\Repository\SpoolRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
 use App\Service\Warehouse\SkladovaKartaExcelExporter;
+use App\Service\Warehouse\SkladovaKartaPdfExporter;
+use App\Service\Warehouse\SkladovaKartaShareTokenService;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
 use App\Security\WarehouseRole;
@@ -505,14 +507,38 @@ final class SpoolController extends AbstractController
     public function skladovaKarta(Spool $spool, SkladovaKartaExcelExporter $exporter): Response
     {
         $result = $exporter->download($spool);
-        if ($result['truncated']) {
-            $this->addFlash(
-                'warning',
-                'Deník má více než 39 řádků — do Excelu bylo exportováno jen prvních 39 záznamů (17 + 22, duplex na jednom listu).',
-            );
-        }
+        $this->applySkladovaKartaTruncationFlash($result);
 
         return $result['response'];
+    }
+
+    #[Route('/{id}/skladova-karta.pdf', name: 'skladova_karta_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function skladovaKartaPdf(Spool $spool, SkladovaKartaPdfExporter $exporter): Response
+    {
+        $result = $exporter->download($spool);
+        $this->applySkladovaKartaTruncationFlash($result);
+
+        return $result['response'];
+    }
+
+    #[Route('/{id}/skladova-karta-sdilet/{token}.pdf', name: 'skladova_karta_share_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function skladovaKartaSharePdf(Spool $spool, string $token, SkladovaKartaShareTokenService $tokens, SkladovaKartaPdfExporter $exporter): Response
+    {
+        if (!$tokens->isValid($spool, $token)) {
+            throw $this->createNotFoundException('Odkaz ke stažení skladové karty není platný nebo vypršel.');
+        }
+
+        return $exporter->download($spool)['response'];
+    }
+
+    #[Route('/{id}/skladova-karta-sdilet/{token}.xlsx', name: 'skladova_karta_share', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function skladovaKartaShare(Spool $spool, string $token, SkladovaKartaShareTokenService $tokens, SkladovaKartaExcelExporter $exporter): Response
+    {
+        if (!$tokens->isValid($spool, $token)) {
+            throw $this->createNotFoundException('Odkaz ke stažení skladové karty není platný nebo vypršel.');
+        }
+
+        return $exporter->download($spool)['response'];
     }
 
     #[Route('/{id}', name: 'show', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
@@ -631,6 +657,19 @@ final class SpoolController extends AbstractController
             'editCoreForm' => $editCoreForm,
             'editMode' => $editMode,
         ]);
+    }
+
+    /**
+     * @param array{truncated?: bool} $result
+     */
+    private function applySkladovaKartaTruncationFlash(array $result): void
+    {
+        if (!empty($result['truncated'])) {
+            $this->addFlash(
+                'warning',
+                'Deník má více než 39 řádků — do exportu bylo zahrnuto jen prvních 39 záznamů (17 + 22, duplex na jednom listu).',
+            );
+        }
     }
 
     private function serializeSpoolLookup(Spool $s, SpoolMeterService $meter): array

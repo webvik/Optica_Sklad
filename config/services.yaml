@@ -14,6 +14,7 @@ parameters:
     env(AUDIT_HTTP_LOG_MODE): detailed
     env(AUDIT_LOG_FORM_FIELDS): '0'
     env(USER_AUDIT_LOG_RETENTION_DAYS): '30'
+    env(SKLADOVA_KARTA_LO_BIN): ''
 
 services:
     # default configuration for services in *this* file

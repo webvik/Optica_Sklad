@@ -247,6 +247,10 @@
             font-size: 0.85rem;
             color: #4a5f73;
         }
+        .spool-karta-wa-hint--static {
+            margin: 0 0 0.45rem;
+            color: #5a6b7d;
+        }
         .spool-karta-wa-empty {
             flex: 0 0 auto;
             font-size: 0.88rem;
@@ -494,11 +498,13 @@
   var msgEl = document.getElementById('spool-karta-wa-msg');
   var hintEl = document.getElementById('spool-karta-wa-hint');
   if (!toggle || !panel || !sendBtn || !msgEl) return;
+
   var cfg = {
-    downloadUrl: toggle.getAttribute('data-karta-url') || '',
-    filename: toggle.getAttribute('data-karta-filename') || 'skladova-karta.xlsx',
+    pdfUrl: toggle.getAttribute('data-karta-pdf-url') || '',
+    filename: toggle.getAttribute('data-karta-filename') || 'skladova-karta.pdf',
+    shareUrl: toggle.getAttribute('data-karta-share-url') || '',
   };
-  if (!cfg.downloadUrl) return;
+  if (!cfg.pdfUrl) return;
 
   function setHint(text, show) {
     if (!hintEl) return;
@@ -519,16 +525,49 @@
     return { phone: checked.value, label: checked.getAttribute('data-label') || '' };
   }
 
-  function triggerDownload(blob, filename) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  function makeFile(blob, filename, mime) {
+    return new File([blob], filename, { type: mime });
+  }
+
+  function copyText(text) {
+    if (!text || !navigator.clipboard || !navigator.clipboard.writeText) {
+      return Promise.resolve(false);
+    }
+    return navigator.clipboard.writeText(text).then(function () { return true; }).catch(function () { return false; });
+  }
+
+  function fetchBlob(url) {
+    return fetch(url, { credentials: 'same-origin' }).then(function (resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.blob();
+    });
+  }
+
+  function canShareFiles(files) {
+    if (!navigator.share) return false;
+    if (!navigator.canShare) return true;
+    try {
+      return navigator.canShare({ files: files });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function shareFilesOnly(files) {
+    if (!canShareFiles(files)) return Promise.resolve(false);
+    return navigator.share({ files: files }).then(function () { return true; }).catch(function (err) {
+      if (err && err.name === 'AbortError') throw err;
+      return false;
+    });
+  }
+
+  function openWhatsAppChat(phone, text) {
+    window.location.href = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+  }
+
+  function buildShareMessage(message) {
+    if (!cfg.shareUrl) return message;
+    return message + '\n\nStáhnout PDF:\n' + cfg.shareUrl;
   }
 
   sendBtn.addEventListener('click', function () {
@@ -545,37 +584,36 @@
     }
 
     sendBtn.disabled = true;
-    setHint('Připravuji soubor…', true);
+    setHint('Převádím do PDF…', true);
 
-    fetch(cfg.downloadUrl, { credentials: 'same-origin' })
-      .then(function (resp) {
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return resp.blob();
+    var fullMessage = buildShareMessage(message);
+
+    fetchBlob(cfg.pdfUrl)
+      .then(function (pdfBlob) {
+        var pdfFile = makeFile(pdfBlob, cfg.filename, 'application/pdf');
+        return shareFilesOnly([pdfFile]).then(function (shared) {
+          if (shared) {
+            return copyText(fullMessage).then(function () {
+              setHint('PDF odeslán — ve WhatsApp vyberte ' + contact.label + ' a vložte text ze schránky (podržte prst → Vložit).', true);
+              return 'done';
+            });
+          }
+          return null;
+        });
       })
-      .then(function (blob) {
-        var mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        var file = new File([blob], cfg.filename, { type: blob.type || mime });
-        var sharePayload = { text: message, files: [file] };
-
-        if (navigator.share && (!navigator.canShare || navigator.canShare(sharePayload))) {
-          return navigator.share(sharePayload).then(function () {
-            setHint('Soubor odeslán — ve WhatsApp dokončete odeslání.', true);
-          }).catch(function (err) {
-            if (err && err.name === 'AbortError') {
-              setHint('', false);
-              return;
-            }
-            throw err;
-          });
+      .then(function (status) {
+        if (status === 'done') return;
+        return copyText(fullMessage).then(function () {
+          openWhatsAppChat(contact.phone, fullMessage);
+          setHint('WhatsApp otevřen pro ' + contact.label + ' — ve zprávě je odkaz ke stažení PDF (48 h).', true);
+        });
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') {
+          setHint('', false);
+          return;
         }
-
-        window.location.href = 'https://wa.me/' + encodeURIComponent(contact.phone)
-          + '?text=' + encodeURIComponent(message);
-        triggerDownload(blob, cfg.filename);
-        setHint('Chat WhatsApp otevřen — přidejte stažený soubor jako přílohu (sponka).', true);
-      })
-      .catch(function () {
-        setHint('Soubor se nepodařilo načíst. Zkuste to znovu.', true);
+        setHint('PDF se nepodařilo vytvořit nebo odeslat. Je na serveru nainstalovaný LibreOffice?', true);
       })
       .finally(function () {
         sendBtn.disabled = false;

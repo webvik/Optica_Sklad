@@ -35,6 +35,20 @@ final class SkladovaKartaExcelExporter
     /** Formát data na kartě (bez času). */
     private const DATE_FORMAT = 'dd.mm.yyyy';
 
+    /**
+     * LibreOffice jinak než Excel: obsah se nevejde na 2× A4 při scale 100 %.
+     * Pouze pro cestu Excel → PDF (desktop .xlsx zůstává 100 %).
+     */
+    private const PDF_PRINT_SCALE = 81;
+
+    private const PDF_MARGIN_TOP = 0.51181102362205;
+
+    private const PDF_MARGIN_BOTTOM = 0.393700787401575;
+
+    private const PDF_MARGIN_HEADER = 0.118110236220472;
+
+    private const PDF_MARGIN_FOOTER = 0.118110236220472;
+
     public function __construct(
         #[Autowire('%kernel.project_dir%')]
         private readonly string $projectDir,
@@ -47,6 +61,38 @@ final class SkladovaKartaExcelExporter
      */
     public function download(Spool $spool): array
     {
+        $prepared = $this->prepare($spool);
+
+        return [
+            'response' => $this->streamXlsx($prepared['spreadsheet'], $prepared['filename']),
+            'truncated' => $prepared['truncated'],
+            'diaryRows' => $prepared['diaryRows'],
+        ];
+    }
+
+    /**
+     * @return array{spreadsheet: Spreadsheet, truncated: bool, diaryRows: int, filename: string}
+     */
+    public function prepare(Spool $spool): array
+    {
+        return $this->buildPrepared($spool, false);
+    }
+
+    /**
+     * Stejná data jako {@see prepare()}, ale s úpravou stránkování pro LibreOffice → PDF (2 listy A4).
+     *
+     * @return array{spreadsheet: Spreadsheet, truncated: bool, diaryRows: int, filename: string}
+     */
+    public function prepareForPdf(Spool $spool): array
+    {
+        return $this->buildPrepared($spool, true);
+    }
+
+    /**
+     * @return array{spreadsheet: Spreadsheet, truncated: bool, diaryRows: int, filename: string}
+     */
+    private function buildPrepared(Spool $spool, bool $forPdf): array
+    {
         $path = $this->projectDir.self::TEMPLATE_REL;
         if (!is_readable($path)) {
             throw new \RuntimeException('Chybí šablona skladové karty: '.$path);
@@ -57,7 +103,11 @@ final class SkladovaKartaExcelExporter
         $spreadsheet = IOFactory::load($path);
         $this->keepSingleSheet($spreadsheet);
         $ws = $spreadsheet->getActiveSheet();
-        $this->ensureDuplexPrintLayout($ws);
+        if ($forPdf) {
+            $this->ensurePdfPrintLayout($ws);
+        } else {
+            $this->ensureDuplexPrintLayout($ws);
+        }
 
         $perPage = SkladovaKartaDataBuilder::MAX_DIARY_ROWS_PER_PAGE;
         $diaryRows = $karta['diaryRows'];
@@ -69,13 +119,32 @@ final class SkladovaKartaExcelExporter
         $this->fillDiaryBlock($ws, self::DIARY_PAGE1_FIRST_ROW, $page1Rows);
         $this->fillDiaryBlock($ws, self::DIARY_PAGE2_FIRST_ROW, $page2Rows);
 
-        $filename = $this->filename($spool);
-
         return [
-            'response' => $this->stream($spreadsheet, $filename),
+            'spreadsheet' => $spreadsheet,
             'truncated' => $karta['truncated'],
             'diaryRows' => \count($diaryRows),
+            'filename' => $this->filename($spool),
         ];
+    }
+
+    /** LibreOffice PDF: menší okraje + scale 81 % → 2× A4 (Excel tisk zůstává 100 %). */
+    private function ensurePdfPrintLayout(Worksheet $ws): void
+    {
+        $this->ensureDuplexPrintLayout($ws);
+
+        $ps = $ws->getPageSetup();
+        $ps->setScale(self::PDF_PRINT_SCALE);
+
+        $margins = $ws->getPageMargins();
+        $margins->setTop(self::PDF_MARGIN_TOP);
+        $margins->setBottom(self::PDF_MARGIN_BOTTOM);
+        $margins->setHeader(self::PDF_MARGIN_HEADER);
+        $margins->setFooter(self::PDF_MARGIN_FOOTER);
+    }
+
+    public function pdfFilename(Spool $spool): string
+    {
+        return str_replace('.xlsx', '.pdf', $this->filename($spool));
     }
 
     private function keepSingleSheet(Spreadsheet $spreadsheet): void
@@ -164,7 +233,13 @@ final class SkladovaKartaExcelExporter
         $ws->getStyle($coordinate)->getNumberFormat()->setFormatCode(self::DATE_FORMAT);
     }
 
-    private function stream(Spreadsheet $spreadsheet, string $filename): StreamedResponse
+    public function saveXlsxToPath(Spreadsheet $spreadsheet, string $path): void
+    {
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($path);
+    }
+
+    private function streamXlsx(Spreadsheet $spreadsheet, string $filename): StreamedResponse
     {
         return new StreamedResponse(
             static function () use ($spreadsheet): void {

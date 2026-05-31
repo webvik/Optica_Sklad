@@ -4,7 +4,11 @@ Etalon layoutu: `Optica_Sklad_Doc/SKLADOVÁ KARTA.xlsx` (list 1, rozsah cca A1:L
 
 Implementace: `deploy/excel/skladova-karta.template.xlsx` + `SkladovaKartaExcelExporter` (jen hodnoty, layout ze šablony). Route: `GET /sklad/spool/{id}/skladova-karta.xlsx`
 
-**UI:** na desktopu (≥42rem) odkaz „Skladová karta (Excel)“ — stažení souboru. Na mobilu místo toho „Skladová karta — WhatsApp“: výběr aktivního uživatele s vyplněným telefonem v administraci účtů, krátký text („Prosím vytiskni tento soubor…“), odeslání přes Web Share API (soubor + text) nebo fallback `wa.me` + stažení přílohy.
+**UI:** na desktopu (≥42rem) odkaz „Skladová karta (Excel)“ — stažení souboru. Na mobilu „Skladová karta — WhatsApp“: Excel se na serveru převede na **PDF** (LibreOffice, `libreoffice-calc`), PDF se sdílí přes Web Share API nebo jako odkaz ke stažení (token 48 h, route `skladova-karta-sdilet/{token}.pdf`).
+
+**Server:** `sudo apt install libreoffice-calc` (Rocky: `dnf install libreoffice-calc libreoffice-headless`). Volitelně `SKLADOVA_KARTA_LO_BIN` v `.env.local`.
+
+**PDF vs Excel tisk:** export `.xlsx` pro desktop = scale **100 %**, okraje ze šablony (jako papír). Cesta Excel → PDF (LibreOffice) používá scale **81 %** a menší spodní okraj — jinak LO rozdělí kartu na 4 strany místo 2. Šablona `deploy/excel/skladova-karta.template.xlsx` = kopie etalonu včetně výšek řádků.
 
 ## Sloupce deníku na papíru (zavedená praxe — dodržet)
 

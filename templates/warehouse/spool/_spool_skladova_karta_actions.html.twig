@@ -1,6 +1,7 @@
 {# Desktop: stažení Excelu. Mobil (≤41.99rem): WhatsApp s výběrem uživatele. #}
 {% set skKartaUrl = path('warehouse_spool_skladova_karta', {id: spool.id}) %}
-{% set skKartaFilename = 'skladova-karta-' ~ spool.reelNumber ~ '.xlsx' %}
+{% set skKartaPdfUrl = path('warehouse_spool_skladova_karta_pdf', {id: spool.id}) %}
+{% set skKartaPdfFilename = 'skladova-karta-' ~ spool.reelNumber ~ '.pdf' %}
 {% set skKartaDefaultMsg = 'Prosím vytiskni tento soubor — skladová karta cívky ' ~ spool.reelNumber ~ '.' %}
 {% set waContacts = skladova_karta_whatsapp_contacts() %}
 
@@ -11,8 +12,9 @@
             class="app-menu__nav-link spool-card-edit-link spool-karta-mobile spool-karta-wa-toggle"
             aria-expanded="false"
             aria-controls="spool-karta-wa-panel"
-            data-karta-url="{{ skKartaUrl }}"
-            data-karta-filename="{{ skKartaFilename }}">Skladová karta — WhatsApp</button>
+            data-karta-pdf-url="{{ skKartaPdfUrl }}"
+            data-karta-filename="{{ skKartaPdfFilename }}"
+            data-karta-share-url="{{ skladova_karta_share_download_url(spool) }}">Skladová karta — WhatsApp</button>
     <div id="spool-karta-wa-panel" class="spool-karta-wa-panel" hidden>
         <p class="spool-karta-wa-panel__lead">Odeslat soubor k tisku vybranému uživateli:</p>
         <fieldset class="spool-karta-wa-contacts">
@@ -30,6 +32,7 @@
         <label class="spool-karta-wa-msg-label" for="spool-karta-wa-msg">Text zprávy</label>
         <textarea id="spool-karta-wa-msg" class="spool-karta-wa-msg" rows="3">{{ skKartaDefaultMsg }}</textarea>
         <button type="button" class="app-menu__nav-link spool-card-edit-link spool-karta-wa-send">Odeslat přes WhatsApp</button>
+        <p class="spool-karta-wa-hint spool-karta-wa-hint--static">Soubor se před odesláním převede z Excelu do PDF (stejný tiskový layout).</p>
         <p class="spool-karta-wa-hint" id="spool-karta-wa-hint" role="status" hidden></p>
     </div>
 {% else %}
