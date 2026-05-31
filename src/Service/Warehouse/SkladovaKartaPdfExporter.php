@@ -16,10 +16,12 @@ use Symfony\Component\Process\Process;
 final class SkladovaKartaPdfExporter
 {
     /** @var list<string> */
-    private const LO_BINARIES = ['libreoffice', 'soffice', '/usr/bin/libreoffice', '/usr/bin/soffice'];
+    private const LO_BINARIES = ['/usr/bin/libreoffice', '/usr/bin/soffice', 'libreoffice', 'soffice'];
 
     public function __construct(
         private readonly SkladovaKartaExcelExporter $excelExporter,
+        #[Autowire('%kernel.cache_dir%')]
+        private readonly string $cacheDir,
         #[Autowire('%env(SKLADOVA_KARTA_LO_BIN)%')]
         private readonly string $loBinOverride,
     ) {
@@ -33,7 +35,7 @@ final class SkladovaKartaPdfExporter
         $prepared = $this->excelExporter->prepareForPdf($spool);
         $pdfFilename = $this->excelExporter->pdfFilename($spool);
 
-        $tmpdir = sys_get_temp_dir().'/sk-karta-'.bin2hex(random_bytes(8));
+        $tmpdir = $this->cacheDir.'/sk-karta-'.bin2hex(random_bytes(8));
         if (!mkdir($tmpdir, 0700, true) && !is_dir($tmpdir)) {
             throw new \RuntimeException('Nelze vytvořit dočasný adresář pro PDF.');
         }
@@ -69,31 +71,73 @@ final class SkladovaKartaPdfExporter
             throw new \RuntimeException('Nelze vytvořit profil LibreOffice.');
         }
 
-        $process = new Process([
-            $binary,
-            '-env:UserInstallation=file://'.$profileDir,
-            '--headless',
-            '--norestore',
-            '--nologo',
-            '--convert-to',
-            'pdf',
-            '--outdir',
+        $env = $this->processEnvironment($outDir);
+
+        $process = new Process(
+            [
+                $binary,
+                '-env:UserInstallation='.$this->loUserInstallationUri($profileDir),
+                '--headless',
+                '--norestore',
+                '--nologo',
+                '--convert-to',
+                'pdf',
+                '--outdir',
+                $outDir,
+                $xlsxPath,
+            ],
             $outDir,
-            $xlsxPath,
-        ]);
+            $env,
+        );
         $process->setTimeout(120);
-        $process->setEnv([
-            'HOME' => $outDir,
-            'LANG' => 'cs_CZ.UTF-8',
-        ]);
         $process->run();
 
         if (!$process->isSuccessful()) {
+            $detail = trim($process->getErrorOutput().' '.$process->getOutput());
             throw new \RuntimeException(
-                'Konverze Excel → PDF selhala (LibreOffice). Na serveru nainstalujte balíček libreoffice-calc. '
-                .trim($process->getErrorOutput().' '.$process->getOutput()),
+                'Konverze Excel → PDF selhala (LibreOffice). '
+                .($detail !== '' ? $detail : 'Zkontrolujte, zda uživatel web serveru může spustit libreoffice --headless.'),
             );
         }
+
+        $base = pathinfo($xlsxPath, PATHINFO_FILENAME);
+        $generated = $outDir.'/'.$base.'.pdf';
+        if (!is_readable($generated)) {
+            throw new \RuntimeException('Konverze Excel → PDF nevrátila soubor: '.$generated);
+        }
+    }
+
+    private function loUserInstallationUri(string $absoluteDir): string
+    {
+        $path = str_replace('\\', '/', $absoluteDir);
+
+        return 'file://'.(str_starts_with($path, '/') ? '' : '/').$path;
+    }
+
+    /**
+     * Dědičnost celého prostředí — setEnv() by jinak odřízl LD_LIBRARY_PATH atd.
+     *
+     * @return array<string, string>
+     */
+    private function processEnvironment(string $workDir): array
+    {
+        $env = [];
+        foreach ([$_ENV, $_SERVER] as $source) {
+            foreach ($source as $key => $value) {
+                if (!\is_string($key) || !\is_string($value) || '' === $value) {
+                    continue;
+                }
+                $env[$key] = $value;
+            }
+        }
+        $env['HOME'] = $workDir;
+        $env['TMPDIR'] = $workDir;
+        $env['LANG'] = 'C.UTF-8';
+        if (!isset($env['PATH']) || '' === $env['PATH']) {
+            $env['PATH'] = '/usr/local/bin:/usr/bin:/bin';
+        }
+
+        return $env;
     }
 
     private function resolveLibreOfficeBinary(): string

@@ -515,10 +515,7 @@ final class SpoolController extends AbstractController
     #[Route('/{id}/skladova-karta.pdf', name: 'skladova_karta_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function skladovaKartaPdf(Spool $spool, SkladovaKartaPdfExporter $exporter): Response
     {
-        $result = $exporter->download($spool);
-        $this->applySkladovaKartaTruncationFlash($result);
-
-        return $result['response'];
+        return $this->skladovaKartaPdfDownload($spool, $exporter);
     }
 
     #[Route('/{id}/skladova-karta-sdilet/{token}.pdf', name: 'skladova_karta_share_pdf', methods: ['GET'], requirements: ['id' => '\d+'])]
@@ -528,7 +525,23 @@ final class SpoolController extends AbstractController
             throw $this->createNotFoundException('Odkaz ke stažení skladové karty není platný nebo vypršel.');
         }
 
-        return $exporter->download($spool)['response'];
+        return $this->skladovaKartaPdfDownload($spool, $exporter);
+    }
+
+    private function skladovaKartaPdfDownload(Spool $spool, SkladovaKartaPdfExporter $exporter): Response
+    {
+        try {
+            $result = $exporter->download($spool);
+            $this->applySkladovaKartaTruncationFlash($result);
+
+            return $result['response'];
+        } catch (\Throwable $e) {
+            return new Response(
+                'Chyba PDF: '.$e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR,
+                ['Content-Type' => 'text/plain; charset=UTF-8'],
+            );
+        }
     }
 
     #[Route('/{id}/skladova-karta-sdilet/{token}.xlsx', name: 'skladova_karta_share', methods: ['GET'], requirements: ['id' => '\d+'])]

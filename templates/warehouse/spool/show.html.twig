@@ -538,8 +538,11 @@
 
   function fetchBlob(url) {
     return fetch(url, { credentials: 'same-origin' }).then(function (resp) {
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      return resp.blob();
+      if (resp.ok) return resp.blob();
+      return resp.text().then(function (body) {
+        var detail = (body || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+        throw new Error(detail || ('HTTP ' + resp.status));
+      });
     });
   }
 
@@ -613,7 +616,7 @@
           setHint('', false);
           return;
         }
-        setHint('PDF se nepodařilo vytvořit nebo odeslat. Je na serveru nainstalovaný LibreOffice?', true);
+        setHint(err && err.message ? err.message : 'PDF se nepodařilo vytvořit.', true);
       })
       .finally(function () {
         sendBtn.disabled = false;
