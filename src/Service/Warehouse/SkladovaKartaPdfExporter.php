@@ -35,11 +35,7 @@ final class SkladovaKartaPdfExporter
         $prepared = $this->excelExporter->prepareForPdf($spool);
         $pdfFilename = $this->excelExporter->pdfFilename($spool);
 
-        $tmpdir = $this->cacheDir.'/sk-karta-'.bin2hex(random_bytes(8));
-        if (!mkdir($tmpdir, 0700, true) && !is_dir($tmpdir)) {
-            throw new \RuntimeException('Nelze vytvořit dočasný adresář pro PDF.');
-        }
-
+        $tmpdir = $this->createWorkDir();
         $xlsxPath = $tmpdir.'/karta.xlsx';
         $pdfPath = $tmpdir.'/karta.pdf';
 
@@ -61,6 +57,36 @@ final class SkladovaKartaPdfExporter
 
             throw $e;
         }
+    }
+
+    private function createWorkDir(): string
+    {
+        foreach ($this->workDirCandidates() as $base) {
+            if (!is_dir($base) || !is_writable($base)) {
+                continue;
+            }
+            $tmpdir = rtrim($base, '/\\').'/sk-karta-'.bin2hex(random_bytes(8));
+            if (@mkdir($tmpdir, 0700, true) || is_dir($tmpdir)) {
+                return $tmpdir;
+            }
+        }
+
+        throw new \RuntimeException(
+            'Nelze vytvořit dočasný adresář pro PDF — zkontrolujte práva zápisu do /tmp nebo var/cache (uživatel web serveru).',
+        );
+    }
+
+    /** @return list<string> */
+    private function workDirCandidates(): array
+    {
+        $tmp = sys_get_temp_dir();
+        $candidates = [];
+        if ('' !== $tmp) {
+            $candidates[] = $tmp;
+        }
+        $candidates[] = $this->cacheDir;
+
+        return array_values(array_unique($candidates));
     }
 
     private function convertXlsxToPdf(string $xlsxPath, string $outDir): void
