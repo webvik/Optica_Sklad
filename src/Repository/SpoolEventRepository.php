@@ -31,6 +31,8 @@ class SpoolEventRepository extends ServiceEntityRepository
             ->addSelect('s')
             ->leftJoin('s.cableType', 'ct')
             ->addSelect('ct')
+            ->leftJoin('e.createdBy', 'u')
+            ->addSelect('u')
             ->where('e.occurredAt >= :from')
             ->andWhere('e.occurredAt <= :to')
             ->andWhere('e.usedMeters IS NOT NULL')

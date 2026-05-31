@@ -408,11 +408,24 @@ final class StockBrowseController extends AbstractController
      *
      * @param list<\App\Entity\SpoolEvent> $events
      *
-     * @return list<array{projectLabel: string, lines: list<array{groupLabel: string, meters: int}>}>
+     * @return list<array{
+     *   projectLabel: string,
+     *   lines: list<array{
+     *     groupLabel: string,
+     *     meters: int,
+     *     details: list<array{
+     *       reelNumber: string,
+     *       spoolId: int,
+     *       occurredAt: \DateTimeImmutable,
+     *       usedMeters: int,
+     *       author: string
+     *     }>
+     *   }>
+     * }>
      */
     private static function buildProjectUsageGroupsInventuraStyle(array $events): array
     {
-        /** @var array<string, array<string, array{groupLabel: string, meters: int}>> $nested */
+        /** @var array<string, array<string, array{groupLabel: string, meters: int, details: list<array{reelNumber: string, spoolId: int, occurredAt: \DateTimeImmutable, usedMeters: int, author: string}>}>> $nested */
         $nested = [];
         foreach ($events as $e) {
             $pl = \trim((string) $e->getProjectLabel());
@@ -439,9 +452,18 @@ final class StockBrowseController extends AbstractController
                 $nested[$pl][$bucketKey] = [
                     'groupLabel' => $groupLabel,
                     'meters' => 0,
+                    'details' => [],
                 ];
             }
             $nested[$pl][$bucketKey]['meters'] += $um;
+            $author = $e->getCreatedBy();
+            $nested[$pl][$bucketKey]['details'][] = [
+                'reelNumber' => (string) $sp->getReelNumber(),
+                'spoolId' => (int) $sp->getId(),
+                'occurredAt' => $e->getOccurredAt() ?? new \DateTimeImmutable(),
+                'usedMeters' => $um,
+                'author' => null !== $author ? $author->getDisplayName() : '—',
+            ];
         }
         /** @var list<string> */
         $projectLabelsOrdered = \array_keys($nested);
@@ -455,6 +477,19 @@ final class StockBrowseController extends AbstractController
         foreach ($projectLabelsOrdered as $label) {
             $groups = $nested[$label];
             $lines = \array_values($groups);
+            foreach ($lines as $i => $line) {
+                \usort(
+                    $lines[$i]['details'],
+                    static function (array $a, array $b): int {
+                        $c = $a['occurredAt'] <=> $b['occurredAt'];
+                        if (0 !== $c) {
+                            return $c;
+                        }
+
+                        return \strcmp($a['reelNumber'], $b['reelNumber']);
+                    },
+                );
+            }
             \usort(
                 $lines,
                 static function (array $a, array $b): int {

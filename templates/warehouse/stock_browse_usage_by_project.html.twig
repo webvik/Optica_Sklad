@@ -45,18 +45,60 @@
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 0.65rem;
-            align-items: baseline;
+            align-items: start;
             font-size: 0.92rem;
             line-height: 1.35;
             border-bottom: 1px solid #e8edf2;
             padding-bottom: 0.35rem;
         }
         .browse-proj-fold__list li:last-child { border-bottom: 0; padding-bottom: 0; }
+        .browse-proj-fold__line-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.2rem;
+        }
         .browse-proj-fold__m {
             font-variant-numeric: tabular-nums;
             font-weight: 500;
             white-space: nowrap;
         }
+        .browse-proj-fold__details {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+        .browse-proj-fold__details > summary {
+            list-style: none;
+            cursor: pointer;
+            color: #06c;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .browse-proj-fold__details > summary::-webkit-details-marker { display: none; }
+        .browse-proj-fold__detail-list {
+            margin: 0.35rem 0 0;
+            padding: 0;
+            list-style: none;
+            min-width: min(18rem, 72vw);
+            border: 1px solid #dde4ec;
+            border-radius: 4px;
+            background: #fff;
+            overflow: hidden;
+        }
+        .browse-proj-fold__detail-list li {
+            display: block;
+            padding: 0.35rem 0.45rem;
+            border-bottom: 1px solid #eef2f6;
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+        .browse-proj-fold__detail-list li:last-child { border-bottom: 0; }
+        .browse-proj-fold__detail-list a { font-weight: 600; }
+        .browse-proj-fold__detail-meta { color: #555; }
         /* Stejná šířka jako <details class="browse-proj-fold"> (max-width: 52rem) pod tímto blokem */
         .usage-proj-filters {
             display: flex;
@@ -132,7 +174,24 @@
                             {% for line in p.lines %}
                                 <li>
                                     <span>{{ line.groupLabel }}</span>
-                                    <span class="browse-proj-fold__m">{{ line.meters|number_format(0, ',', ' ') }} m</span>
+                                    <span class="browse-proj-fold__line-meta">
+                                        <span class="browse-proj-fold__m">{{ line.meters|number_format(0, ',', ' ') }} m</span>
+                                        {% if line.details|length > 0 %}
+                                            <details class="browse-proj-fold__details">
+                                                <summary>Detaily</summary>
+                                                <ul class="browse-proj-fold__detail-list">
+                                                    {% for d in line.details %}
+                                                        <li>
+                                                            <a href="{{ path('warehouse_spool_show', {id: d.spoolId}) }}">{{ d.reelNumber }}</a>
+                                                            · {{ d.usedMeters|number_format(0, ',', ' ') }} m
+                                                            · {{ d.occurredAt|date('d.m.Y') }}
+                                                            <span class="browse-proj-fold__detail-meta"> · {{ d.author }}</span>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </details>
+                                        {% endif %}
+                                    </span>
                                 </li>
                             {% endfor %}
                         </ul>
