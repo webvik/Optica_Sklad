@@ -8,6 +8,7 @@ use App\Entity\Spool;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -118,6 +119,7 @@ final class SkladovaKartaExcelExporter
         $this->clearDiaryDataAreas($ws);
         $this->fillDiaryBlock($ws, self::DIARY_PAGE1_FIRST_ROW, $page1Rows);
         $this->fillDiaryBlock($ws, self::DIARY_PAGE2_FIRST_ROW, $page2Rows);
+        $this->ensureDiaryRowsVerticallyCentered($ws);
 
         return [
             'spreadsheet' => $spreadsheet,
@@ -224,6 +226,24 @@ final class SkladovaKartaExcelExporter
             $ws->setCellValue('H'.$row, $entry['remainingM']);
             ++$row;
         }
+    }
+
+    /** Sloučené buňky deníku (A:I) — obsah vertikálně na střed řádku. */
+    private function ensureDiaryRowsVerticallyCentered(Worksheet $ws): void
+    {
+        for ($row = self::DIARY_PAGE1_FIRST_ROW; $row <= self::DIARY_PAGE1_LAST_ROW; ++$row) {
+            $this->applyDiaryRowVerticalCenter($ws, $row);
+        }
+        for ($row = self::DIARY_PAGE2_FIRST_ROW; $row <= self::DIARY_PAGE2_LAST_ROW; ++$row) {
+            $this->applyDiaryRowVerticalCenter($ws, $row);
+        }
+    }
+
+    private function applyDiaryRowVerticalCenter(Worksheet $ws, int $row): void
+    {
+        $ws->getStyle('A'.$row.':I'.$row)
+            ->getAlignment()
+            ->setVertical(Alignment::VERTICAL_CENTER);
     }
 
     private function setDateCell(Worksheet $ws, string $coordinate, \DateTimeInterface $date): void
