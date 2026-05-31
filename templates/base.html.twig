@@ -266,6 +266,22 @@
             .spool-diary-table th:nth-child(2), .spool-diary-table td:nth-child(2) {
                 width: 3.9rem; max-width: 3.9rem; padding: 0.35rem 0.3rem; text-align: right; font-variant-numeric: tabular-nums;
             }
+            .spool-diary-table th:nth-child(5), .spool-diary-table td:nth-child(5) {
+                width: 9rem; max-width: 11rem; padding: 0.35rem 0.3rem; font-size: 0.88rem;
+                word-break: break-word; overflow-wrap: anywhere; line-height: 1.3;
+            }
+            .spool-diary-table th:nth-child(6), .spool-diary-table td:nth-child(6) {
+                width: 3.2rem; max-width: 4rem; padding: 0.35rem 0.25rem; font-size: 0.82rem;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            }
+            @media (max-width: 36rem) {
+                .spool-diary-table th:nth-child(5), .spool-diary-table td:nth-child(5) {
+                    width: 6.5rem; max-width: 7.5rem; font-size: 0.82rem;
+                }
+                .spool-diary-table th:nth-child(6), .spool-diary-table td:nth-child(6) {
+                    width: 2.4rem; max-width: 2.8rem;
+                }
+            }
         </style>
         {% block stylesheets %}
         {% endblock %}

@@ -134,7 +134,7 @@
 <div class="table-scroll table-scroll--wide">
 <table class="spool-diary-table">
     <thead>
-        <tr><th>m (čtení)</th><th>Délka (m)</th><th>Zakázka</th><th>Kdy</th><th>Pozn.</th></tr>
+        <tr><th>m (čtení)</th><th>Délka (m)</th><th>Zakázka</th><th>Kdy</th><th>Technik</th><th>Pozn.</th></tr>
     </thead>
     <tbody>
     {% for e in spool.eventsSortedByVisibleM %}
@@ -144,10 +144,11 @@
             <td>{{ diary.usedMeters is not null ? diary.usedMeters : '—' }}</td>
             <td>{{ diary.projectLabel|default('—') }}</td>
             <td>{{ e.occurredAt|date('Y-m-d') }}</td>
-            <td>{{ e.note|default('') }}</td>
+            <td class="spool-diary-table__author" title="{{ spool_event_author(e) }}">{{ spool_event_author(e) }}</td>
+            <td class="spool-diary-table__note" title="{{ e.note|default('') }}">{{ e.note|default('') }}</td>
         </tr>
     {% else %}
-        <tr><td colspan="5">Žádné záznamy</td></tr>
+        <tr><td colspan="6">Žádné záznamy</td></tr>
     {% endfor %}
     </tbody>
 </table>

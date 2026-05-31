@@ -22,7 +22,18 @@ final class SpoolDiaryExtension extends AbstractExtension
         return [
             new TwigFunction('spool_diary_cells', $this->diaryCells(...)),
             new TwigFunction('spool_cable_end_visible_m', $this->cableEndVisibleM(...)),
+            new TwigFunction('spool_event_author', $this->eventAuthor(...)),
         ];
+    }
+
+    public function eventAuthor(SpoolEvent $event): string
+    {
+        $user = $event->getCreatedBy();
+        if (null === $user) {
+            return '—';
+        }
+
+        return $user->getDisplayName();
     }
 
     public function cableEndVisibleM(Spool $spool): ?int
