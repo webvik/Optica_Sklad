@@ -213,8 +213,10 @@
 
   var cfg = {
     pdfUrl: {{ path('warehouse_spool_karty_pdf')|json_encode|raw }},
+    shareLinkUrl: {{ path('warehouse_spool_karty_share_link')|json_encode|raw }},
     markUrl: {{ path('warehouse_spool_karty_mark_printed')|json_encode|raw }},
     pdfToken: {{ csrf_token('skladova_karta_batch_pdf')|json_encode|raw }},
+    shareLinkToken: {{ csrf_token('skladova_karta_batch_share_link')|json_encode|raw }},
     markToken: {{ csrf_token('skladova_karta_batch_mark')|json_encode|raw }},
   };
 
@@ -270,17 +272,79 @@
     });
   }
 
-  function buildFormData(ids) {
+  function buildFormData(ids, token) {
     var fd = new FormData();
-    fd.append('_token', cfg.pdfToken);
+    fd.append('_token', token || cfg.pdfToken);
     ids.forEach(function (id) { fd.append('spoolIds[]', id); });
     return fd;
+  }
+
+  function copyText(text) {
+    if (!text || !navigator.clipboard || !navigator.clipboard.writeText) {
+      return Promise.resolve(false);
+    }
+    return navigator.clipboard.writeText(text).then(function () { return true; }).catch(function () { return false; });
+  }
+
+  function openWhatsAppWithText(text) {
+    window.location.href = 'https://wa.me/?text=' + encodeURIComponent(text);
+  }
+
+  function buildShareMessage(message, shareUrl) {
+    if (!shareUrl) return message;
+    return message + '\n\nStáhnout PDF:\n' + shareUrl;
   }
 
   function canSharePayload(payload) {
     if (!navigator.share) return false;
     if (!navigator.canShare) return true;
     try { return navigator.canShare(payload); } catch (e) { return false; }
+  }
+
+  function trySharePdf(file, message) {
+    var withText = message ? { files: [file], text: message } : { files: [file] };
+    if (canSharePayload(withText)) {
+      return navigator.share(withText).then(function () { return 'with-text'; }).catch(function (err) {
+        if (err && err.name === 'AbortError') throw err;
+        return null;
+      });
+    }
+    if (canSharePayload({ files: [file] })) {
+      return navigator.share({ files: [file] }).then(function () { return 'files-only'; }).catch(function (err) {
+        if (err && err.name === 'AbortError') throw err;
+        return null;
+      });
+    }
+    return Promise.resolve(null);
+  }
+
+  function fetchShareUrl(ids) {
+    return fetch(cfg.shareLinkUrl, {
+      method: 'POST',
+      body: buildFormData(ids, cfg.shareLinkToken),
+      credentials: 'same-origin',
+    }).then(function (resp) {
+      return resp.json().then(function (data) {
+        if (!resp.ok || !data || !data.ok) {
+          throw new Error((data && data.message) ? data.message : ('HTTP ' + resp.status));
+        }
+        return data.shareUrl || '';
+      });
+    });
+  }
+
+  function fetchPdfPack(ids) {
+    return fetch(cfg.pdfUrl, { method: 'POST', body: buildFormData(ids), credentials: 'same-origin' })
+      .then(function (resp) {
+        if (!resp.ok) {
+          return resp.text().then(function (t) { throw new Error(t || ('HTTP ' + resp.status)); });
+        }
+        var fn = 'skladove-karty.pdf';
+        var cd = resp.headers.get('Content-Disposition') || '';
+        var m = /filename=\"?([^\";]+)/.exec(cd);
+        if (m) fn = m[1];
+        return resp.blob().then(function (blob) { return { blob: blob, filename: fn }; });
+      });
   }
 
   if (waBtn) {
@@ -294,31 +358,34 @@
       waBtn.disabled = true;
       setWaHint('Připravuji PDF…', true);
       var message = (waMsg && waMsg.value ? waMsg.value : '').trim();
-      fetch(cfg.pdfUrl, { method: 'POST', body: buildFormData(ids), credentials: 'same-origin' })
-        .then(function (resp) {
-          if (!resp.ok) {
-            return resp.text().then(function (t) { throw new Error(t || ('HTTP ' + resp.status)); });
-          }
-          var fn = 'skladove-karty.pdf';
-          var cd = resp.headers.get('Content-Disposition') || '';
-          var m = /filename=\"?([^\";]+)/.exec(cd);
-          if (m) fn = m[1];
-          return resp.blob().then(function (blob) { return { blob: blob, filename: fn }; });
-        })
-        .then(function (pack) {
+
+      Promise.all([fetchPdfPack(ids), fetchShareUrl(ids)])
+        .then(function (results) {
+          var pack = results[0];
+          var shareUrl = results[1];
+          var fullMessage = buildShareMessage(message, shareUrl);
           var file = new File([pack.blob], pack.filename, { type: 'application/pdf' });
-          var withText = message ? { files: [file], text: message } : { files: [file] };
-          if (canSharePayload(withText)) {
-            return navigator.share(withText).then(function () {
+          return trySharePdf(file, fullMessage).then(function (mode) {
+            if (mode === 'with-text') {
               setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
-            });
-          }
-          if (canSharePayload({ files: [file] })) {
-            return navigator.share({ files: [file] }).then(function () {
-              setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
-            });
-          }
-          throw new Error('Prohlížeč neumí sdílet PDF — stáhněte soubor na desktopu.');
+              return 'done';
+            }
+            if (mode === 'files-only') {
+              return copyText(fullMessage).then(function () {
+                setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce a vložte text ze schránky (podržte prst → Vložit).', true);
+                return 'done';
+              });
+            }
+            return fullMessage;
+          });
+        })
+        .then(function (status) {
+          if (status === 'done') return;
+          if (typeof status !== 'string' || !status) return;
+          return copyText(status).then(function () {
+            openWhatsAppWithText(status);
+            setWaHint('WhatsApp otevřen — ve zprávě je odkaz ke stažení PDF (48 h).', true);
+          });
         })
         .catch(function (err) {
           if (err && err.name === 'AbortError') {

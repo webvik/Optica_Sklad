@@ -45,6 +45,7 @@ security:
         - { path: ^/$, roles: PUBLIC_ACCESS }
         - { path: ^/sprava, roles: ROLE_APP_ADMIN }
         - { path: ^/sklad/spool/\d+/skladova-karta-sdilet/, roles: PUBLIC_ACCESS }
+        - { path: ^/sklad/spool/skladove-karty-sdilet/, roles: PUBLIC_ACCESS }
         - { path: ^/sklad, roles: ROLE_SKLAD_VIEW }
         - { path: ^/, roles: ROLE_USER }
 
