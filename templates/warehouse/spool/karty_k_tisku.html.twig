@@ -301,7 +301,14 @@
     try { return navigator.canShare(payload); } catch (e) { return false; }
   }
 
-  function trySharePdf(file, message) {
+  function tryCapacitorSharePdf(file, message) {
+    if (typeof window.opticaCapacitorSharePdf !== 'function') return Promise.resolve(null);
+    return window.opticaCapacitorSharePdf(file, file.name, message || '').then(function (ok) {
+      return ok ? (message ? 'with-text' : 'files-only') : null;
+    });
+  }
+
+  function tryWebSharePdf(file, message) {
     var withText = message ? { files: [file], text: message } : { files: [file] };
     if (canSharePayload(withText)) {
       return navigator.share(withText).then(function () { return 'with-text'; }).catch(function (err) {
@@ -316,6 +323,14 @@
       });
     }
     return Promise.resolve(null);
+  }
+
+  function trySharePdf(file, message, shareUrl) {
+    return tryCapacitorSharePdf(file, message).then(function (mode) {
+      if (mode) return mode;
+      var fullMessage = buildShareMessage(message, shareUrl);
+      return tryWebSharePdf(file, fullMessage);
+    });
   }
 
   function fetchShareUrl(ids) {
@@ -363,20 +378,20 @@
         .then(function (results) {
           var pack = results[0];
           var shareUrl = results[1];
-          var fullMessage = buildShareMessage(message, shareUrl);
           var file = new File([pack.blob], pack.filename, { type: 'application/pdf' });
-          return trySharePdf(file, fullMessage).then(function (mode) {
+          var fallbackMessage = buildShareMessage(message, shareUrl);
+          return trySharePdf(file, message, shareUrl).then(function (mode) {
             if (mode === 'with-text') {
               setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
               return 'done';
             }
             if (mode === 'files-only') {
-              return copyText(fullMessage).then(function () {
+              return copyText(fallbackMessage).then(function () {
                 setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce a vložte text ze schránky (podržte prst → Vložit).', true);
                 return 'done';
               });
             }
-            return fullMessage;
+            return fallbackMessage;
           });
         })
         .then(function (status) {

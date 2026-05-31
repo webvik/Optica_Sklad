@@ -513,7 +513,14 @@
     }
   }
 
-  function sharePdf(pdfFile, message) {
+  function tryCapacitorSharePdf(pdfFile, message) {
+    if (typeof window.opticaCapacitorSharePdf !== 'function') return Promise.resolve(null);
+    return window.opticaCapacitorSharePdf(pdfFile, pdfFile.name, message || '').then(function (ok) {
+      return ok ? 'with-text' : null;
+    });
+  }
+
+  function tryWebSharePdf(pdfFile, message) {
     var withText = { files: [pdfFile], text: message };
     if (canSharePayload(withText)) {
       return navigator.share(withText).then(function () { return 'with-text'; }).catch(function (err) {
@@ -529,6 +536,14 @@
       });
     }
     return Promise.resolve(null);
+  }
+
+  function sharePdf(pdfFile, message) {
+    return tryCapacitorSharePdf(pdfFile, message).then(function (mode) {
+      if (mode) return mode;
+      var fullMessage = buildShareMessage(message);
+      return tryWebSharePdf(pdfFile, fullMessage);
+    });
   }
 
   function openWhatsAppWithText(text) {
@@ -551,12 +566,10 @@
     sendBtn.disabled = true;
     setHint('Převádím do PDF…', true);
 
-    var fullMessage = buildShareMessage(message);
-
     fetchBlob(cfg.pdfUrl)
       .then(function (pdfBlob) {
         var pdfFile = makeFile(pdfBlob, cfg.filename, 'application/pdf');
-        return sharePdf(pdfFile, fullMessage).then(function (mode) {
+        return sharePdf(pdfFile, message).then(function (mode) {
           if (mode === 'with-text') {
             setHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
             return 'done';
@@ -572,8 +585,9 @@
       })
       .then(function (status) {
         if (status === 'done') return;
-        return copyText(fullMessage).then(function () {
-          openWhatsAppWithText(fullMessage);
+        var fallbackMessage = buildShareMessage(message);
+        return copyText(fallbackMessage).then(function () {
+          openWhatsAppWithText(fallbackMessage);
           setHint('WhatsApp otevřen — vyberte příjemce; ve zprávě je odkaz ke stažení PDF (48 h).', true);
         });
       })
