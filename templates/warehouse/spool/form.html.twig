@@ -3,21 +3,8 @@
 {% block stylesheets %}
     {{ parent() }}
     {% include '_styles_spool_form_layout.html.twig' %}
+    {% include 'warehouse/spool/_skladova_karta_print_queue_styles.html.twig' %}
     <style>
-        .sk-karta-queue-banner {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 0.5rem 0.75rem;
-            margin: 0 0 0.85rem;
-            padding: 0.55rem 0.7rem;
-            border: 1px solid #9ec4e6;
-            border-radius: 8px;
-            background: #edf5fc;
-            max-width: 40rem;
-        }
-        .sk-karta-queue-banner__text { margin: 0; font-size: 0.92rem; }
-        .sk-karta-queue-banner__link { font-size: 0.88rem; }
         #spool-form-scan-overlay[hidden] { display: none !important; }
         #spool-form-scan-overlay {
             position: fixed;
@@ -599,6 +586,7 @@
             <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a>
         </p>
         <p style="margin: 0; text-align: center;"><a href="{{ path('warehouse_spool_index') }}">← zpět na seznam</a></p>
+        {% include 'warehouse/spool/_skladova_karta_print_queue_footer.html.twig' %}
     </div>
 {% endblock %}
 {% block javascripts %}

@@ -1,0 +1,7 @@
+{% set pq = skladova_karta_print_queue_summary() %}
+{% if pq.count == 0 %}
+    <div class="sk-karta-queue-footer">
+        <a class="warehouse-pill sk-karta-queue-footer__btn" href="{{ pq.url }}">Skladové karty k tisku</a>
+        <p class="sk-karta-queue-footer__hint">Tisk nebo odeslání přes WhatsApp — včetně cívek zaevidovaných na jiném zařízení.</p>
+    </div>
+{% endif %}
