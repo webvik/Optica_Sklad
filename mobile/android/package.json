@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Android WebView shell for Optický sklad (Capacitor)",
   "scripts": {
-    "cap:sync": "cap sync android && bash scripts/patch-android-manifest.sh && bash scripts/patch-file-paths.sh",
+    "cap:sync": "cap sync android && bash scripts/install-native-sources.sh && bash scripts/patch-android-manifest.sh && bash scripts/patch-file-paths.sh",
     "cap:open": "cap open android",
     "android:sdk": "bash scripts/write-local-properties.sh",
     "android:assembleDebug": "bash scripts/write-local-properties.sh && cd android && ./gradlew assembleDebug",

@@ -301,6 +301,12 @@
     try { return navigator.canShare(payload); } catch (e) { return false; }
   }
 
+  function isOpticaAndroidApp() {
+    if (typeof window.opticaIsAndroidApp === 'function') return window.opticaIsAndroidApp();
+    var cap = window.Capacitor;
+    return !!(cap && cap.getPlatform && cap.getPlatform() === 'android');
+  }
+
   function tryCapacitorSharePdf(file, message) {
     if (typeof window.opticaCapacitorSharePdf !== 'function') return Promise.resolve(null);
     return window.opticaCapacitorSharePdf(file, file.name, message || '').then(function (ok) {
@@ -401,6 +407,10 @@
         .then(function (status) {
           if (status === 'done') return;
           if (typeof status !== 'string' || !status) return;
+          if (isOpticaAndroidApp()) {
+            setWaHint('PDF se nepodařilo sdílet nativně — nainstalujte nejnovější APK a zkuste znovu.', true);
+            return;
+          }
           return copyText(status).then(function () {
             openWhatsAppWithText(status);
             setWaHint('WhatsApp otevřen — ve zprávě je odkaz ke stažení PDF (48 h).', true);
