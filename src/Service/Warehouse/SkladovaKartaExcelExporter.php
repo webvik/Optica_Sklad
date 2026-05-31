@@ -149,6 +149,89 @@ final class SkladovaKartaExcelExporter
         return str_replace('.xlsx', '.pdf', $this->filename($spool));
     }
 
+    /**
+     * @param list<Spool> $spools
+     *
+     * @return array{spreadsheet: Spreadsheet, truncated: bool, filename: string}
+     */
+    public function prepareBatchForPdf(array $spools): array
+    {
+        if ($spools === []) {
+            throw new \InvalidArgumentException('Vyberte alespoň jednu cívku.');
+        }
+        if (\count($spools) > 50) {
+            throw new \InvalidArgumentException('Maximum 50 karet v jednom souboru.');
+        }
+
+        $master = null;
+        $truncatedAny = false;
+        $usedTitles = [];
+
+        foreach ($spools as $spool) {
+            $prepared = $this->buildPrepared($spool, true);
+            if ($prepared['truncated']) {
+                $truncatedAny = true;
+            }
+
+            $source = $prepared['spreadsheet'];
+            $ws = $source->getActiveSheet();
+            $ws->setTitle($this->uniqueSheetTitle($spool, $usedTitles));
+
+            if (null === $master) {
+                $master = $source;
+            } else {
+                $master->addExternalSheet($ws);
+                $source->disconnectWorksheets();
+            }
+        }
+
+        if (null === $master) {
+            throw new \RuntimeException('Nepodařilo se sestavit dávkový export skladových karet.');
+        }
+
+        return [
+            'spreadsheet' => $master,
+            'truncated' => $truncatedAny,
+            'filename' => $this->batchFilename($spools),
+        ];
+    }
+
+    /** @param list<Spool> $spools */
+    public function batchPdfFilename(array $spools): string
+    {
+        return str_replace('.xlsx', '.pdf', $this->batchFilename($spools));
+    }
+
+    /** @param list<Spool> $spools */
+    public function batchFilename(array $spools): string
+    {
+        $date = (new \DateTimeImmutable('today'))->format('Y-m-d');
+        if (1 === \count($spools)) {
+            return $this->filename($spools[0]);
+        }
+
+        return 'skladove-karty-'.$date.'-'.\count($spools).'x.xlsx';
+    }
+
+    /**
+     * @param array<string, true> $usedTitles
+     */
+    private function uniqueSheetTitle(Spool $spool, array &$usedTitles): string
+    {
+        $base = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $spool->getReelNumber()) ?? 'civka';
+        $base = mb_substr($base, 0, 28);
+        $title = $base;
+        $suffix = 1;
+        while (isset($usedTitles[$title])) {
+            $suffixStr = '_'.$suffix;
+            $title = mb_substr($base, 0, 31 - mb_strlen($suffixStr)).$suffixStr;
+            ++$suffix;
+        }
+        $usedTitles[$title] = true;
+
+        return $title;
+    }
+
     private function keepSingleSheet(Spreadsheet $spreadsheet): void
     {
         while ($spreadsheet->getSheetCount() > 1) {

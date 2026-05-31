@@ -18,6 +18,7 @@ use App\Repository\SpoolRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
 use App\Service\Warehouse\SkladovaKartaExcelExporter;
 use App\Service\Warehouse\SkladovaKartaPdfExporter;
+use App\Service\Warehouse\SkladovaKartaPrintQueue;
 use App\Service\Warehouse\SkladovaKartaShareTokenService;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
@@ -291,7 +292,7 @@ final class SpoolController extends AbstractController
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
     #[IsGranted(WarehouseRole::EDIT)]
-    public function new(Request $request, EntityManagerInterface $em, SpoolMeterService $meter, CableFamilyRepository $cableFamilyRepository): Response
+    public function new(Request $request, EntityManagerInterface $em, SpoolMeterService $meter, CableFamilyRepository $cableFamilyRepository, SkladovaKartaPrintQueue $printQueue): Response
     {
         $spool = new Spool();
         if (null === $spool->getRegisteredAt()) {
@@ -318,6 +319,10 @@ final class SpoolController extends AbstractController
             $meter->initNewSpoolState($spool);
             $em->persist($spool);
             $em->flush();
+            $spoolId = (int) $spool->getId();
+            if ($spoolId > 0) {
+                $printQueue->enqueue($spoolId);
+            }
             $msg = 'Cívka byla zaevidována.';
             if (null === $spool->getCableType()) {
                 $msg .= ' Typ kabelu můžete kdykoli doplnit na kartě cívky (Doplnit typ kabelu).';

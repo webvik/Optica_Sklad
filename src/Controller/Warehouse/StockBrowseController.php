@@ -51,6 +51,7 @@ final class StockBrowseController extends AbstractController
 
         $statuses = self::parseStatusList($request);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
+        $onlyWithoutWarehouseCard = self::parseWithoutWarehouseCardFilter($request);
         $reelQ = \trim((string) $request->query->get('q', ''));
 
         return $this->render('warehouse/stock_browse.html.twig', [
@@ -60,6 +61,7 @@ final class StockBrowseController extends AbstractController
                 '' !== $reelQ ? $reelQ : null,
                 500,
                 $onlyNeedsCorrection,
+                $onlyWithoutWarehouseCard,
             ),
             'searchQuery' => $reelQ,
             'cableTypeChoices' => $choiceEntities,
@@ -75,6 +77,7 @@ final class StockBrowseController extends AbstractController
                 $statuses,
             ),
             'filterNeedsCorrection' => $onlyNeedsCorrection,
+            'filterWithoutWarehouseCard' => $onlyWithoutWarehouseCard,
         ]);
     }
 
@@ -112,7 +115,7 @@ final class StockBrowseController extends AbstractController
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
 
         try {
-            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeFilter, $statuses, 500, $onlyNeedsCorrection);
+            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeFilter, $statuses, 500, $onlyNeedsCorrection, self::parseWithoutWarehouseCardFilter($request));
         } catch (\Throwable $e) {
             return $this->json([
                 'ok' => false,
@@ -532,6 +535,11 @@ final class StockBrowseController extends AbstractController
     private static function parseNeedsCorrectionFilter(Request $request): bool
     {
         return $request->query->getBoolean('needsCorrection');
+    }
+
+    private static function parseWithoutWarehouseCardFilter(Request $request): bool
+    {
+        return $request->query->getBoolean('withoutWarehouseCard');
     }
 
     private static function parseBrowseDateDay(mixed $raw): ?\DateTimeImmutable

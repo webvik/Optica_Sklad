@@ -86,6 +86,10 @@ class Spool
     #[ORM\Column(type: Types::DATE_IMMUTABLE)]
     private ?\DateTimeImmutable $registeredAt = null;
 
+    /** Kdy byla skladová karta naposledy vytištěna / odeslána k tisku (null = ještě ne). */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $warehouseCardPrintedAt = null;
+
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
@@ -367,6 +371,18 @@ class Spool
     public function setRegisteredAt(\DateTimeImmutable $registeredAt): static
     {
         $this->registeredAt = $registeredAt;
+
+        return $this;
+    }
+
+    public function getWarehouseCardPrintedAt(): ?\DateTimeImmutable
+    {
+        return $this->warehouseCardPrintedAt;
+    }
+
+    public function setWarehouseCardPrintedAt(?\DateTimeImmutable $warehouseCardPrintedAt): static
+    {
+        $this->warehouseCardPrintedAt = $warehouseCardPrintedAt;
 
         return $this;
     }

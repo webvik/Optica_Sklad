@@ -1,0 +1,10 @@
+{% set pq = skladova_karta_print_queue_summary() %}
+{% if pq.count > 0 %}
+    <div class="sk-karta-queue-banner" role="status">
+        <p class="sk-karta-queue-banner__text">
+            <strong>{{ pq.count }}</strong>
+            {{ pq.count == 1 ? 'cívka' : (pq.count < 5 ? 'cívky' : 'cívek') }} k tisku skladové karty v této relaci.
+        </p>
+        <a class="warehouse-pill sk-karta-queue-banner__link" href="{{ pq.url }}">Skladové karty k tisku</a>
+    </div>
+{% endif %}

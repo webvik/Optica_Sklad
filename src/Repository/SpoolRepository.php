@@ -32,10 +32,11 @@ class SpoolRepository extends ServiceEntityRepository
         ?string $reelQ = null,
         int $limit = 500,
         bool $onlyNeedsCorrection = false,
+        bool $onlyWithoutWarehouseCard = false,
     ): array {
         $reelTrim = null !== $reelQ ? \trim($reelQ) : '';
         if ('' !== $reelTrim) {
-            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection);
+            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard);
             if ($ids === []) {
                 return [];
             }
@@ -43,9 +44,56 @@ class SpoolRepository extends ServiceEntityRepository
             return $this->loadSpoolsForBrowseByIds($ids);
         }
 
-        $qb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection);
+        $qb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard);
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @param list<int> $ids
+     *
+     * @return list<Spool>
+     */
+    public function findByIdsOrdered(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('s')
+            ->leftJoin('s.cableType', 'c')
+            ->addSelect('c')
+            ->where('s.id IN (:ids)')
+            ->setParameter('ids', $ids)
+            ->orderBy('s.reelNumber', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countWithoutWarehouseCard(): int
+    {
+        return (int) $this->createQueryBuilder('s')
+            ->select('COUNT(s.id)')
+            ->where('s.warehouseCardPrintedAt IS NULL')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function findIdsWithoutWarehouseCard(int $limit = 500): array
+    {
+        /** @var list<string|int> $rowIds */
+        $rowIds = $this->createQueryBuilder('s')
+            ->select('s.id')
+            ->where('s.warehouseCardPrintedAt IS NULL')
+            ->orderBy('s.reelNumber', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return \array_values(\array_map(static fn (mixed $v): int => (int) $v, $rowIds));
     }
 
     /**
@@ -61,13 +109,14 @@ class SpoolRepository extends ServiceEntityRepository
         array $statuses,
         int $limit = 500,
         bool $onlyNeedsCorrection = false,
+        bool $onlyWithoutWarehouseCard = false,
     ): array {
         $q = \trim($q);
         if ('' === $q) {
             return [];
         }
 
-        $exactQb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, 1, $onlyNeedsCorrection)
+        $exactQb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, 1, $onlyNeedsCorrection, $onlyWithoutWarehouseCard)
             ->select('s.id')
             ->andWhere('LOWER(s.reelNumber) = LOWER(:q)')
             ->setParameter('q', $q);
@@ -97,6 +146,9 @@ class SpoolRepository extends ServiceEntityRepository
         if ($onlyNeedsCorrection) {
             $filterQb->andWhere('s.needsCorrection = true');
         }
+        if ($onlyWithoutWarehouseCard) {
+            $filterQb->andWhere('s.warehouseCardPrintedAt IS NULL');
+        }
 
         /** @var list<string|int> $rowIds */
         $rowIds = $filterQb->getQuery()->getSingleColumnResult();
@@ -112,6 +164,7 @@ class SpoolRepository extends ServiceEntityRepository
         array $statuses,
         int $limit,
         bool $onlyNeedsCorrection = false,
+        bool $onlyWithoutWarehouseCard = false,
     ): \Doctrine\ORM\QueryBuilder {
         $qb = $this->createQueryBuilder('s')
             ->leftJoin('s.cableType', 'c')
@@ -126,6 +179,9 @@ class SpoolRepository extends ServiceEntityRepository
         }
         if ($onlyNeedsCorrection) {
             $qb->andWhere('s.needsCorrection = true');
+        }
+        if ($onlyWithoutWarehouseCard) {
+            $qb->andWhere('s.warehouseCardPrintedAt IS NULL');
         }
 
         return $qb;

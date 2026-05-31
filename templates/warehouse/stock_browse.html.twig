@@ -285,6 +285,10 @@
                                     <input type="checkbox" name="needsCorrection" value="1" class="js-browse-needs-correction" data-browse-label="k ke korekci"{% if filterNeedsCorrection|default(false) %} checked{% endif %}>
                                     <span class="browse-filter-checkpanel__text">k ke korekci</span>
                                 </label>
+                                <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--correction">
+                                    <input type="checkbox" name="withoutWarehouseCard" value="1" class="js-browse-without-card" data-browse-label="bez vytištěné karty"{% if filterWithoutWarehouseCard|default(false) %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">bez vytištěné karty</span>
+                                </label>
                             </div>
                         </div>
                     </div>

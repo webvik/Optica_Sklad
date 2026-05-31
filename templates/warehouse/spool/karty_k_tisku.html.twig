@@ -1,0 +1,336 @@
+{% extends 'base.html.twig' %}
+{% block title %}Skladové karty k tisku{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .karty-k-tisku-lede { max-width: 42rem; line-height: 1.45; }
+        .karty-k-tisku-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 0.65rem;
+            align-items: center;
+            margin: 0.85rem 0 1rem;
+        }
+        .karty-k-tisku-table-wrap { overflow-x: auto; max-width: 100%; }
+        .karty-k-tisku-table {
+            width: 100%;
+            max-width: 36rem;
+            border-collapse: collapse;
+            font-size: 0.92rem;
+        }
+        .karty-k-tisku-table th,
+        .karty-k-tisku-table td {
+            border: 1px solid #c5d0dc;
+            padding: 0.35rem 0.5rem;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .karty-k-tisku-table th { background: #eef3f8; font-weight: 600; }
+        .karty-k-tisku-table td.karty-k-tisku-table__check { width: 2.2rem; text-align: center; }
+        .karty-k-tisku-meta { font-size: 0.85rem; color: #5a6b7d; margin: 0.5rem 0 0; }
+        .karty-k-tisku-empty {
+            margin: 1rem 0;
+            padding: 0.75rem;
+            border: 1px dashed #b8c6d6;
+            border-radius: 8px;
+            max-width: 32rem;
+            background: #f8fafc;
+        }
+        .karty-k-tisku-sideforms { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0.75rem 0; }
+        .karty-k-tisku-wa-panel {
+            margin: 1rem 0;
+            padding: 0.75rem;
+            border: 1px solid #c8d4e3;
+            border-radius: 8px;
+            background: #f7fafc;
+            max-width: 24rem;
+        }
+        .karty-k-tisku-wa-msg {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0.35rem 0 0.55rem;
+            padding: 0.45rem 0.55rem;
+            font: inherit;
+            font-size: 0.92rem;
+            line-height: 1.35;
+            border: 1px solid #b8c6d6;
+            border-radius: 6px;
+            resize: vertical;
+            min-height: 4rem;
+        }
+        .karty-k-tisku-hint { font-size: 0.85rem; color: #4a5f73; margin: 0.45rem 0 0; }
+        .karty-k-tisku-hint[hidden] { display: none !important; }
+        button.linklike {
+            background: none;
+            border: 0;
+            padding: 0;
+            font: inherit;
+            color: #1a5fb4;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .sk-karta-queue-banner {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.5rem 0.75rem;
+            margin: 0 0 0.85rem;
+            padding: 0.55rem 0.7rem;
+            border: 1px solid #9ec4e6;
+            border-radius: 8px;
+            background: #edf5fc;
+            max-width: 40rem;
+        }
+        .sk-karta-queue-banner__text { margin: 0; font-size: 0.92rem; }
+        .sk-karta-queue-banner__link { font-size: 0.88rem; }
+        @media (max-width: 41.99rem) {
+            .karty-k-tisku-desktop-only { display: none !important; }
+        }
+        @media (min-width: 42rem) {
+            .karty-k-tisku-mobile-only { display: none !important; }
+        }
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
+    </style>
+{% endblock %}
+{% block body %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
+    <h1>Skladové karty k tisku</h1>
+    <p class="lede karty-k-tisku-lede">
+        Seznam cívek zaevidovaných v této relaci (nebo ručně doplněných). Stáhněte <strong>jedno PDF</strong> se všemi kartami
+        (každá cívka = 2 strany, duplex: nejdřív liché, pak sudé) a po vytištění je označte jako vytištěné.
+    </p>
+
+    {% if queueSpools is empty %}
+        <div class="karty-k-tisku-empty">
+            <p>Seznam k tisku je prázdný. Zadejte nové cívky přes <a href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a>
+                — každá se sem automaticky přidá.</p>
+            {% if unprintedTotal > 0 %}
+                <p>Ve skladu je ještě <strong>{{ unprintedTotal }}</strong>
+                    {{ unprintedTotal == 1 ? 'cívka' : (unprintedTotal < 5 ? 'cívky' : 'cívek') }} bez vytištěné karty.</p>
+                <form method="post" action="{{ path('warehouse_spool_karty_add_unprinted') }}" class="karty-k-tisku-sideforms">
+                    <input type="hidden" name="_token" value="{{ csrf_token('skladova_karta_batch_add_unprinted') }}">
+                    <button type="submit" class="warehouse-pill">Přidat všechny bez karty do seznamu</button>
+                </form>
+            {% endif %}
+            <p><a href="{{ path('warehouse_browse_index', {withoutWarehouseCard: 1}) }}">Přehled skladu — jen bez vytištěné karty</a></p>
+        </div>
+    {% else %}
+        <form method="post" action="{{ path('warehouse_spool_karty_pdf') }}" id="karty-batch-form">
+            <input type="hidden" name="_token" value="{{ csrf_token('skladova_karta_batch_pdf') }}" id="karty-batch-csrf">
+            <div class="karty-k-tisku-table-wrap">
+                <table class="karty-k-tisku-table">
+                    <thead>
+                        <tr>
+                            <th class="karty-k-tisku-table__check">
+                                <input type="checkbox" id="karty-check-all" checked aria-label="Vybrat vše">
+                            </th>
+                            <th>Šarže</th>
+                            <th>Stav karty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for spool in queueSpools %}
+                            <tr>
+                                <td class="karty-k-tisku-table__check">
+                                    <input type="checkbox" name="spoolIds[]" value="{{ spool.id }}" class="js-karty-row-cb" checked aria-label="Cívka {{ spool.reelNumber|e('html_attr') }}">
+                                </td>
+                                <td>
+                                    <a href="{{ path('warehouse_spool_show', {id: spool.id}) }}">{{ spool.reelNumber }}</a>
+                                </td>
+                                <td>
+                                    {% if spool.warehouseCardPrintedAt %}
+                                        vytištěno {{ spool.warehouseCardPrintedAt|date('d.m.Y') }}
+                                    {% else %}
+                                        <em>ještě ne</em>
+                                    {% endif %}
+                                    {% if is_granted('ROLE_SKLAD_EDIT') %}
+                                        · <button type="submit" form="karty-remove-{{ spool.id }}" class="linklike">odebrat</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="karty-k-tisku-meta">{{ queueSpools|length }} cívek v seznamu.
+                {% if unprintedNotInQueue > 0 %}
+                    Ještě {{ unprintedNotInQueue }} bez karty není v seznamu.
+                {% endif %}
+            </p>
+            <div class="karty-k-tisku-actions">
+                <button type="submit" class="warehouse-pill karty-k-tisku-desktop-only">Stáhnout PDF (vše vybrané)</button>
+                <button type="button" class="warehouse-pill karty-k-tisku-mobile-only" id="karty-wa-share-btn">Odeslat PDF — WhatsApp</button>
+                <button type="button" class="warehouse-pill" id="karty-mark-btn"{% if not is_granted('ROLE_SKLAD_EDIT') %} hidden{% endif %}>Označit vybrané jako vytištěné</button>
+            </div>
+        </form>
+
+        <div class="karty-k-tisku-wa-panel karty-k-tisku-mobile-only" id="karty-wa-panel" hidden>
+            <label for="karty-wa-msg">Text zprávy</label>
+            <textarea id="karty-wa-msg" class="karty-k-tisku-wa-msg" rows="3">{{ defaultMessage }}</textarea>
+            <p class="karty-k-tisku-hint" id="karty-wa-hint" role="status" hidden></p>
+        </div>
+
+        <div class="karty-k-tisku-sideforms">
+            {% if unprintedNotInQueue > 0 and is_granted('ROLE_SKLAD_EDIT') %}
+                <form method="post" action="{{ path('warehouse_spool_karty_add_unprinted') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('skladova_karta_batch_add_unprinted') }}">
+                    <button type="submit" class="warehouse-pill">Přidat všechny bez karty ({{ unprintedNotInQueue }})</button>
+                </form>
+            {% endif %}
+            {% if is_granted('ROLE_SKLAD_EDIT') %}
+            <form method="post" action="{{ path('warehouse_spool_karty_clear') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('skladova_karta_batch_clear') }}">
+                <button type="submit" class="warehouse-pill">Vyprázdnit seznam relace</button>
+            </form>
+            {% endif %}
+        </div>
+
+        {% for spool in queueSpools %}
+            <form method="post" action="{{ path('warehouse_spool_karty_remove') }}" id="karty-remove-{{ spool.id }}" hidden>
+                <input type="hidden" name="_token" value="{{ csrf_token('skladova_karta_batch_remove') }}">
+                <input type="hidden" name="spoolId" value="{{ spool.id }}">
+            </form>
+        {% endfor %}
+    {% endif %}
+
+    <p><a href="{{ path('warehouse_receipt_index') }}">← Příjem kabelu</a> · <a href="{{ path('warehouse_spool_new') }}">Nová cívka</a></p>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
+    {% if queueSpools is not empty %}
+    <script>
+(function () {
+  var form = document.getElementById('karty-batch-form');
+  var checkAll = document.getElementById('karty-check-all');
+  var markBtn = document.getElementById('karty-mark-btn');
+  var waBtn = document.getElementById('karty-wa-share-btn');
+  var waPanel = document.getElementById('karty-wa-panel');
+  var waMsg = document.getElementById('karty-wa-msg');
+  var waHint = document.getElementById('karty-wa-hint');
+  if (!form) return;
+
+  var cfg = {
+    pdfUrl: {{ path('warehouse_spool_karty_pdf')|json_encode|raw }},
+    markUrl: {{ path('warehouse_spool_karty_mark_printed')|json_encode|raw }},
+    pdfToken: {{ csrf_token('skladova_karta_batch_pdf')|json_encode|raw }},
+    markToken: {{ csrf_token('skladova_karta_batch_mark')|json_encode|raw }},
+  };
+
+  function rowCbs() {
+    return form.querySelectorAll('.js-karty-row-cb');
+  }
+
+  function selectedIds() {
+    var ids = [];
+    rowCbs().forEach(function (cb) {
+      if (cb.checked) ids.push(cb.value);
+    });
+    return ids;
+  }
+
+  if (checkAll) {
+    checkAll.addEventListener('change', function () {
+      rowCbs().forEach(function (cb) { cb.checked = checkAll.checked; });
+    });
+  }
+
+  function setWaHint(text, show) {
+    if (!waHint) return;
+    waHint.textContent = text || '';
+    waHint.hidden = !show;
+  }
+
+  if (markBtn) {
+    markBtn.addEventListener('click', function () {
+      var ids = selectedIds();
+      if (!ids.length) {
+        alert('Vyberte alespoň jednu cívku.');
+        return;
+      }
+      if (!confirm('Označit ' + ids.length + ' cívek jako vytištěné?')) return;
+      var f = document.createElement('form');
+      f.method = 'post';
+      f.action = cfg.markUrl;
+      var tok = document.createElement('input');
+      tok.type = 'hidden';
+      tok.name = '_token';
+      tok.value = cfg.markToken;
+      f.appendChild(tok);
+      ids.forEach(function (id) {
+        var inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'spoolIds[]';
+        inp.value = id;
+        f.appendChild(inp);
+      });
+      document.body.appendChild(f);
+      f.submit();
+    });
+  }
+
+  function buildFormData(ids) {
+    var fd = new FormData();
+    fd.append('_token', cfg.pdfToken);
+    ids.forEach(function (id) { fd.append('spoolIds[]', id); });
+    return fd;
+  }
+
+  function canSharePayload(payload) {
+    if (!navigator.share) return false;
+    if (!navigator.canShare) return true;
+    try { return navigator.canShare(payload); } catch (e) { return false; }
+  }
+
+  if (waBtn) {
+    waBtn.addEventListener('click', function () {
+      var ids = selectedIds();
+      if (!ids.length) {
+        alert('Vyberte alespoň jednu cívku.');
+        return;
+      }
+      if (waPanel) waPanel.hidden = false;
+      waBtn.disabled = true;
+      setWaHint('Připravuji PDF…', true);
+      var message = (waMsg && waMsg.value ? waMsg.value : '').trim();
+      fetch(cfg.pdfUrl, { method: 'POST', body: buildFormData(ids), credentials: 'same-origin' })
+        .then(function (resp) {
+          if (!resp.ok) {
+            return resp.text().then(function (t) { throw new Error(t || ('HTTP ' + resp.status)); });
+          }
+          var fn = 'skladove-karty.pdf';
+          var cd = resp.headers.get('Content-Disposition') || '';
+          var m = /filename=\"?([^\";]+)/.exec(cd);
+          if (m) fn = m[1];
+          return resp.blob().then(function (blob) { return { blob: blob, filename: fn }; });
+        })
+        .then(function (pack) {
+          var file = new File([pack.blob], pack.filename, { type: 'application/pdf' });
+          var withText = message ? { files: [file], text: message } : { files: [file] };
+          if (canSharePayload(withText)) {
+            return navigator.share(withText).then(function () {
+              setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
+            });
+          }
+          if (canSharePayload({ files: [file] })) {
+            return navigator.share({ files: [file] }).then(function () {
+              setWaHint('PDF odeslán — ve WhatsApp vyberte příjemce.', true);
+            });
+          }
+          throw new Error('Prohlížeč neumí sdílet PDF — stáhněte soubor na desktopu.');
+        })
+        .catch(function (err) {
+          if (err && err.name === 'AbortError') {
+            setWaHint('', false);
+            return;
+          }
+          setWaHint(err && err.message ? err.message : 'PDF se nepodařilo vytvořit.', true);
+        })
+        .finally(function () { waBtn.disabled = false; });
+    });
+  }
+})();
+    </script>
+    {% endif %}
+{% endblock %}

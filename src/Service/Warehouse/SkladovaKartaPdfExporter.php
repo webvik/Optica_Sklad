@@ -18,6 +18,8 @@ final class SkladovaKartaPdfExporter
     /** @var list<string> */
     private const LO_BINARIES = ['/usr/bin/libreoffice', '/usr/bin/soffice', 'libreoffice', 'soffice'];
 
+    private const BATCH_MAX_SPOOLS = 50;
+
     public function __construct(
         private readonly SkladovaKartaExcelExporter $excelExporter,
         #[Autowire('%kernel.cache_dir%')]
@@ -32,31 +34,110 @@ final class SkladovaKartaPdfExporter
      */
     public function download(Spool $spool): array
     {
-        $prepared = $this->excelExporter->prepareForPdf($spool);
-        $pdfFilename = $this->excelExporter->pdfFilename($spool);
-
         $tmpdir = $this->createWorkDir();
-        $xlsxPath = $tmpdir.'/karta.xlsx';
         $pdfPath = $tmpdir.'/karta.pdf';
 
         try {
-            $this->excelExporter->saveXlsxToPath($prepared['spreadsheet'], $xlsxPath);
-            $this->convertXlsxToPdf($xlsxPath, $tmpdir);
-
-            if (!is_readable($pdfPath)) {
-                throw new \RuntimeException('Konverze Excel → PDF nevrátila soubor.');
-            }
+            $meta = $this->writePdfForSpool($spool, $pdfPath);
 
             return [
-                'response' => $this->streamPdf($pdfPath, $pdfFilename, $tmpdir),
-                'truncated' => $prepared['truncated'],
-                'diaryRows' => $prepared['diaryRows'],
+                'response' => $this->streamPdf($pdfPath, $this->excelExporter->pdfFilename($spool), $tmpdir),
+                'truncated' => $meta['truncated'],
+                'diaryRows' => $meta['diaryRows'],
             ];
         } catch (\Throwable $e) {
             $this->removeDir($tmpdir);
 
             throw $e;
         }
+    }
+
+    /**
+     * Dávka: jeden .xlsx (list na cívku) → jedna konverze LibreOffice → jedno PDF.
+     *
+     * @param list<Spool> $spools
+     *
+     * @return array{response: StreamedResponse, truncated: bool, spoolCount: int}
+     */
+    public function downloadBatch(array $spools): array
+    {
+        if ($spools === []) {
+            throw new \InvalidArgumentException('Vyberte alespoň jednu cívku.');
+        }
+        if (\count($spools) > self::BATCH_MAX_SPOOLS) {
+            throw new \InvalidArgumentException('Maximum '.self::BATCH_MAX_SPOOLS.' karet v jednom PDF.');
+        }
+
+        $tmpdir = $this->createWorkDir();
+        $xlsxPath = $tmpdir.'/skladove-karty.xlsx';
+        $pdfPath = $tmpdir.'/skladove-karty.pdf';
+
+        try {
+            $prepared = $this->excelExporter->prepareBatchForPdf($spools);
+            $this->excelExporter->saveXlsxToPath($prepared['spreadsheet'], $xlsxPath);
+            $prepared['spreadsheet']->disconnectWorksheets();
+
+            $this->convertXlsxToPdf($xlsxPath, $tmpdir, $this->batchConvertTimeout(\count($spools)));
+
+            $base = pathinfo($xlsxPath, PATHINFO_FILENAME);
+            $generated = $tmpdir.'/'.$base.'.pdf';
+            if (!is_readable($generated)) {
+                throw new \RuntimeException('Konverze Excel → PDF nevrátila soubor.');
+            }
+            if ($generated !== $pdfPath && !@rename($generated, $pdfPath)) {
+                if (!@copy($generated, $pdfPath)) {
+                    throw new \RuntimeException('Nelze uložit dávkové PDF skladových karet.');
+                }
+                @unlink($generated);
+            }
+            @unlink($xlsxPath);
+
+            return [
+                'response' => $this->streamPdf($pdfPath, $this->excelExporter->batchPdfFilename($spools), $tmpdir),
+                'truncated' => $prepared['truncated'],
+                'spoolCount' => \count($spools),
+            ];
+        } catch (\Throwable $e) {
+            $this->removeDir($tmpdir);
+
+            throw $e;
+        }
+    }
+
+    private function batchConvertTimeout(int $spoolCount): int
+    {
+        return min(600, max(120, 60 + ($spoolCount * 25)));
+    }
+
+    /**
+     * @return array{truncated: bool, diaryRows: int}
+     */
+    private function writePdfForSpool(Spool $spool, string $pdfPath): array
+    {
+        $prepared = $this->excelExporter->prepareForPdf($spool);
+        $xlsxPath = \dirname($pdfPath).'/karta-'.($spool->getId() ?? 'x').'.xlsx';
+
+        $this->excelExporter->saveXlsxToPath($prepared['spreadsheet'], $xlsxPath);
+        $prepared['spreadsheet']->disconnectWorksheets();
+        $this->convertXlsxToPdf($xlsxPath, \dirname($pdfPath));
+
+        $base = pathinfo($xlsxPath, PATHINFO_FILENAME);
+        $generated = \dirname($pdfPath).'/'.$base.'.pdf';
+        if (!is_readable($generated)) {
+            throw new \RuntimeException('Konverze Excel → PDF nevrátila soubor.');
+        }
+        if ($generated !== $pdfPath && !@rename($generated, $pdfPath)) {
+            if (!@copy($generated, $pdfPath)) {
+                throw new \RuntimeException('Nelze uložit PDF skladové karty.');
+            }
+            @unlink($generated);
+        }
+        @unlink($xlsxPath);
+
+        return [
+            'truncated' => $prepared['truncated'],
+            'diaryRows' => $prepared['diaryRows'],
+        ];
     }
 
     private function createWorkDir(): string
@@ -89,10 +170,10 @@ final class SkladovaKartaPdfExporter
         return array_values(array_unique($candidates));
     }
 
-    private function convertXlsxToPdf(string $xlsxPath, string $outDir): void
+    private function convertXlsxToPdf(string $xlsxPath, string $outDir, int $timeoutSeconds = 120): void
     {
         $binary = $this->resolveLibreOfficeBinary();
-        $profileDir = $outDir.'/lo-profile';
+        $profileDir = $outDir.'/lo-profile-'.bin2hex(random_bytes(4));
         if (!mkdir($profileDir, 0700, true) && !is_dir($profileDir)) {
             throw new \RuntimeException('Nelze vytvořit profil LibreOffice.');
         }
@@ -115,7 +196,7 @@ final class SkladovaKartaPdfExporter
             $outDir,
             $env,
         );
-        $process->setTimeout(120);
+        $process->setTimeout($timeoutSeconds);
         $process->run();
 
         if (!$process->isSuccessful()) {
@@ -141,8 +222,6 @@ final class SkladovaKartaPdfExporter
     }
 
     /**
-     * Dědičnost celého prostředí — setEnv() by jinak odřízl LD_LIBRARY_PATH atd.
-     *
      * @return array<string, string>
      */
     private function processEnvironment(string $workDir): array
@@ -217,11 +296,6 @@ final class SkladovaKartaPdfExporter
                 'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
             ],
         );
-    }
-
-    private function removeDir(string $dir): void
-    {
-        self::removeDirStatic($dir);
     }
 
     private static function removeDirStatic(string $dir): void
