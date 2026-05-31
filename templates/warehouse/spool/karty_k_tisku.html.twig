@@ -304,7 +304,11 @@
   function tryCapacitorSharePdf(file, message) {
     if (typeof window.opticaCapacitorSharePdf !== 'function') return Promise.resolve(null);
     return window.opticaCapacitorSharePdf(file, file.name, message || '').then(function (ok) {
-      return ok ? (message ? 'with-text' : 'files-only') : null;
+      if (ok === false) return null;
+      return message ? 'with-text' : 'files-only';
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') throw err;
+      return null;
     });
   }
 
