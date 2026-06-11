@@ -52,6 +52,7 @@ final class StockBrowseController extends AbstractController
         $statuses = self::parseStatusList($request);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
         $onlyWithoutWarehouseCard = self::parseWithoutWarehouseCardFilter($request);
+        $fiberCounts = self::parseFiberCountList($request);
         $reelQ = \trim((string) $request->query->get('q', ''));
 
         return $this->render('warehouse/stock_browse.html.twig', [
@@ -62,6 +63,7 @@ final class StockBrowseController extends AbstractController
                 500,
                 $onlyNeedsCorrection,
                 $onlyWithoutWarehouseCard,
+                $fiberCounts,
             ),
             'searchQuery' => $reelQ,
             'cableTypeChoices' => $choiceEntities,
@@ -78,6 +80,8 @@ final class StockBrowseController extends AbstractController
             ),
             'filterNeedsCorrection' => $onlyNeedsCorrection,
             'filterWithoutWarehouseCard' => $onlyWithoutWarehouseCard,
+            'fiberCountChoices' => $spools->findDistinctEffectiveFiberCountsForBrowse(),
+            'filterFiberCounts' => $fiberCounts,
         ]);
     }
 
@@ -113,9 +117,10 @@ final class StockBrowseController extends AbstractController
         );
         $statuses = self::parseStatusList($request);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
+        $fiberCounts = self::parseFiberCountList($request);
 
         try {
-            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeFilter, $statuses, 500, $onlyNeedsCorrection, self::parseWithoutWarehouseCardFilter($request));
+            $ids = $spools->searchIdsByReelWithinFilters($q, $cableTypeFilter, $statuses, 500, $onlyNeedsCorrection, self::parseWithoutWarehouseCardFilter($request), $fiberCounts);
         } catch (\Throwable $e) {
             return $this->json([
                 'ok' => false,
@@ -359,6 +364,12 @@ final class StockBrowseController extends AbstractController
         $v = $request->query->get('cableTypeUnset');
 
         return '1' === (string) $v || 1 === $v || true === $v;
+    }
+
+    /** @return list<int> */
+    private static function parseFiberCountList(Request $request): array
+    {
+        return self::parseIdList($request, 'fiberCounts');
     }
 
     /**

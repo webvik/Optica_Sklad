@@ -103,6 +103,42 @@
             }
             .browse-filters__col--equal { flex: 1 1 0; min-width: 0; }
         }
+        .browse-filters__col--fiberCount { display: none; }
+        @media (min-width: 42rem) {
+            .browse-filters__col--fiberCount {
+                display: flex;
+                flex: 0 1 auto;
+                min-width: 5.5rem;
+                max-width: 11rem;
+            }
+        }
+        .browse-fiber-count-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem 0.65rem;
+            min-height: 2.5rem;
+            align-items: center;
+            padding: 0.35rem 0.5rem;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .browse-fiber-count-panel__item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 0;
+            font: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .browse-fiber-count-panel__item input[type="checkbox"] {
+            width: 1.05rem;
+            height: 1.05rem;
+            margin: 0;
+        }
         .browse-filter-checkpanel {
             display: flex;
             flex-direction: column;
@@ -213,6 +249,19 @@
 
     <form method="get" action="{{ path('warehouse_browse_index') }}" class="browse-filters" style="margin-bottom: 1rem;">
         <div class="browse-filters__row">
+            {% if fiberCountChoices|default([])|length > 0 %}
+            <div class="browse-filters__col browse-filters__col--fiberCount">
+                <span class="browse-filters__label" id="browse-fiber-count-label">Počet vláken</span>
+                <div class="browse-fiber-count-panel" role="group" aria-labelledby="browse-fiber-count-label">
+                    {% for fc in fiberCountChoices %}
+                        <label class="browse-fiber-count-panel__item">
+                            <input type="checkbox" name="fiberCounts[]" value="{{ fc }}" class="js-browse-fiber-cb"{% if fc in filterFiberCounts|default([]) %} checked{% endif %}>
+                            <span>{{ fc }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
             <div class="browse-filters__col browse-filters__col--equal">
                 <label for="browse-cable-type-btn">Typ kabelu</label>
                 <div class="cable-type-mobile-picker" id="browse-cable-type-picker" data-browse-mode="cable">
@@ -591,6 +640,10 @@
   function browseFilterParams() {
     var p = new URLSearchParams();
     if (!browseForm) return p;
+    var fiberCbs = browseForm.querySelectorAll('input.js-browse-fiber-cb:checked');
+    for (var f = 0; f < fiberCbs.length; f++) {
+      p.append('fiberCounts[]', fiberCbs[f].value);
+    }
     var cableCbs = browseForm.querySelectorAll('input.js-browse-cable-cb:checked');
     for (var i = 0; i < cableCbs.length; i++) {
       p.append('cableTypeIds[]', cableCbs[i].value);

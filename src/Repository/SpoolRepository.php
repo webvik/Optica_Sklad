@@ -33,10 +33,11 @@ class SpoolRepository extends ServiceEntityRepository
         int $limit = 500,
         bool $onlyNeedsCorrection = false,
         bool $onlyWithoutWarehouseCard = false,
+        array $fiberCounts = [],
     ): array {
         $reelTrim = null !== $reelQ ? \trim($reelQ) : '';
         if ('' !== $reelTrim) {
-            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard);
+            $ids = $this->searchIdsByReelWithinFilters($reelTrim, $cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard, $fiberCounts);
             if ($ids === []) {
                 return [];
             }
@@ -44,9 +45,36 @@ class SpoolRepository extends ServiceEntityRepository
             return $this->loadSpoolsForBrowseByIds($ids);
         }
 
-        $qb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard);
+        $qb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard, $fiberCounts);
 
         return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Efektivní počet vláken (cívka nebo typ kabelu) přítomný ve skladu — pro filtr přehledu.
+     *
+     * @return list<int>
+     */
+    public function findDistinctEffectiveFiberCountsForBrowse(): array
+    {
+        /** @var list<string|int|null> $rows */
+        $rows = $this->createQueryBuilder('s')
+            ->select('DISTINCT COALESCE(s.fiberCount, c.fiberCount) AS fc')
+            ->leftJoin('s.cableType', 'c')
+            ->where('COALESCE(s.fiberCount, c.fiberCount) IS NOT NULL')
+            ->andWhere('COALESCE(s.fiberCount, c.fiberCount) > 0')
+            ->orderBy('fc', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            if (is_numeric($row) && (int) $row > 0) {
+                $out[] = (int) $row;
+            }
+        }
+
+        return array_values(array_unique($out, \SORT_REGULAR));
     }
 
     /**
@@ -110,13 +138,14 @@ class SpoolRepository extends ServiceEntityRepository
         int $limit = 500,
         bool $onlyNeedsCorrection = false,
         bool $onlyWithoutWarehouseCard = false,
+        array $fiberCounts = [],
     ): array {
         $q = \trim($q);
         if ('' === $q) {
             return [];
         }
 
-        $exactQb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, 1, $onlyNeedsCorrection, $onlyWithoutWarehouseCard)
+        $exactQb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, 1, $onlyNeedsCorrection, $onlyWithoutWarehouseCard, $fiberCounts)
             ->select('s.id')
             ->andWhere('LOWER(s.reelNumber) = LOWER(:q)')
             ->setParameter('q', $q);
@@ -138,17 +167,7 @@ class SpoolRepository extends ServiceEntityRepository
             ->setParameter('ids', $partialIds)
             ->orderBy('s.reelNumber', 'ASC')
             ->setMaxResults($limit);
-        $this->applyCableTypeBrowseFilter($filterQb, $cableTypeFilter);
-        if ($statuses !== []) {
-            $filterQb->andWhere('s.status IN (:stss)')
-                ->setParameter('stss', $statuses);
-        }
-        if ($onlyNeedsCorrection) {
-            $filterQb->andWhere('s.needsCorrection = true');
-        }
-        if ($onlyWithoutWarehouseCard) {
-            $filterQb->andWhere('s.warehouseCardPrintedAt IS NULL');
-        }
+        $this->applyBrowseDimensionFilters($filterQb, $cableTypeFilter, $statuses, $onlyNeedsCorrection, $onlyWithoutWarehouseCard, $fiberCounts);
 
         /** @var list<string|int> $rowIds */
         $rowIds = $filterQb->getQuery()->getSingleColumnResult();
@@ -165,6 +184,7 @@ class SpoolRepository extends ServiceEntityRepository
         int $limit,
         bool $onlyNeedsCorrection = false,
         bool $onlyWithoutWarehouseCard = false,
+        array $fiberCounts = [],
     ): \Doctrine\ORM\QueryBuilder {
         $qb = $this->createQueryBuilder('s')
             ->leftJoin('s.cableType', 'c')
@@ -172,7 +192,25 @@ class SpoolRepository extends ServiceEntityRepository
             ->orderBy('CASE WHEN s.fiberCount IS NOT NULL THEN s.fiberCount WHEN c.fiberCount IS NOT NULL THEN c.fiberCount ELSE 0 END', 'ASC')
             ->addOrderBy('s.reelNumber', 'ASC')
             ->setMaxResults($limit);
+        $this->applyBrowseDimensionFilters($qb, $cableTypeFilter, $statuses, $onlyNeedsCorrection, $onlyWithoutWarehouseCard, $fiberCounts);
+
+        return $qb;
+    }
+
+    /**
+     * @param list<SpoolStatus> $statuses
+     * @param list<int>       $fiberCounts
+     */
+    private function applyBrowseDimensionFilters(
+        \Doctrine\ORM\QueryBuilder $qb,
+        CableTypeBrowseFilter $cableTypeFilter,
+        array $statuses,
+        bool $onlyNeedsCorrection,
+        bool $onlyWithoutWarehouseCard,
+        array $fiberCounts,
+    ): void {
         $this->applyCableTypeBrowseFilter($qb, $cableTypeFilter);
+        $this->applyFiberCountBrowseFilter($qb, $fiberCounts);
         if ($statuses !== []) {
             $qb->andWhere('s.status IN (:stss)')
                 ->setParameter('stss', $statuses);
@@ -183,8 +221,18 @@ class SpoolRepository extends ServiceEntityRepository
         if ($onlyWithoutWarehouseCard) {
             $qb->andWhere('s.warehouseCardPrintedAt IS NULL');
         }
+    }
 
-        return $qb;
+    /**
+     * @param list<int> $fiberCounts
+     */
+    private function applyFiberCountBrowseFilter(\Doctrine\ORM\QueryBuilder $qb, array $fiberCounts): void
+    {
+        if ($fiberCounts === []) {
+            return;
+        }
+        $qb->andWhere('COALESCE(s.fiberCount, c.fiberCount, 0) IN (:browseFiberCounts)')
+            ->setParameter('browseFiberCounts', $fiberCounts);
     }
 
     private function applyCableTypeBrowseFilter(\Doctrine\ORM\QueryBuilder $qb, CableTypeBrowseFilter $filter): void
