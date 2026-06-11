@@ -102,11 +102,37 @@
                 align-items: flex-end;
             }
             .browse-filters__col--equal { flex: 1 1 0; min-width: 0; }
+            .browse-filters__mobile-picker-row { display: contents; }
         }
-        .browse-filters__col--fiberCount { display: none; }
+        @media (max-width: 41.99rem) {
+            .browse-filters__mobile-picker-row {
+                display: flex;
+                flex-direction: row;
+                align-items: flex-end;
+                gap: 0.55rem;
+                width: 100%;
+                min-width: 0;
+            }
+            .browse-filters__mobile-picker-row > .browse-filters__col {
+                flex: 1 1 0;
+                min-width: 0;
+            }
+            .browse-filters__mobile-picker-row .cable-type-mobile-picker__toggle {
+                padding-inline: 0.45rem;
+                font-size: 0.88rem;
+            }
+            .browse-filters__col--fiberCount {
+                width: 100%;
+                max-width: none;
+            }
+        }
+        .browse-filters__col--fiberCount {
+            display: flex;
+            flex: 1 1 100%;
+            min-width: 0;
+        }
         @media (min-width: 42rem) {
             .browse-filters__col--fiberCount {
-                display: flex;
                 flex: 0 1 auto;
                 min-width: 5.5rem;
                 max-width: 11rem;
@@ -262,6 +288,7 @@
                 </div>
             </div>
             {% endif %}
+            <div class="browse-filters__mobile-picker-row">
             <div class="browse-filters__col browse-filters__col--equal">
                 <label for="browse-cable-type-btn">Typ kabelu</label>
                 <div class="cable-type-mobile-picker" id="browse-cable-type-picker" data-browse-mode="cable">
@@ -342,6 +369,7 @@
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
             <div class="browse-filters__col browse-filters__col--submit">
                 <button type="submit">Filtrovat</button>
