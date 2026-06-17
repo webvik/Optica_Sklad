@@ -1,6 +1,6 @@
-{# Společná tabulka cívek; proměnná: spools #}
+{# Společná tabulka cívek; proměnné: spools, showTransferNoteColumn?, transferNotesBySpoolId? #}
 <div class="table-scroll table-scroll--wide">
-<table>
+<table class="browse-spool-table{% if showTransferNoteColumn|default(false) %} browse-spool-table--with-transfer-note{% endif %}">
     <thead>
         <tr>
             <th>Číslo cívky</th>
@@ -9,6 +9,9 @@
             <th>Zbývá (m)</th>
             <th>Délka L (m)</th>
             <th>Stav</th>
+            {% if showTransferNoteColumn|default(false) %}
+            <th class="browse-spool-table__transfer-note">Komu předáno</th>
+            {% endif %}
             <th></th>
         </tr>
     </thead>
@@ -21,10 +24,13 @@
             <td>{{ s.currentRemainingM ?? '—' }}</td>
             <td>{{ s.totalLengthM }}</td>
             <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}{% if s.needsCorrection %} <span title="{% if s.correctionNote %}{{ s.correctionNote|e('html_attr') }}{% else %}Čeká na korekci dat{% endif %}" style="color:#a60;font-weight:600;">· korek.</span>{% endif %}</td>
+            {% if showTransferNoteColumn|default(false) %}
+            <td class="browse-spool-table__transfer-note">{% if s.status.value == 'transferred' %}{% set tn = transferNotesBySpoolId[s.id]|default('') %}{{ tn != '' ? tn : '—' }}{% else %}—{% endif %}</td>
+            {% endif %}
             <td><a href="{{ path('warehouse_spool_show', {id: s.id}) }}">Karta</a></td>
         </tr>
     {% else %}
-        <tr class="browse-spool-row browse-spool-row--empty"><td colspan="7">Žádné záznamy v tomto výběru.</td></tr>
+        <tr class="browse-spool-row browse-spool-row--empty"><td colspan="{{ showTransferNoteColumn|default(false) ? 8 : 7 }}">Žádné záznamy v tomto výběru.</td></tr>
     {% endfor %}
     </tbody>
 </table>

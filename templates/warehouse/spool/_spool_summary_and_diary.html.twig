@@ -51,7 +51,23 @@
       gap: 0.5rem;
       align-items: center;
   }
+  .spool-diary-row--editable { cursor: pointer; }
+  .spool-diary-row--editable:hover { background: rgba(0,0,0,0.04); }
+  .spool-diary-table__edit {
+      width: 4.2rem;
+      max-width: 4.5rem;
+      padding: 0.35rem 0.3rem;
+      text-align: center;
+      white-space: nowrap;
+      font-size: 0.88rem;
+  }
+  .spool-diary-table__edit a {
+      text-decoration: none;
+      font-weight: 600;
+  }
 </style>
+{% set diaryReturnUrl = diaryReturnUrl|default(path('warehouse_spool_show', {id: spool.id})) %}
+{% set diaryCanEdit = is_granted(constant('App\\Security\\WarehouseRole::EDIT')) %}
 <div class="spool-card-summary">
     <p style="margin: 0 0 0.5rem;">
         <strong>zbývá:</strong>
@@ -132,24 +148,52 @@
 </div>
 <h2>Deník</h2>
 <div class="table-scroll table-scroll--wide">
-<table class="spool-diary-table">
+<table class="spool-diary-table{% if diaryCanEdit %} spool-diary-table--editable{% endif %}">
     <thead>
-        <tr><th>m (čtení)</th><th>Délka (m)</th><th>Zakázka</th><th>Kdy</th><th>Technik</th><th>Pozn.</th></tr>
+        <tr><th>m (čtení)</th><th>Délka (m)</th><th>Zakázka</th><th>Kdy</th><th>Technik</th><th>Pozn.</th>{% if diaryCanEdit %}<th class="spool-diary-table__edit"></th>{% endif %}</tr>
     </thead>
     <tbody>
     {% for e in spool.eventsSortedByVisibleM %}
         {% set diary = spool_diary_cells(e) %}
-        <tr>
+        {% set eventEditUrl = path('warehouse_spool_event_edit', {id: spool.id, eventId: e.id, return: diaryReturnUrl}) %}
+        <tr class="spool-diary-row{% if diaryCanEdit %} spool-diary-row--editable js-spool-diary-row{% endif %}"
+            {% if diaryCanEdit %}data-edit-url="{{ eventEditUrl|e('html_attr') }}" tabindex="0" title="Dvojklik nebo Upravit — otevřít úpravu záznamu"{% endif %}>
             <td>{{ diary.visibleM is not null ? diary.visibleM : '—' }}</td>
             <td>{{ diary.usedMeters is not null ? diary.usedMeters : '—' }}</td>
             <td>{{ diary.projectLabel|default('—') }}</td>
             <td>{{ e.occurredAt|date('Y-m-d') }}</td>
             <td class="spool-diary-table__author" title="{{ spool_event_author(e) }}">{{ spool_event_author(e) }}</td>
             <td class="spool-diary-table__note" title="{{ e.note|default('') }}">{{ e.note|default('') }}</td>
+            {% if diaryCanEdit %}
+            <td class="spool-diary-table__edit"><a href="{{ eventEditUrl }}" class="js-spool-diary-edit-link">Upravit</a></td>
+            {% endif %}
         </tr>
     {% else %}
-        <tr><td colspan="6">Žádné záznamy</td></tr>
+        <tr><td colspan="{{ diaryCanEdit ? 7 : 6 }}">Žádné záznamy</td></tr>
     {% endfor %}
     </tbody>
 </table>
 </div>
+{% if diaryCanEdit %}
+<script>
+(function () {
+  var rows = document.querySelectorAll('tr.js-spool-diary-row[data-edit-url]');
+  for (var i = 0; i < rows.length; i++) {
+    (function (row) {
+      var url = row.getAttribute('data-edit-url');
+      if (!url) return;
+      row.addEventListener('dblclick', function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest('a.js-spool-diary-edit-link')) return;
+        window.location.href = url;
+      });
+      row.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          window.location.href = url;
+        }
+      });
+    })(rows[i]);
+  }
+})();
+</script>
+{% endif %}

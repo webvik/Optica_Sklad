@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\SpoolEvent;
+use App\Enum\SpoolEventType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -48,5 +49,44 @@ class SpoolEventRepository extends ServiceEntityRepository
             ->getResult();
 
         return $rows;
+    }
+
+    /**
+     * Poslední poznámka k předání cívky (komu / kam), indexováno podle ID cívky.
+     *
+     * @param list<int> $spoolIds
+     *
+     * @return array<int, string>
+     */
+    public function findLatestTransferNotesBySpoolIds(array $spoolIds): array
+    {
+        if ($spoolIds === []) {
+            return [];
+        }
+
+        /** @var list<SpoolEvent> $events */
+        $events = $this->createQueryBuilder('e')
+            ->join('e.spool', 's')
+            ->where('s.id IN (:ids)')
+            ->andWhere('e.type = :transfer')
+            ->setParameter('ids', $spoolIds)
+            ->setParameter('transfer', SpoolEventType::Transfer)
+            ->orderBy('e.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($events as $event) {
+            $spool = $event->getSpool();
+            if (null === $spool || null === $spool->getId()) {
+                continue;
+            }
+            $note = \trim((string) ($event->getNote() ?? ''));
+            if ('' !== $note) {
+                $out[$spool->getId()] = $note;
+            }
+        }
+
+        return $out;
     }
 }

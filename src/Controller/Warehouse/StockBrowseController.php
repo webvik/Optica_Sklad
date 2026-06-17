@@ -27,6 +27,7 @@ final class StockBrowseController extends AbstractController
         Request $request,
         SpoolRepository $spools,
         CableTypeRepository $cableTypes,
+        SpoolEventRepository $spoolEvents,
     ): Response {
         $choiceEntities = $cableTypes->findAllOrderedForCableTypePicker(false);
         $allCableTypeIds = array_values(array_map(
@@ -55,16 +56,25 @@ final class StockBrowseController extends AbstractController
         $fiberCounts = self::parseFiberCountList($request);
         $reelQ = \trim((string) $request->query->get('q', ''));
 
+        $spoolList = $spools->findFiltered(
+            $cableTypeFilter,
+            $statuses,
+            '' !== $reelQ ? $reelQ : null,
+            500,
+            $onlyNeedsCorrection,
+            $onlyWithoutWarehouseCard,
+            $fiberCounts,
+        );
+        $showTransferNoteColumn = \in_array(SpoolStatus::Transferred, $statuses, true);
+        $transferNotesBySpoolId = $showTransferNoteColumn
+            ? $spoolEvents->findLatestTransferNotesBySpoolIds(\array_values(\array_filter(\array_map(
+                static fn ($s) => $s->getId(),
+                $spoolList,
+            ))))
+            : [];
+
         return $this->render('warehouse/stock_browse.html.twig', [
-            'spools' => $spools->findFiltered(
-                $cableTypeFilter,
-                $statuses,
-                '' !== $reelQ ? $reelQ : null,
-                500,
-                $onlyNeedsCorrection,
-                $onlyWithoutWarehouseCard,
-                $fiberCounts,
-            ),
+            'spools' => $spoolList,
             'searchQuery' => $reelQ,
             'cableTypeChoices' => $choiceEntities,
             'filterCableTypeIds' => $cableTypeIdsFromForm,
@@ -82,6 +92,8 @@ final class StockBrowseController extends AbstractController
             'filterWithoutWarehouseCard' => $onlyWithoutWarehouseCard,
             'fiberCountChoices' => $spools->findDistinctEffectiveFiberCountsForBrowse(),
             'filterFiberCounts' => $fiberCounts,
+            'showTransferNoteColumn' => $showTransferNoteColumn,
+            'transferNotesBySpoolId' => $transferNotesBySpoolId,
         ]);
     }
 

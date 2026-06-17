@@ -11,6 +11,7 @@ use App\Enum\SpoolEventType;
 use App\Enum\SpoolStatus;
 use App\Form\SpoolAssignCableTypeFormType;
 use App\Form\SpoolEditCoreDataFormType;
+use App\Form\SpoolEventEditFormType;
 use App\Form\SpoolEventFormType;
 use App\Form\SpoolFormType;
 use App\Repository\CableFamilyRepository;
@@ -356,6 +357,7 @@ final class SpoolController extends AbstractController
 
         return $this->render('warehouse/spool/_karta_work_embed.html.twig', [
             'spool' => $spool,
+            'diaryReturnUrl' => $this->generateUrl('warehouse_spool_index', ['q' => $spool->getReelNumber()]),
         ]);
     }
 
@@ -506,6 +508,103 @@ final class SpoolController extends AbstractController
             'id' => $spool->getId(),
             'upravit' => 1,
         ]);
+    }
+
+    #[Route('/{id}/udalost/{eventId}/upravit', name: 'event_edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+', 'eventId' => '\d+'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function editEvent(
+        Request $request,
+        Spool $spool,
+        int $eventId,
+        SpoolMeterService $meter,
+        EntityManagerInterface $em,
+    ): Response {
+        $event = $em->getRepository(SpoolEvent::class)->find($eventId);
+        if (null === $event || $event->getSpool()?->getId() !== $spool->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        $allowVisibleM = SpoolEventOrder::isLastVisibleChainEvent($spool, $event)
+            && SpoolMeterService::isVisibleMeterChainEventType($event->getType());
+
+        $form = $this->createForm(SpoolEventEditFormType::class, $event, [
+            'allow_visible_m' => $allowVisibleM,
+            'event_type' => $event->getType(),
+        ]);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $occurredAt = $event->getOccurredAt();
+            if (null !== $occurredAt) {
+                $now = new \DateTimeImmutable();
+                $event->setOccurredAt(
+                    $occurredAt->setTime(
+                        (int) $now->format('H'),
+                        (int) $now->format('i'),
+                        (int) $now->format('s')
+                    )
+                );
+            }
+            try {
+                if ($allowVisibleM) {
+                    $visibleM = $event->getVisibleM();
+                    if (null === $visibleM) {
+                        throw new \InvalidArgumentException('Zadejte čtení metru (m).');
+                    }
+                    $meter->updateLastVisibleChainEvent(
+                        $spool,
+                        $event,
+                        $visibleM,
+                        $event->getOccurredAt() ?? new \DateTimeImmutable(),
+                        $event->getProjectLabel(),
+                        $event->getNote(),
+                    );
+                } else {
+                    $meter->updateDiaryEventMetadata(
+                        $event,
+                        $event->getOccurredAt() ?? new \DateTimeImmutable(),
+                        $event->getProjectLabel(),
+                        $event->getNote(),
+                    );
+                }
+                $u = $this->getUser() instanceof User ? $this->getUser() : null;
+                if ($u instanceof User) {
+                    $spool->setUpdatedBy($u);
+                }
+                $em->flush();
+                $em->refresh($spool);
+                $this->addFlash('success', 'Záznam v deníku byl upraven.');
+
+                return $this->redirectAfterDiaryEventEdit($request, $spool);
+            } catch (\Throwable $e) {
+                $this->addFlash('error', $e->getMessage());
+            }
+        }
+
+        return $this->render('warehouse/spool/event_edit.html.twig', [
+            'spool' => $spool,
+            'event' => $event,
+            'form' => $form,
+            'allowVisibleM' => $allowVisibleM,
+            'eventTypeLabel' => $this->eventTypeLabel($event->getType()),
+            'returnUrl' => $this->safeDiaryReturnUrl($request, $spool),
+        ]);
+    }
+
+    private function redirectAfterDiaryEventEdit(Request $request, Spool $spool): Response
+    {
+        $return = $this->safeDiaryReturnUrl($request, $spool);
+
+        return $this->redirect($return);
+    }
+
+    private function safeDiaryReturnUrl(Request $request, Spool $spool): string
+    {
+        $return = \trim((string) $request->query->get('return', ''));
+        if ('' !== $return && str_starts_with($return, '/') && !str_starts_with($return, '//')) {
+            return $return;
+        }
+
+        return $this->generateUrl('warehouse_spool_show', ['id' => $spool->getId()]);
     }
 
     #[Route('/{id}/skladova-karta.xlsx', name: 'skladova_karta', methods: ['GET'], requirements: ['id' => '\d+'])]

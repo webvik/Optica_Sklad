@@ -56,4 +56,29 @@ final class SpoolEventOrder
     {
         return self::byVisibleM($spool->getMeterSign(), $spool->getEvents()->toArray());
     }
+
+    /**
+     * Poslední krok v řetězci čtení m (zafuk / úsek štítek).
+     */
+    public static function lastVisibleChainEvent(Spool $spool): ?SpoolEvent
+    {
+        $last = null;
+        foreach (self::forSpool($spool) as $event) {
+            if (SpoolMeterService::isVisibleMeterChainEventType($event->getType())) {
+                $last = $event;
+            }
+        }
+
+        return $last;
+    }
+
+    public static function isLastVisibleChainEvent(Spool $spool, SpoolEvent $event): bool
+    {
+        $last = self::lastVisibleChainEvent($spool);
+        if (null === $last || null === $last->getId() || null === $event->getId()) {
+            return false;
+        }
+
+        return $last->getId() === $event->getId();
+    }
 }

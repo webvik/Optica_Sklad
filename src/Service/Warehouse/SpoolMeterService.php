@@ -445,6 +445,128 @@ final class SpoolMeterService
     }
 
     /**
+     * Úprava záznamu v deníku: metadata (zakázka, poznámka, datum). U kroku s m jen pokud není poslední v řetězci.
+     */
+    public function updateDiaryEventMetadata(
+        SpoolEvent $event,
+        \DateTimeImmutable $occurredAt,
+        ?string $projectLabel,
+        ?string $note,
+    ): void {
+        $type = $event->getType();
+        if (SpoolEventType::Transfer === $type && ('' === \trim((string) ($note ?? '')))) {
+            throw new RuntimeException('U předání vyplňte poznámku (komu předáno).');
+        }
+        $event->setOccurredAt($occurredAt);
+        if (self::isVisibleMeterChainEventType($type)
+            || SpoolEventType::Inventory === $type
+            || SpoolEventType::Correction === $type) {
+            $event->setProjectLabel($projectLabel);
+        }
+        $event->setNote($note);
+        $this->em->persist($event);
+    }
+
+    /**
+     * Úprava posledního kroku v řetězci čtení m včetně visible_m a přepočtu odběru / zůstatku.
+     */
+    public function updateLastVisibleChainEvent(
+        Spool $spool,
+        SpoolEvent $event,
+        int $newVisibleM,
+        \DateTimeImmutable $occurredAt,
+        ?string $projectLabel,
+        ?string $note,
+    ): void {
+        if (!self::isVisibleMeterChainEventType($event->getType())) {
+            throw new \InvalidArgumentException('Očekáván záznam s čtením metru.');
+        }
+        if (!SpoolEventOrder::isLastVisibleChainEvent($spool, $event)) {
+            throw new RuntimeException('Čtení metru lze měnit jen u posledního kroku v řetězci.');
+        }
+
+        $oldUsed = (int) ($event->getUsedMeters() ?? 0);
+        $m0 = $spool->getInitialVisibleM();
+        $nPrev = $this->countVisibleChainEventsBeforeOrdered($spool, $event);
+        $prevM = $this->prevVisibleMBeforeChainEvent($spool, $event);
+        if (0 === $nPrev && $newVisibleM === $m0) {
+            throw new RuntimeException('Bez kroku: zadejte čtení metru odlišné od PS (počáteční stav na kabelu).');
+        }
+        if ($nPrev > 0 && $newVisibleM === $prevM) {
+            throw new RuntimeException('Oproti předchozímu čtení není žádná změna; zadejte jinou hodnotu m.');
+        }
+
+        $remBeforeStep = ($spool->getCurrentRemainingM() ?? $spool->getTotalLengthM()) + $oldUsed;
+        $signStored = $spool->getMeterSign();
+        $resolved = $this->resolveSingleStepOdběrWithOptionalWrap(
+            $spool,
+            $nPrev,
+            $m0,
+            $prevM,
+            $newVisibleM,
+            $remBeforeStep,
+            $signStored
+        );
+        if (null === $resolved) {
+            throw new RuntimeException(
+                'Nelze spočítat fyzický odběr: zadejte čtení znovu, nebo zůstatek v evidenci neumožní ani variantu s přetočením čítače (mod 10 000 / 100 000 / 1 000 000 m).'
+            );
+        }
+
+        $newUsed = $resolved['used'];
+        if (0 === $nPrev) {
+            $spool->setMeterSign($resolved['inferredSign']);
+        }
+
+        $event->setVisibleM($newVisibleM);
+        $event->setUsedMeters($newUsed);
+        $event->setOccurredAt($occurredAt);
+        $event->setProjectLabel($projectLabel);
+        $event->setNote($this->appendWrapNoteToEventNote(
+            $note,
+            $resolved['wrap'] ?? false,
+            $resolved['mod'] ?? null
+        ));
+
+        $spool->setCurrentRemainingM($remBeforeStep - $newUsed);
+        $spool->setLastVisibleM($newVisibleM);
+
+        $this->em->persist($event);
+        $this->em->persist($spool);
+    }
+
+    public function countVisibleChainEventsBeforeOrdered(Spool $spool, SpoolEvent $event): int
+    {
+        $n = 0;
+        foreach (SpoolEventOrder::forSpool($spool) as $e) {
+            if (null !== $event->getId() && $e->getId() === $event->getId()) {
+                return $n;
+            }
+            if (self::isVisibleMeterChainEventType($e->getType())) {
+                ++$n;
+            }
+        }
+
+        return $n;
+    }
+
+    public function prevVisibleMBeforeChainEvent(Spool $spool, SpoolEvent $event): int
+    {
+        $m0 = $spool->getInitialVisibleM();
+        $prev = $m0;
+        foreach (SpoolEventOrder::forSpool($spool) as $e) {
+            if (null !== $event->getId() && $e->getId() === $event->getId()) {
+                return $prev;
+            }
+            if (self::isVisibleMeterChainEventType($e->getType()) && null !== $e->getVisibleM()) {
+                $prev = $e->getVisibleM();
+            }
+        }
+
+        return $prev;
+    }
+
+    /**
      * Hodnoty pro tabulku deníku (může se lišit od surových polí u předání / vyřazení).
      *
      * @return array{visibleM: ?int, usedMeters: ?int, projectLabel: ?string}

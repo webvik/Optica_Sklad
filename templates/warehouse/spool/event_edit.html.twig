@@ -1,0 +1,82 @@
+{% extends 'base.html.twig' %}
+{% block title %}Upravit záznam deníku — {{ spool.reelNumber }}{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .spool-form { max-width: 40rem; line-height: 1.6; }
+        .spool-form__field {
+            display: grid;
+            grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+            column-gap: 0.45rem;
+            row-gap: 0.2rem;
+            margin: 0 0 0.75rem;
+            align-items: start;
+        }
+        .spool-form__field > label, .spool-form__field > .spool-form__static-label {
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.25;
+            padding-top: 0.28rem;
+            word-break: break-word;
+        }
+        .spool-form__value { min-width: 0; }
+        .spool-form__value input, .spool-form__value select, .spool-form__value textarea {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+        }
+        .spool-form__hint {
+            margin: 0 0 1rem;
+            font-size: 0.92rem;
+            color: #444;
+            line-height: 1.45;
+        }
+        .spool-form__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; margin-top: 1rem; }
+        @media (min-width: 42rem) {
+            .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; }
+        }
+    </style>
+{% endblock %}
+{% block body %}
+    <h1>Upravit záznam deníku</h1>
+    <p class="spool-form__hint">
+        Cívka <strong>{{ spool.reelNumber }}</strong> · typ události: <strong>{{ eventTypeLabel }}</strong>
+        {% if allowVisibleM %}
+            <br>Poslední krok v řetězci — lze měnit i <strong>čtení metru (m)</strong> s přepočtem odběru a zůstatku.
+        {% else %}
+            <br>Starší záznam — <strong>čtení metru nelze měnit</strong> (ochrana řetězce výpočtů). Upravitelné jsou zakázka, datum a poznámka.
+        {% endif %}
+    </p>
+
+    {{ form_start(form, { attr: { class: 'spool-form' } }) }}
+        <div class="spool-form__field">
+            <span class="spool-form__static-label">Událost</span>
+            <div class="spool-form__value">{{ eventTypeLabel }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.occurredAt) }}
+            <div class="spool-form__value">{{ form_widget(form.occurredAt) }}{{ form_errors(form.occurredAt) }}</div>
+        </div>
+        {% if form.visibleM is defined %}
+        <div class="spool-form__field">
+            {{ form_label(form.visibleM) }}
+            <div class="spool-form__value">{{ form_widget(form.visibleM) }}{{ form_errors(form.visibleM) }}</div>
+        </div>
+        {% endif %}
+        {% if form.projectLabel is defined %}
+        <div class="spool-form__field">
+            {{ form_label(form.projectLabel) }}
+            <div class="spool-form__value">{{ form_widget(form.projectLabel) }}{{ form_errors(form.projectLabel) }}</div>
+        </div>
+        {% endif %}
+        <div class="spool-form__field">
+            {{ form_label(form.note) }}
+            <div class="spool-form__value">{{ form_widget(form.note) }}{{ form_errors(form.note) }}</div>
+        </div>
+        <div class="spool-form__actions">
+            <button type="submit">Uložit</button>
+            <a href="{{ returnUrl }}">Zrušit</a>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}

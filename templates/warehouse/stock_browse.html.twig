@@ -264,6 +264,19 @@
         #browse-cable-type-panel .browse-filter-checkpanel__row {
             align-items: start;
         }
+        .browse-spool-table--with-transfer-note { table-layout: fixed; width: 100%; }
+        .table-scroll--wide > .browse-spool-table--with-transfer-note { min-width: 46rem; }
+        .browse-spool-table__transfer-note {
+            min-width: 11rem;
+            width: 22%;
+            max-width: none;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.35;
+            vertical-align: top;
+            font-size: 0.9rem;
+        }
         {% include 'warehouse/_mobile_menu_styles.html.twig' %}
     </style>
 {% endblock %}
@@ -398,7 +411,11 @@
     <p id="browse-reel-hint" class="browse-reel-hint" aria-live="polite"></p>
 
     <div id="browse-spool-table-host">
-    {% include 'warehouse/_spool_table.html.twig' with { spools: spools } only %}
+    {% include 'warehouse/_spool_table.html.twig' with {
+        spools: spools,
+        showTransferNoteColumn: showTransferNoteColumn|default(false),
+        transferNotesBySpoolId: transferNotesBySpoolId|default({}),
+    } only %}
     </div>
 
     <p><a href="{{ path('warehouse_dashboard') }}">Číselný přehled (dashboard)</a> ·
