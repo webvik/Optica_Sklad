@@ -67,7 +67,7 @@
   }
 </style>
 {% set diaryReturnUrl = diaryReturnUrl|default(path('warehouse_spool_show', {id: spool.id})) %}
-{% set diaryCanEdit = is_granted(constant('App\\Security\\WarehouseRole::EDIT')) %}
+{% set diaryCanEdit = spool_diary_show_edit_column(spool) %}
 <div class="spool-card-summary">
     <p style="margin: 0 0 0.5rem;">
         <strong>zbývá:</strong>
@@ -155,17 +155,20 @@
     <tbody>
     {% for e in spool.eventsSortedByVisibleM %}
         {% set diary = spool_diary_cells(e) %}
+        {% set canEditEvent = spool_event_user_can_edit(e) %}
         {% set eventEditUrl = path('warehouse_spool_event_edit', {id: spool.id, eventId: e.id, return: diaryReturnUrl}) %}
-        <tr class="spool-diary-row{% if diaryCanEdit %} spool-diary-row--editable js-spool-diary-row{% endif %}"
-            {% if diaryCanEdit %}data-edit-url="{{ eventEditUrl|e('html_attr') }}" tabindex="0" title="Dvojklik nebo Upravit — otevřít úpravu záznamu"{% endif %}>
+        <tr class="spool-diary-row{% if canEditEvent %} spool-diary-row--editable js-spool-diary-row{% endif %}"
+            {% if canEditEvent %}data-edit-url="{{ eventEditUrl|e('html_attr') }}" tabindex="0" title="Dvojklik nebo Upravit — otevřít úpravu záznamu"{% endif %}>
             <td>{{ diary.visibleM is not null ? diary.visibleM : '—' }}</td>
             <td>{{ diary.usedMeters is not null ? diary.usedMeters : '—' }}</td>
             <td>{{ diary.projectLabel|default('—') }}</td>
             <td>{{ e.occurredAt|date('Y-m-d') }}</td>
             <td class="spool-diary-table__author" title="{{ spool_event_author(e) }}">{{ spool_event_author(e) }}</td>
             <td class="spool-diary-table__note" title="{{ e.note|default('') }}">{{ e.note|default('') }}</td>
-            {% if diaryCanEdit %}
+            {% if canEditEvent %}
             <td class="spool-diary-table__edit"><a href="{{ eventEditUrl }}" class="js-spool-diary-edit-link">Upravit</a></td>
+            {% elseif diaryCanEdit %}
+            <td class="spool-diary-table__edit"></td>
             {% endif %}
         </tr>
     {% else %}

@@ -7,8 +7,10 @@ namespace App\Twig;
 use App\Entity\Spool;
 use App\Entity\SpoolEvent;
 use App\Enum\SpoolEventType;
+use App\Security\Voter\SpoolEventVoter;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
+use Symfony\Bundle\SecurityBundle\Security;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
@@ -16,6 +18,7 @@ final class SpoolDiaryExtension extends AbstractExtension
 {
     public function __construct(
         private readonly SpoolMeterService $meter,
+        private readonly Security $security,
     ) {
     }
 
@@ -27,7 +30,25 @@ final class SpoolDiaryExtension extends AbstractExtension
             new TwigFunction('spool_event_author', $this->eventAuthor(...)),
             new TwigFunction('spool_event_edit_allow_visible_m', $this->eventEditAllowVisibleM(...)),
             new TwigFunction('spool_event_type_label', $this->eventTypeLabel(...)),
+            new TwigFunction('spool_event_user_can_edit', $this->eventUserCanEdit(...)),
+            new TwigFunction('spool_diary_show_edit_column', $this->diaryShowEditColumn(...)),
         ];
+    }
+
+    public function eventUserCanEdit(SpoolEvent $event): bool
+    {
+        return $this->security->isGranted(SpoolEventVoter::EDIT, $event);
+    }
+
+    public function diaryShowEditColumn(Spool $spool): bool
+    {
+        foreach (SpoolEventOrder::forSpool($spool) as $event) {
+            if ($this->eventUserCanEdit($event)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function eventEditAllowVisibleM(Spool $spool, SpoolEvent $event): bool

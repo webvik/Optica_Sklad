@@ -23,6 +23,7 @@ use App\Service\Warehouse\SkladovaKartaPrintQueue;
 use App\Service\Warehouse\SkladovaKartaShareTokenService;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
+use App\Security\Voter\SpoolEventVoter;
 use App\Security\WarehouseRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -511,7 +512,6 @@ final class SpoolController extends AbstractController
     }
 
     #[Route('/{id}/udalost/{eventId}/upravit', name: 'event_edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+', 'eventId' => '\d+'])]
-    #[IsGranted(WarehouseRole::EDIT)]
     public function editEvent(
         Request $request,
         Spool $spool,
@@ -523,6 +523,8 @@ final class SpoolController extends AbstractController
         if (null === $event || $event->getSpool()?->getId() !== $spool->getId()) {
             throw $this->createNotFoundException();
         }
+
+        $this->denyAccessUnlessGranted(SpoolEventVoter::EDIT, $event);
 
         $allowVisibleM = SpoolEventOrder::isLastVisibleChainEvent($spool, $event)
             && SpoolMeterService::isVisibleMeterChainEventType($event->getType());
