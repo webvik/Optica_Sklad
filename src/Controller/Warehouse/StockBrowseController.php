@@ -208,7 +208,8 @@ final class StockBrowseController extends AbstractController
         $to = $toDay->setTime(23, 59, 59);
 
         $events = $eventRepository->findUsageEventsForProjectsReport($from, $to);
-        $projectGroups = self::buildProjectUsageGroupsInventuraStyle($events);
+        $sort = self::parseProjectUsageSort($request);
+        $projectGroups = self::buildProjectUsageGroupsInventuraStyle($events, $sort);
 
         return $this->render('warehouse/stock_browse_usage_by_project.html.twig', [
             'projectGroups' => $projectGroups,
@@ -216,7 +217,15 @@ final class StockBrowseController extends AbstractController
             'periodTo' => $to,
             'filterDateFrom' => $fromDay->format('Y-m-d'),
             'filterDateTo' => $toDay->format('Y-m-d'),
+            'filterSort' => $sort,
         ]);
+    }
+
+    private static function parseProjectUsageSort(Request $request): string
+    {
+        $sort = (string) $request->query->get('sort', 'name');
+
+        return \in_array($sort, ['name', 'date'], true) ? $sort : 'name';
     }
 
     /**
@@ -446,10 +455,12 @@ final class StockBrowseController extends AbstractController
      *   }>
      * }>
      */
-    private static function buildProjectUsageGroupsInventuraStyle(array $events): array
+    private static function buildProjectUsageGroupsInventuraStyle(array $events, string $sort = 'name'): array
     {
         /** @var array<string, array<string, array{groupLabel: string, meters: int, details: list<array{reelNumber: string, spoolId: int, occurredAt: \DateTimeImmutable, usedMeters: int, author: string}>}>> $nested */
         $nested = [];
+        /** @var array<string, \DateTimeImmutable> $projectLatestAt */
+        $projectLatestAt = [];
         foreach ($events as $e) {
             $pl = \trim((string) $e->getProjectLabel());
             if ('' === $pl) {
@@ -480,22 +491,42 @@ final class StockBrowseController extends AbstractController
             }
             $nested[$pl][$bucketKey]['meters'] += $um;
             $author = $e->getCreatedBy();
+            $occurredAt = $e->getOccurredAt() ?? new \DateTimeImmutable();
+            if (!isset($projectLatestAt[$pl]) || $occurredAt > $projectLatestAt[$pl]) {
+                $projectLatestAt[$pl] = $occurredAt;
+            }
             $nested[$pl][$bucketKey]['details'][] = [
                 'reelNumber' => (string) $sp->getReelNumber(),
                 'spoolId' => (int) $sp->getId(),
-                'occurredAt' => $e->getOccurredAt() ?? new \DateTimeImmutable(),
+                'occurredAt' => $occurredAt,
                 'usedMeters' => $um,
                 'author' => null !== $author ? $author->getDisplayName() : '—',
             ];
         }
         /** @var list<string> */
         $projectLabelsOrdered = \array_keys($nested);
-        \usort(
-            $projectLabelsOrdered,
-            static function (string $a, string $b): int {
-                return self::compareProjectLabelsByAffinity($a, $b);
-            },
-        );
+        if ('date' === $sort) {
+            \usort(
+                $projectLabelsOrdered,
+                static function (string $a, string $b) use ($projectLatestAt): int {
+                    $ta = $projectLatestAt[$a] ?? new \DateTimeImmutable('@0');
+                    $tb = $projectLatestAt[$b] ?? new \DateTimeImmutable('@0');
+                    $c = $tb <=> $ta;
+                    if (0 !== $c) {
+                        return $c;
+                    }
+
+                    return \strnatcasecmp($a, $b);
+                },
+            );
+        } else {
+            \usort(
+                $projectLabelsOrdered,
+                static function (string $a, string $b): int {
+                    return self::compareProjectLabelsByAffinity($a, $b);
+                },
+            );
+        }
         $out = [];
         foreach ($projectLabelsOrdered as $label) {
             $groups = $nested[$label];

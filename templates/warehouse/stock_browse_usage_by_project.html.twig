@@ -131,6 +131,18 @@
             font: inherit;
             padding: 0.35rem;
         }
+        .usage-proj-filters__field select {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            padding: 0.35rem;
+            min-height: 2.35rem;
+        }
+        .usage-proj-filters__sort {
+            flex: 0 1 12rem;
+            min-width: 0;
+        }
         .browse-proj-fold__wrapper { margin-bottom: 0.55rem; }
     </style>
 {% endblock %}
@@ -154,6 +166,13 @@
                 <label for="usage-to">Do (datum)</label>
                 <input id="usage-to" name="dateTo" type="date" value="{{ filterDateTo }}" required>
             </div>
+        </div>
+        <div class="usage-proj-filters__field usage-proj-filters__sort">
+            <label for="usage-sort">Řazení</label>
+            <select id="usage-sort" name="sort">
+                <option value="name"{% if filterSort|default('name') == 'name' %} selected{% endif %}>Podle názvu (A–Z)</option>
+                <option value="date"{% if filterSort|default('name') == 'date' %} selected{% endif %}>Podle data (nejnovější nahoře)</option>
+            </select>
         </div>
         <div>
             <button type="submit">Zobrazit</button>
