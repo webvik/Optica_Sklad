@@ -1,6 +1,12 @@
 {
     "type": "project",
     "license": "proprietary",
+    "authors": [
+        {
+            "name": "Ing. Viktor Burlak",
+            "email": "viktor.burlak.cz@gmail.com"
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {

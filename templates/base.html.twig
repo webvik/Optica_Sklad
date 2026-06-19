@@ -301,6 +301,18 @@
                     font-size: 0.88rem;
                 }
             }
+            .site-footer {
+                margin: 2rem 0 1.25rem;
+                padding: 0.75rem 0.5rem 0;
+                border-top: 1px solid #ddd;
+                text-align: center;
+            }
+            .site-footer__legal {
+                margin: 0;
+                font-size: 0.85rem;
+                color: #666;
+                line-height: 1.4;
+            }
         </style>
         {% block stylesheets %}
         {% endblock %}
@@ -372,6 +384,9 @@
         </div>
         {% endif %}
         {% block body %}{% endblock %}
+        <footer class="site-footer">
+            <p class="site-footer__legal">© 2026 Ing. Viktor Burlak. Všechna práva vyhrazena.</p>
+        </footer>
         {% block javascripts %}
         {% endblock %}
         <script src="/js/capacitor-share-pdf.js?v=4"></script>
