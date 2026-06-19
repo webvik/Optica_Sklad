@@ -17,6 +17,8 @@
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.6",
         "phpoffice/phpspreadsheet": "^2.0",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "symfony/apache-pack": "*",
         "symfony/console": "8.0.*",
         "symfony/dotenv": "8.0.*",

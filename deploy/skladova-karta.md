@@ -8,7 +8,7 @@ Implementace: `deploy/excel/skladova-karta.template.xlsx` + `SkladovaKartaExcelE
 
 **Server:** `sudo apt install libreoffice-calc` (Rocky: `dnf install libreoffice-calc libreoffice-headless`). Volitelně `SKLADOVA_KARTA_LO_BIN` v `.env.local`.
 
-**PDF vs Excel tisk:** export `.xlsx` pro desktop = scale **100 %**, okraje ze šablony (jako papír). Cesta Excel → PDF (LibreOffice) používá scale **81 %** a menší spodní okraj — jinak LO rozdělí kartu na 4 strany místo 2. Šablona `deploy/excel/skladova-karta.template.xlsx` = kopie etalonu včetně výšek řádků.
+**PDF vs Excel tisk:** export `.xlsx` pro desktop = scale **100 %**, okraje ze šablony (jako papír). Cesta Excel → PDF (LibreOffice) používá scale **81 %** a menší spodní okraj — jinak LO rozdělí kartu na 4 strany místo 2. Po konverzi FPDI posune liché strany doprava a sudé doleva (~±2,5 mm, duplex vazba); `.xlsx` se nemění. Šablona `deploy/excel/skladova-karta.template.xlsx` = kopie etalonu včetně výšek řádků.
 
 ## Sloupce deníku na papíru (zavedená praxe — dodržet)
 

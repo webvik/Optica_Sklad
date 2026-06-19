@@ -22,6 +22,7 @@ final class SkladovaKartaPdfExporter
 
     public function __construct(
         private readonly SkladovaKartaExcelExporter $excelExporter,
+        private readonly SkladovaKartaPdfDuplexPostProcessor $duplexPostProcessor,
         #[Autowire('%kernel.cache_dir%')]
         private readonly string $cacheDir,
         #[Autowire('%env(SKLADOVA_KARTA_LO_BIN)%')]
@@ -90,6 +91,7 @@ final class SkladovaKartaPdfExporter
                 }
                 @unlink($generated);
             }
+            $this->duplexPostProcessor->applyInPlace($pdfPath);
             @unlink($xlsxPath);
 
             return [
@@ -132,6 +134,7 @@ final class SkladovaKartaPdfExporter
             }
             @unlink($generated);
         }
+        $this->duplexPostProcessor->applyInPlace($pdfPath);
         @unlink($xlsxPath);
 
         return [
