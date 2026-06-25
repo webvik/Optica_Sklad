@@ -6,6 +6,7 @@
     <style>
         /* .spool-form__btn--danger — globálně v _styles_ui_buttons.html.twig */
         .spool-form__delete-hint { font-size: 0.88rem; color: #666; max-width: 14rem; line-height: 1.35; }
+        .admin-user-deactivation-msg[hidden] { display: none !important; }
     </style>
 {% endblock %}
 {% block body %}
@@ -31,8 +32,16 @@
         <div class="spool-form__field">
             {{ form_label(form.isActive) }}
             <div class="spool-form__value">
-                {{ form_widget(form.isActive, { attr: { 'aria-label': form.isActive.vars.label } }) }}
+                {{ form_widget(form.isActive, { attr: { 'aria-label': form.isActive.vars.label, id: 'admin-user-is-active' } }) }}
                 {{ form_errors(form.isActive) }}
+            </div>
+        </div>
+        <div id="admin-user-deactivation-msg" class="spool-form__field admin-user-deactivation-msg"{% if form.isActive.vars.data %} hidden{% endif %}>
+            {{ form_label(form.deactivationMessage) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.deactivationMessage, { attr: { 'aria-label': form.deactivationMessage.vars.label, id: 'admin-user-deactivation-message' } }) }}
+                {{ form_help(form.deactivationMessage) }}
+                {{ form_errors(form.deactivationMessage) }}
             </div>
         </div>
         <div class="spool-form__field">
@@ -93,4 +102,29 @@
 
         {{ form_rest(form) }}
     {{ form_end(form, { render_rest: false }) }}
+
+    <script>
+    (function () {
+        var activeCb = document.getElementById('admin-user-is-active');
+        var panel = document.getElementById('admin-user-deactivation-msg');
+        var textarea = document.getElementById('admin-user-deactivation-message');
+        if (!activeCb || !panel || !textarea) return;
+
+        var defaultMsg = textarea.getAttribute('data-default-message') || '';
+
+        function syncDeactivationPanel() {
+            if (activeCb.checked) {
+                panel.hidden = true;
+                return;
+            }
+            panel.hidden = false;
+            if (!textarea.value.trim() && defaultMsg) {
+                textarea.value = defaultMsg;
+            }
+        }
+
+        activeCb.addEventListener('change', syncDeactivationPanel);
+        syncDeactivationPanel();
+    })();
+    </script>
 {% endblock %}

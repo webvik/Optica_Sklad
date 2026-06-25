@@ -17,7 +17,7 @@ final class UserChecker implements UserCheckerInterface
         }
 
         if (!$user->getIsActive()) {
-            throw new CustomUserMessageAccountStatusException('Uživatelský účet je deaktivován.');
+            throw new CustomUserMessageAccountStatusException($user->getLoginDeactivationMessage());
         }
     }
 

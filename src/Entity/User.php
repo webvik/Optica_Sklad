@@ -16,6 +16,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[UniqueEntity(fields: ['email'], message: 'Účet s tímto e-mailem už existuje.', ignoreNull: true)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
+    public const DEFAULT_DEACTIVATION_MESSAGE = 'Váš uživatelský účet je dočasně deaktivován. Pro jeho opětovnou aktivaci kontaktujte vývojáře.';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -49,6 +51,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => true])]
     private bool $isActive = true;
+
+    /** Text při pokusu o přihlášení k deaktivovanému účtu; null = výchozí v {@see getLoginDeactivationMessage()}. */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $deactivationMessage = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
@@ -209,6 +215,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->isActive = $isActive;
 
         return $this;
+    }
+
+    public function getDeactivationMessage(): ?string
+    {
+        return $this->deactivationMessage;
+    }
+
+    public function setDeactivationMessage(?string $deactivationMessage): static
+    {
+        $trimmed = null !== $deactivationMessage ? trim($deactivationMessage) : null;
+        $this->deactivationMessage = ('' !== $trimmed) ? $trimmed : null;
+
+        return $this;
+    }
+
+    public function getLoginDeactivationMessage(): string
+    {
+        $custom = $this->deactivationMessage;
+        if (null !== $custom && '' !== trim($custom)) {
+            return trim($custom);
+        }
+
+        return self::DEFAULT_DEACTIVATION_MESSAGE;
     }
 
     public function getCreatedAt(): ?\DateTimeImmutable

@@ -17,6 +17,7 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
+use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
@@ -177,6 +178,17 @@ final class UserAdminController extends AbstractController
                 'label' => 'Účet aktivní',
                 'required' => false,
             ])
+            ->add('deactivationMessage', TextareaType::class, [
+                'label' => 'Zpráva při deaktivaci',
+                'required' => false,
+                'constraints' => [new Length(max: 2000)],
+                'help' => 'Zobrazí se uživateli při pokusu o přihlášení k deaktivovanému účtu.',
+                'attr' => [
+                    'rows' => 4,
+                    'data-default-message' => User::DEFAULT_DEACTIVATION_MESSAGE,
+                    'placeholder' => User::DEFAULT_DEACTIVATION_MESSAGE,
+                ],
+            ])
             ->add('phone', TextType::class, [
                 'label' => 'Telefon (volitelně)',
                 'required' => false,
@@ -288,6 +300,12 @@ final class UserAdminController extends AbstractController
 
             $phoneClean = \trim((string) ($user->getPhone() ?? ''));
             $user->setPhone('' !== $phoneClean ? mb_substr($phoneClean, 0, 32, 'UTF-8') : null);
+
+            if ($user->getIsActive()) {
+                $user->setDeactivationMessage(null);
+            } elseif (null === $user->getDeactivationMessage()) {
+                $user->setDeactivationMessage(User::DEFAULT_DEACTIVATION_MESSAGE);
+            }
 
             $em->flush();
 
