@@ -134,9 +134,15 @@
             padding-right: 0.25rem;
         }
         .inventura-table--brief td.num--mm { font-size: 0.88rem; }
+        .inventura-karta-col {
+            white-space: nowrap;
+            text-align: center;
+            font-size: 0.88rem;
+        }
+        .inventura-karta-col a { font-weight: 500; }
         @media print {
             a[href] { text-decoration: none; color: inherit; }
-            .app-menu, .inventura-nav, .inventura-no-print { display: none !important; }
+            .app-menu, .inventura-nav, .inventura-no-print, .inventura-karta-col { display: none !important; }
             body { padding: 0.5rem; }
             .inventura-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
@@ -205,12 +211,13 @@
                     <th class="inventura-name">Název</th>
                     <th class="num">Stav</th>
                     <th class="num">Rezervováno (m)</th>
+                    <th class="inventura-karta-col">Skladová karta</th>
                 </tr>
             </thead>
             <tbody>
             {% for g in groups %}
                 <tr class="inventura-group-hdr">
-                    <td colspan="5">Skupina: {{ g.groupLabel }}</td>
+                    <td colspan="6">Skupina: {{ g.groupLabel }}</td>
                 </tr>
                 {% for s in g.rows %}
                 <tr>
@@ -226,6 +233,9 @@
                     </td>
                     <td class="num">{% if s.currentRemainingM is not null %}{{ s.currentRemainingM|number_format(0, ',', ' ') }}{% else %}—{% endif %}</td>
                     <td class="num">{% if s.reservedM is not null and s.reservedM > 0 %}{{ s.reservedM|number_format(0, ',', ' ') }}{% else %}0{% endif %}</td>
+                    <td class="inventura-karta-col">
+                        <a href="{{ path('warehouse_spool_skladova_karta', {id: s.id}) }}" title="Stáhnout skladovou kartu (Excel)">Excel</a>
+                    </td>
                 </tr>
                 {% endfor %}
                 <tr class="inventura-group-sum">
@@ -233,9 +243,10 @@
                     <td><strong>Součet skupiny</strong></td>
                     <td class="num"><strong>{{ g.sumM|number_format(0, ',', ' ') }}</strong></td>
                     <td class="num"><strong>{{ g.sumR|number_format(0, ',', ' ') }}</strong></td>
+                    <td class="inventura-karta-col"></td>
                 </tr>
             {% else %}
-                <tr><td colspan="5">Žádné cívky na skladě v evidenci.</td></tr>
+                <tr><td colspan="6">Žádné cívky na skladě v evidenci.</td></tr>
             {% endfor %}
             </tbody>
         </table>
