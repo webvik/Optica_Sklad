@@ -21,21 +21,52 @@ final class UserAuditController extends AbstractController
     #[Route('', name: 'index', methods: ['GET'])]
     public function index(Request $request, UserAuditLogRepository $logs): Response
     {
+        $sort = $this->parseAuditSort($request);
         $total = $logs->countAll();
         $pageCount = max(1, (int) ceil($total / self::PAGE_SIZE));
         $page = max(1, $request->query->getInt('page', 1));
         if ($page > $pageCount) {
-            return $this->redirectToRoute('app_admin_audit_index', ['page' => $pageCount]);
+            return $this->redirectToRoute('app_admin_audit_index', $this->auditRouteParams($pageCount, $sort));
         }
 
         $offset = ($page - 1) * self::PAGE_SIZE;
 
         return $this->render('admin/audit/index.html.twig', [
-            'entries' => $logs->findRecent(self::PAGE_SIZE, $offset),
+            'entries' => $logs->findPaged(self::PAGE_SIZE, $offset, $sort['field'], $sort['dir']),
             'page' => $page,
             'pageCount' => $pageCount,
             'total' => $total,
             'pageSize' => self::PAGE_SIZE,
+            'sort' => $sort['field'],
+            'dir' => $sort['dir'],
         ]);
+    }
+
+    /**
+     * @return array{field: 'time'|'user', dir: 'asc'|'desc'}
+     */
+    private function parseAuditSort(Request $request): array
+    {
+        $field = 'user' === $request->query->getString('sort') ? 'user' : 'time';
+        $dirRaw = strtolower($request->query->getString('dir'));
+        $dir = 'asc' === $dirRaw ? 'asc' : 'desc';
+
+        return ['field' => $field, 'dir' => $dir];
+    }
+
+    /**
+     * @param array{field: 'time'|'user', dir: 'asc'|'desc'} $sort
+     *
+     * @return array<string, int|string>
+     */
+    private function auditRouteParams(int $page, array $sort): array
+    {
+        $params = ['page' => $page];
+        if ('user' === $sort['field']) {
+            $params['sort'] = 'user';
+            $params['dir'] = $sort['dir'];
+        }
+
+        return $params;
     }
 }

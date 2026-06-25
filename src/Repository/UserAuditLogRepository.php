@@ -24,14 +24,32 @@ class UserAuditLogRepository extends ServiceEntityRepository
      */
     public function findRecent(int $limit = 400, int $offset = 0): array
     {
-        $qb = $this->createQueryBuilder('a')
-            ->orderBy('a.occurredAt', 'DESC')
-            ->setMaxResults($limit);
+        return $this->findPaged($limit, $offset, 'time', 'desc');
+    }
+
+    /**
+     * @return list<UserAuditLog>
+     */
+    public function findPaged(int $limit, int $offset, string $sort, string $direction): array
+    {
+        $sort = 'user' === $sort ? 'user' : 'time';
+        $direction = 'asc' === strtolower($direction) ? 'ASC' : 'DESC';
+
+        $qb = $this->createQueryBuilder('a');
+        if ('user' === $sort) {
+            $qb->orderBy('a.username', $direction)
+                ->addOrderBy('a.occurredAt', 'DESC');
+        } else {
+            $qb->orderBy('a.occurredAt', $direction);
+        }
+
         if ($offset > 0) {
             $qb->setFirstResult($offset);
         }
 
-        return $qb->getQuery()->getResult();
+        return $qb->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 
     public function countAll(): int

@@ -1,5 +1,25 @@
 {% extends 'base.html.twig' %}
 {% block title %}Protokol HTTP{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .audit-sort-th { white-space: nowrap; }
+        .audit-sort-th a {
+            color: inherit;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .audit-sort-th a:hover { text-decoration: underline; }
+        .audit-sort-th__icon {
+            font-size: 0.72rem;
+            line-height: 1;
+            opacity: 0.45;
+        }
+        .audit-sort-th.is-sorted .audit-sort-th__icon { opacity: 1; }
+    </style>
+{% endblock %}
 {% block body %}
     {% include '_app_menu_cz.html.twig' %}
     <p style="margin:0 0 1rem">
@@ -16,12 +36,19 @@
             {% endif %}
         </p>
     {% endif %}
+    {% set audit_sort_q = sort == 'user' ? { sort: 'user', dir: dir } : {} %}
+    {% set user_sort_next_dir = sort == 'user' and dir == 'asc' ? 'desc' : 'asc' %}
     <div class="table-scroll table-scroll--wide">
         <table>
             <thead>
                 <tr>
                     <th>Čas</th>
-                    <th>Uživatel</th>
+                    <th class="audit-sort-th{% if sort == 'user' %} is-sorted{% endif %}"{% if sort == 'user' %} aria-sort="{{ dir == 'asc' ? 'ascending' : 'descending' }}"{% endif %}>
+                        <a href="{{ path('app_admin_audit_index', audit_sort_q|merge({ page: 1, sort: 'user', dir: user_sort_next_dir })) }}" title="Řadit podle uživatele (A–Z / Z–A)">
+                            Uživatel
+                            <span class="audit-sort-th__icon" aria-hidden="true">{% if sort == 'user' %}{{ dir == 'asc' ? '▲' : '▼' }}{% else %}↕{% endif %}</span>
+                        </a>
+                    </th>
                     <th>Role (DB snapshot)</th>
                     <th>Metoda</th>
                     <th>HTTP</th>
@@ -62,10 +89,10 @@
         <nav class="audit-pager" style="margin:1rem 0 2rem;display:flex;flex-wrap:wrap;gap:.65rem .9rem;align-items:center;font-size:.95rem" aria-label="Stránkování protokolu">
             <span>Stránka <strong>{{ page }}</strong> / {{ pageCount }} (celkem {{ total }} řádků)</span>
             {% if page < pageCount %}
-                <a class="warehouse-pill" href="{{ path('app_admin_audit_index', { page: page + 1 }) }}">Další stránka → (starší záznamy)</a>
+                <a class="warehouse-pill" href="{{ path('app_admin_audit_index', audit_sort_q|merge({ page: page + 1 })) }}">Další stránka → (starší záznamy)</a>
             {% endif %}
             {% if page > 1 %}
-                <a class="warehouse-pill" href="{{ path('app_admin_audit_index', { page: page - 1 }) }}">← Novější události</a>
+                <a class="warehouse-pill" href="{{ path('app_admin_audit_index', audit_sort_q|merge({ page: page - 1 })) }}">← Novější události</a>
                 <a class="warehouse-pill" href="{{ path('app_admin_audit_index') }}">Nejnovější (1. strana)</a>
             {% endif %}
         </nav>
