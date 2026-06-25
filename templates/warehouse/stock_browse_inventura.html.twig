@@ -4,7 +4,15 @@
     {{ parent() }}
     <style>
         .inventura-kopf { margin: 0 0 1rem; }
-        .inventura-kopf__meta { color: #444; font-size: 0.9rem; margin: 0.25rem 0 0; }
+        .inventura-kopf__meta { color: #444; font-size: 0.9rem; margin: 0.35rem 0 0; }
+        .inventura-brief-lede {
+            margin: 0 0 0.35rem;
+            color: #444;
+            font-size: 0.95rem;
+            line-height: 1.45;
+            max-width: 44rem;
+        }
+        .inventura-brief-block { margin: 0 0 1.25rem; }
         .inventura-nav { margin: 0 0 0.5rem; }
         .inventura-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .inventura-table {
@@ -29,7 +37,7 @@
         }
         .inventura-table tr.inventura-group-sum td { background: #f7f7f7; font-weight: 500; }
         .inventura-name { min-width: 12rem; max-width: 28rem; }
-        .inventura-brief { margin: 0 0 1.25rem; padding: 0; border: 0; background: transparent; }
+        .inventura-brief { margin: 0; padding: 0; border: 0; background: transparent; }
         .inventura-brief > summary {
             display: inline-flex;
             width: auto;
@@ -139,13 +147,14 @@
     <p class="inventura-nav"><a href="{{ path('warehouse_browse_index') }}">← Přehled skladu</a></p>
     <header class="inventura-kopf">
         <h1>Přehled kabelových cívek — inventura</h1>
-        <p class="inventura-kopf__meta">Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} · pouze cívky <strong>na skladě</strong> · sloupec <em>Stav</em> = zůstatek (m)</p>
     </header>
 
     {% if groups|length > 0 %}
-    <details class="inventura-brief">
-        <summary>Krátká tabulka (součty po skupinách)</summary>
-        <div class="inventura-brief__inner inventura-table-wrap">
+    <section class="inventura-brief-block">
+        <p class="inventura-brief-lede">Tlačítko <strong>Krátká tabulka</strong> zobrazí souhrnné počty zásob po skupinách (počet vláken · family · průměr): součet stavu, rezervace, počet cívek a min./max. zůstatek v jednom kuse.</p>
+        <details class="inventura-brief">
+            <summary>Krátká tabulka (součty po skupinách)</summary>
+            <div class="inventura-brief__inner inventura-table-wrap">
             <table class="inventura-table inventura-table--brief">
                 <thead>
                     <tr>
@@ -180,7 +189,11 @@
                 <a class="warehouse-pill" href="{{ path('warehouse_browse_inventura_export_brief') }}">Export do Excelu</a>
             </p>
         </div>
-    </details>
+        </details>
+        <p class="inventura-kopf__meta">Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} · pouze cívky <strong>na skladě</strong> · sloupec <em>Stav</em> = zůstatek (m)</p>
+    </section>
+    {% else %}
+        <p class="inventura-kopf__meta">Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} · pouze cívky <strong>na skladě</strong> · sloupec <em>Stav</em> = zůstatek (m)</p>
     {% endif %}
 
     <div class="inventura-table-wrap">
