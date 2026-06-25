@@ -211,7 +211,7 @@
                     <th class="inventura-name">Název</th>
                     <th class="num">Stav</th>
                     <th class="num">Rezervováno (m)</th>
-                    <th class="inventura-karta-col">Skladová karta</th>
+                    <th class="inventura-karta-col"></th>
                 </tr>
             </thead>
             <tbody>
@@ -234,7 +234,7 @@
                     <td class="num">{% if s.currentRemainingM is not null %}{{ s.currentRemainingM|number_format(0, ',', ' ') }}{% else %}—{% endif %}</td>
                     <td class="num">{% if s.reservedM is not null and s.reservedM > 0 %}{{ s.reservedM|number_format(0, ',', ' ') }}{% else %}0{% endif %}</td>
                     <td class="inventura-karta-col">
-                        <a href="{{ path('warehouse_spool_skladova_karta', {id: s.id}) }}" title="Stáhnout skladovou kartu (Excel)">Excel</a>
+                        <a href="{{ path('warehouse_spool_show', {id: s.id}) }}">Karta</a>
                     </td>
                 </tr>
                 {% endfor %}
