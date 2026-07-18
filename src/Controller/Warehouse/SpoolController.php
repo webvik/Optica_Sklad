@@ -474,13 +474,16 @@ final class SpoolController extends AbstractController
 
     #[Route('/{id}/upravit-udaje', name: 'edit_core', methods: ['POST'], requirements: ['id' => '\d+'])]
     #[IsGranted(WarehouseRole::EDIT)]
-    public function editCoreData(Request $request, Spool $spool, EntityManagerInterface $em): Response
+    public function editCoreData(Request $request, Spool $spool, EntityManagerInterface $em, SpoolMeterService $meter): Response
     {
         if (!$this->isCsrfTokenValid('spool_edit_core_'.$spool->getId(), (string) $request->request->get('_token'))) {
             $this->addFlash('error', 'Neplatný formulář (CSRF).');
 
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
         }
+
+        $lengthBefore = $spool->getTotalLengthM();
+        $remainingBefore = $spool->getCurrentRemainingM();
 
         $form = $this->createForm(SpoolEditCoreDataFormType::class, $spool);
         $form->handleRequest($request);
@@ -497,8 +500,21 @@ final class SpoolController extends AbstractController
             if ($u instanceof User) {
                 $spool->setUpdatedBy($u);
             }
+
+            $sync = $meter->syncRemainingAfterCoreEdit($spool, $lengthBefore, $remainingBefore);
             $em->flush();
-            $this->addFlash('success', 'Údaje cívky byly uloženy. Deník se nepřepočítává automaticky — při potřebě proveďte korekci v záznamech.');
+
+            $this->addFlash(
+                'success',
+                \sprintf(
+                    'Údaje cívky byly uloženy. Zůstatek přepočítán na %d m%s.',
+                    $sync['remaining'],
+                    $sync['fromMeterChain'] ? ' (z deníku podle čtení m)' : ''
+                )
+            );
+            foreach ($sync['warnings'] as $w) {
+                $this->addFlash('warning', $w);
+            }
 
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
         }

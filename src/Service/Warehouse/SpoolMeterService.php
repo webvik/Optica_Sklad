@@ -795,6 +795,42 @@ final class SpoolMeterService
     }
 
     /**
+     * Po úpravě L / PS na kartě cívky: zůstatek z řetězce m (délka − Σ|Δm|),
+     * nebo posun zůstatku o ΔL, pokud v deníku ještě nejsou čtení metru.
+     *
+     * @return array{remaining: int, lastVisible: int, meterSign: int|null, warnings: list<string>, eventUsedMetersFixed: int, fromMeterChain: bool}
+     */
+    public function syncRemainingAfterCoreEdit(Spool $spool, int $lengthBefore, ?int $remainingBefore): array
+    {
+        $evs = SpoolEventOrder::byVisibleM($spool->getMeterSign(), $spool->getEvents()->toArray());
+        $readings = \array_values(\array_filter(
+            $evs,
+            static fn (SpoolEvent $e): bool => self::isVisibleMeterChainEventType($e->getType())
+        ));
+
+        if ($readings !== []) {
+            $r = $this->recomputeSpoolStateFromMeterEvents($spool, true, true);
+
+            return $r + ['fromMeterChain' => true];
+        }
+
+        $newTotal = $spool->getTotalLengthM();
+        $baseRem = $remainingBefore ?? $lengthBefore;
+        $newRem = \max(0, $baseRem + ($newTotal - $lengthBefore));
+        $spool->setCurrentRemainingM($newRem);
+        $this->em->persist($spool);
+
+        return [
+            'remaining' => $newRem,
+            'lastVisible' => $spool->getLastVisibleM() ?? $spool->getInitialVisibleM(),
+            'meterSign' => $spool->getMeterSign(),
+            'warnings' => [],
+            'eventUsedMetersFixed' => 0,
+            'fromMeterChain' => false,
+        ];
+    }
+
+    /**
      * Přepočítá u cívky zůstatek, last_visible_m, meter_sign z chainu odběrů dle metru
      * (jako by se postupné zápisy provedly znovu). Volitelně srovná used_meters v událostech
      * s očekávanou hodnotu |mᵢ − mᵢ₋₁|.
