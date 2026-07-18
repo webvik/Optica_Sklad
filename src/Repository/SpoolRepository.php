@@ -176,6 +176,51 @@ class SpoolRepository extends ServiceEntityRepository
     }
 
     /**
+     * ID cívek v rámci filtrů přehledu (bez hledání čísla saře).
+     *
+     * @param list<SpoolStatus> $statuses
+     * @param list<int>         $fiberCounts
+     *
+     * @return list<int>
+     */
+    public function findIdsFiltered(
+        CableTypeBrowseFilter $cableTypeFilter,
+        array $statuses,
+        int $limit = 500,
+        bool $onlyNeedsCorrection = false,
+        bool $onlyWithoutWarehouseCard = false,
+        array $fiberCounts = [],
+    ): array {
+        $qb = $this->createFilteredQueryBuilder($cableTypeFilter, $statuses, $limit, $onlyNeedsCorrection, $onlyWithoutWarehouseCard, $fiberCounts)
+            ->select('s.id');
+
+        /** @var list<string|int> $rowIds */
+        $rowIds = $qb->getQuery()->getSingleColumnResult();
+
+        return \array_values(\array_map(static fn (mixed $v): int => (int) $v, $rowIds));
+    }
+
+    /**
+     * ID cívek na skladě pro inventurní list.
+     *
+     * @return list<int>
+     */
+    public function findIdsForInventuraSheet(int $limit = 5000): array
+    {
+        /** @var list<string|int> $rowIds */
+        $rowIds = $this->createQueryBuilder('s')
+            ->select('s.id')
+            ->andWhere('s.status = :st')
+            ->setParameter('st', SpoolStatus::InStock)
+            ->orderBy('s.reelNumber', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return \array_values(\array_map(static fn (mixed $v): int => (int) $v, $rowIds));
+    }
+
+    /**
      * @param list<SpoolStatus> $statuses
      */
     private function createFilteredQueryBuilder(

@@ -151,6 +151,72 @@ final class StockBrowseController extends AbstractController
         ]);
     }
 
+    /**
+     * Hledání v deníku (zakázka / m čtení / pozn.) v rámci aktuálních filtrů přehledu nebo inventury.
+     */
+    #[Route('/api/hledat-denik', name: 'diary_search', methods: ['GET'])]
+    public function diarySearch(
+        Request $request,
+        SpoolRepository $spools,
+        SpoolEventRepository $spoolEvents,
+        CableTypeRepository $cableTypes,
+    ): JsonResponse {
+        $q = \trim((string) $request->query->get('dq', ''));
+        if ('' === $q) {
+            return $this->json([
+                'ok' => true,
+                'query' => '',
+                'count' => 0,
+                'spoolIds' => [],
+            ]);
+        }
+
+        try {
+            if ('inventura' === $request->query->getString('scope')) {
+                $candidateIds = $spools->findIdsForInventuraSheet();
+            } else {
+                $choiceEntities = $cableTypes->findAllOrderedForCableTypePicker(false);
+                $allCableTypeIds = array_values(array_map(
+                    static fn ($ct) => (int) $ct->getId(),
+                    $choiceEntities,
+                ));
+                \sort($allCableTypeIds, \SORT_NUMERIC);
+
+                $cableTypeIdsFromForm = self::parseIdList($request, 'cableTypeIds');
+                $cableTypeFilter = self::resolveCableTypeBrowseFilter(
+                    $cableTypeIdsFromForm,
+                    self::parseCableTypeUnset($request),
+                    $allCableTypeIds,
+                );
+                $candidateIds = $spools->findIdsFiltered(
+                    $cableTypeFilter,
+                    self::parseStatusList($request),
+                    500,
+                    self::parseNeedsCorrectionFilter($request),
+                    self::parseWithoutWarehouseCardFilter($request),
+                    self::parseFiberCountList($request),
+                );
+            }
+
+            $ids = $spoolEvents->findSpoolIdsMatchingDiaryQuery($q, $candidateIds, 500);
+        } catch (\Throwable $e) {
+            return $this->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+                'query' => $q,
+                'count' => 0,
+                'spoolIds' => [],
+            ], 500);
+        }
+
+        return $this->json([
+            'ok' => true,
+            'query' => $q,
+            'count' => \count($ids),
+            'spoolIds' => $ids,
+        ]);
+    }
+
     /** Inventurní tabulka (seskupení dle vláken a family; stejná logika jako PDF Přehled kabelových cívek). */
     #[Route('/inventura', name: 'inventura', methods: ['GET'])]
     public function inventura(SpoolRepository $spoolRepository): Response

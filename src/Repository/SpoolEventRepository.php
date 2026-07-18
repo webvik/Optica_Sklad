@@ -52,6 +52,43 @@ class SpoolEventRepository extends ServiceEntityRepository
     }
 
     /**
+     * Cívky, jejichž deník (zakázka / m čtení / pozn.) obsahuje dotaz — jen v rámci $spoolIds.
+     *
+     * @param list<int> $spoolIds
+     *
+     * @return list<int>
+     */
+    public function findSpoolIdsMatchingDiaryQuery(string $q, array $spoolIds, int $limit = 500): array
+    {
+        $q = \trim($q);
+        if ('' === $q || $spoolIds === []) {
+            return [];
+        }
+
+        $like = '%'.mb_strtolower($q, 'UTF-8').'%';
+        $qb = $this->createQueryBuilder('e')
+            ->select('DISTINCT s.id')
+            ->join('e.spool', 's')
+            ->where('s.id IN (:ids)')
+            ->andWhere('(LOWER(COALESCE(e.projectLabel, \'\')) LIKE :like OR LOWER(COALESCE(e.note, \'\')) LIKE :like OR CONCAT(\'\', COALESCE(e.visibleM, \'\')) LIKE :like)')
+            ->setParameter('ids', $spoolIds)
+            ->setParameter('like', $like)
+            ->setMaxResults($limit);
+
+        /** @var list<string|int|null> $rows */
+        $rows = $qb->getQuery()->getSingleColumnResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            if (is_numeric($row) && (int) $row > 0) {
+                $out[] = (int) $row;
+            }
+        }
+
+        return \array_values(\array_unique($out));
+    }
+
+    /**
      * Poslední poznámka k předání cívky (komu / kam), indexováno podle ID cívky.
      *
      * @param list<int> $spoolIds

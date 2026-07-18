@@ -140,6 +140,132 @@
             font-size: 0.88rem;
         }
         .inventura-karta-col a { font-weight: 500; }
+        .inventura-diary-search {
+            margin: 0 0 1rem;
+            max-width: 42rem;
+        }
+        .inventura-diary-search__row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.4rem;
+            width: 100%;
+            min-width: 0;
+        }
+        .inventura-diary-search__caption {
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 0.95rem;
+            color: #444;
+            line-height: 1.3;
+        }
+        .inventura-diary-search-toggle {
+            flex: 0 0 2.5rem;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            max-width: 2.5rem;
+            min-width: 2.5rem;
+            min-height: 2.5rem;
+            padding: 0;
+            border: 1px solid var(--ui-btn-primary-border, #164f7f);
+            border-radius: 6px;
+            background: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            background-image: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            color: #fff;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(15, 40, 71, 0.12);
+            cursor: pointer;
+        }
+        .inventura-diary-search-toggle:hover {
+            background: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            background-image: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            border-color: #144d7c;
+            color: #fff;
+        }
+        .inventura-diary-search-toggle:active,
+        .inventura-diary-search-toggle[aria-expanded="true"] {
+            background: var(--ui-btn-primary-active-bg, linear-gradient(180deg, #1f75ad 0%, #185a91 40%, #144d7c 70%, #123f66 100%));
+            background-image: var(--ui-btn-primary-active-bg, linear-gradient(180deg, #1f75ad 0%, #185a91 40%, #144d7c 70%, #123f66 100%));
+            border-color: #123f66;
+            color: #fff;
+            box-shadow: 0 1px 2px rgba(15, 40, 71, 0.15) inset;
+        }
+        .inventura-diary-search-toggle svg { width: 1.15rem; height: 1.15rem; display: block; }
+        .inventura-diary-search-panel {
+            margin-top: 0.45rem;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid #c8d0d8;
+            border-radius: 6px;
+            background: #f7f9fc;
+        }
+        .inventura-diary-search-panel[hidden] { display: none !important; }
+        .inventura-diary-search-panel__label {
+            display: block;
+            margin: 0 0 0.3rem;
+            font-size: 0.92rem;
+            color: #333;
+        }
+        .inventura-diary-search-fields {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            gap: 0.4rem;
+            width: 100%;
+            min-width: 0;
+        }
+        .inventura-diary-q-input {
+            box-sizing: border-box;
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 2.5rem;
+            padding: 0.4rem 0.65rem;
+            font: inherit;
+            font-size: 0.95rem;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: #fff;
+        }
+        .inventura-diary-search-go {
+            flex: 0 0 auto;
+            min-height: 2.5rem;
+            padding: 0.4rem 0.85rem;
+            font: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 1px solid var(--ui-btn-primary-border, #164f7f);
+            border-radius: 6px;
+            background: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            background-image: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            color: #fff;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(15, 40, 71, 0.12);
+            cursor: pointer;
+        }
+        .inventura-diary-search-go:hover {
+            background: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            background-image: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            border-color: #144d7c;
+            color: #fff;
+        }
+        .inventura-diary-search-hint {
+            margin: 0.35rem 0 0;
+            font-size: 0.88rem;
+            color: #555;
+            min-height: 1.15em;
+        }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         @media print {
             a[href] { text-decoration: none; color: inherit; }
             .app-menu, .inventura-nav, .inventura-no-print, .inventura-karta-col { display: none !important; }
@@ -154,6 +280,36 @@
     <header class="inventura-kopf">
         <h1>Přehled kabelových cívek — inventura</h1>
     </header>
+
+    <div class="inventura-diary-search inventura-no-print">
+        <div class="inventura-diary-search__row">
+            <span class="inventura-diary-search__caption">Hledat v deníku</span>
+            <button type="button"
+                    id="inventura-diary-search-toggle"
+                    class="inventura-diary-search-toggle"
+                    aria-expanded="false"
+                    aria-controls="inventura-diary-search-panel"
+                    title="Hledat v deníku (zakázka, m čtení, poznámka)">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <span class="visually-hidden">Otevřít hledání v deníku</span>
+            </button>
+        </div>
+        <div id="inventura-diary-search-panel" class="inventura-diary-search-panel" hidden>
+            <label class="inventura-diary-search-panel__label" for="inventura-diary-q">Hledat v deníku (zakázka · m čtení · poznámka)</label>
+            <div class="inventura-diary-search-fields">
+                <input type="search"
+                       id="inventura-diary-q"
+                       class="inventura-diary-q-input"
+                       autocomplete="off"
+                       spellcheck="false"
+                       placeholder="např. Tábor, 4520, poznámka…">
+                <button type="button" id="inventura-diary-search-go" class="inventura-diary-search-go">Hledat</button>
+            </div>
+            <p id="inventura-diary-search-hint" class="inventura-diary-search-hint" aria-live="polite"></p>
+        </div>
+    </div>
 
     {% if groups|length > 0 %}
     <section class="inventura-brief-block">
@@ -216,11 +372,12 @@
             </thead>
             <tbody>
             {% for g in groups %}
-                <tr class="inventura-group-hdr">
+                {% set gIdx = loop.index %}
+                <tr class="inventura-group-hdr" data-inventura-group="{{ gIdx }}">
                     <td colspan="6">Skupina: {{ g.groupLabel }}</td>
                 </tr>
                 {% for s in g.rows %}
-                <tr>
+                <tr class="inventura-spool-row" data-spool-id="{{ s.id }}" data-inventura-group="{{ gIdx }}">
                     <td>{{ s.reelNumber }}</td>
                     <td>{% if s.cableType %}{{ s.cableType.code }}{% else %}—{% endif %}</td>
                     <td class="inventura-name">
@@ -238,7 +395,7 @@
                     </td>
                 </tr>
                 {% endfor %}
-                <tr class="inventura-group-sum">
+                <tr class="inventura-group-sum" data-inventura-group="{{ gIdx }}">
                     <td colspan="2"></td>
                     <td><strong>Součet skupiny</strong></td>
                     <td class="num"><strong>{{ g.sumM|number_format(0, ',', ' ') }}</strong></td>
@@ -251,7 +408,124 @@
             </tbody>
         </table>
     </div>
+    <p id="inventura-diary-no-match" class="inventura-no-print" hidden style="color:#333;margin:.5rem 0 1rem"><strong>Žádná shoda</strong> v deníku inventurního seznamu.</p>
     <p class="inventura-export-line inventura-no-print">
         <a class="warehouse-pill" href="{{ path('warehouse_browse_inventura_export_full') }}">Export do Excelu</a>
     </p>
+<script>
+(function () {
+  var toggle = document.getElementById('inventura-diary-search-toggle');
+  var panel = document.getElementById('inventura-diary-search-panel');
+  var input = document.getElementById('inventura-diary-q');
+  var go = document.getElementById('inventura-diary-search-go');
+  var hint = document.getElementById('inventura-diary-search-hint');
+  var noMatch = document.getElementById('inventura-diary-no-match');
+  var searchUrl = {{ path('warehouse_browse_diary_search')|json_encode|raw }};
+  var seq = 0;
+
+  function spoolRows() {
+    return document.querySelectorAll('tr.inventura-spool-row');
+  }
+
+  function showAll() {
+    var rows = spoolRows();
+    for (var i = 0; i < rows.length; i++) rows[i].hidden = false;
+    var hdrs = document.querySelectorAll('tr.inventura-group-hdr, tr.inventura-group-sum');
+    for (var h = 0; h < hdrs.length; h++) hdrs[h].hidden = false;
+    if (noMatch) noMatch.hidden = true;
+  }
+
+  function applyIds(ids, active) {
+    var idSet = {};
+    if (ids) {
+      for (var i = 0; i < ids.length; i++) idSet[String(ids[i])] = true;
+    }
+    var rows = spoolRows();
+    var visibleByGroup = {};
+    var visible = 0;
+    for (var r = 0; r < rows.length; r++) {
+      var tr = rows[r];
+      var sid = tr.getAttribute('data-spool-id');
+      var gid = tr.getAttribute('data-inventura-group') || '';
+      var show = !active || (sid && idSet[sid]);
+      tr.hidden = !show;
+      if (show) {
+        visible++;
+        visibleByGroup[gid] = (visibleByGroup[gid] || 0) + 1;
+      }
+    }
+    var meta = document.querySelectorAll('tr.inventura-group-hdr, tr.inventura-group-sum');
+    for (var m = 0; m < meta.length; m++) {
+      var g = meta[m].getAttribute('data-inventura-group') || '';
+      meta[m].hidden = !!(active && !(visibleByGroup[g] > 0));
+    }
+    if (noMatch) noMatch.hidden = !(active && visible === 0);
+    return visible;
+  }
+
+  function runSearch() {
+    var dq = input ? String(input.value || '').trim() : '';
+    if (!dq) {
+      if (hint) hint.textContent = '';
+      showAll();
+      return;
+    }
+    var my = ++seq;
+    if (hint) hint.textContent = 'Hledám v deníku…';
+    var u = new URL(searchUrl, window.location.origin);
+    u.searchParams.set('dq', dq);
+    u.searchParams.set('scope', 'inventura');
+    fetch(u.toString(), {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (res) {
+        var ct = res.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) throw new Error('not json');
+        return res.json();
+      })
+      .then(function (data) {
+        if (my !== seq) return;
+        if (!data || data.ok === false) {
+          if (hint) hint.textContent = (data && data.message) ? ('Chyba: ' + data.message) : 'Chyba hledání.';
+          return;
+        }
+        var visible = applyIds(data.spoolIds || [], true);
+        if (hint) {
+          if (data.count === 0) hint.textContent = 'Žádná shoda v deníku.';
+          else if (visible === 0) hint.textContent = 'Nalezeno ' + data.count + ', ale žádná v tabulce.';
+          else if (data.count === 1) hint.textContent = 'Jedna cívka s shodou v deníku.';
+          else hint.textContent = 'Zobrazeno ' + visible + ' cívek s shodou v deníku (' + data.count + ').';
+        }
+      })
+      .catch(function () {
+        if (my !== seq) return;
+        if (hint) hint.textContent = 'Hledání v deníku selhalo.';
+      });
+  }
+
+  if (toggle && panel) {
+    toggle.addEventListener('click', function () {
+      var open = panel.hidden;
+      panel.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open && input) input.focus();
+      if (!open) {
+        if (input) input.value = '';
+        if (hint) hint.textContent = '';
+        showAll();
+      }
+    });
+  }
+  if (go) go.addEventListener('click', runSearch);
+  if (input) {
+    input.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        runSearch();
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

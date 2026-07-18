@@ -28,6 +28,129 @@
         }
         .browse-filters__col--submit { flex: 0 0 auto; }
         .browse-filters__col--reelSearch { flex: 1 1 0; min-width: 0; }
+        .browse-reel-row {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            gap: 0.4rem;
+            width: 100%;
+            min-width: 0;
+        }
+        .browse-reel-row .browse-reel-q-input {
+            flex: 1 1 80%;
+            width: auto;
+            max-width: none;
+            min-width: 0;
+        }
+        .browse-diary-search-toggle {
+            flex: 0 0 2.5rem;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem !important;
+            max-width: 2.5rem;
+            min-width: 2.5rem !important;
+            min-height: 2.5rem;
+            padding: 0 !important;
+            border: 1px solid var(--ui-btn-primary-border, #164f7f);
+            border-radius: 6px;
+            background: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            background-image: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            color: #fff;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(15, 40, 71, 0.12);
+            cursor: pointer;
+        }
+        .browse-diary-search-toggle:hover {
+            background: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            background-image: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            border-color: #144d7c;
+            color: #fff;
+        }
+        .browse-diary-search-toggle:active,
+        .browse-diary-search-toggle[aria-expanded="true"] {
+            background: var(--ui-btn-primary-active-bg, linear-gradient(180deg, #1f75ad 0%, #185a91 40%, #144d7c 70%, #123f66 100%));
+            background-image: var(--ui-btn-primary-active-bg, linear-gradient(180deg, #1f75ad 0%, #185a91 40%, #144d7c 70%, #123f66 100%));
+            border-color: #123f66;
+            color: #fff;
+            box-shadow: 0 1px 2px rgba(15, 40, 71, 0.15) inset;
+        }
+        .browse-diary-search-toggle svg { width: 1.15rem; height: 1.15rem; display: block; }
+        .browse-diary-search-panel {
+            margin: 0 0 0.75rem;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid #c8d0d8;
+            border-radius: 6px;
+            background: #f7f9fc;
+            max-width: 42rem;
+        }
+        .browse-diary-search-panel[hidden] { display: none !important; }
+        .browse-diary-search-panel__label {
+            display: block;
+            margin: 0 0 0.3rem;
+            font-size: 0.92rem;
+            color: #333;
+        }
+        .browse-diary-search-row {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            gap: 0.4rem;
+            width: 100%;
+            min-width: 0;
+        }
+        .browse-diary-q-input {
+            box-sizing: border-box;
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 2.5rem;
+            padding: 0.4rem 0.65rem;
+            font: inherit;
+            font-size: 0.95rem;
+            line-height: 1.3;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: #fff;
+            color: #1a1a1a;
+        }
+        .browse-diary-search-go {
+            flex: 0 0 auto;
+            min-height: 2.5rem;
+            padding: 0.4rem 0.85rem;
+            font: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 1px solid var(--ui-btn-primary-border, #164f7f);
+            border-radius: 6px;
+            background: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            background-image: var(--ui-btn-primary-bg, linear-gradient(180deg, #3a95d4 0%, #2480be 28%, #1f6dad 58%, #164f7f 100%));
+            color: #fff;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 1px 2px rgba(15, 40, 71, 0.12);
+            cursor: pointer;
+        }
+        .browse-diary-search-go:hover {
+            background: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            background-image: var(--ui-btn-primary-hover-bg, linear-gradient(180deg, #348bc6 0%, #1f75ad 30%, #1a6298 60%, #144d7c 100%));
+            border-color: #144d7c;
+            color: #fff;
+        }
+        .browse-diary-search-hint {
+            margin: 0.35rem 0 0;
+            font-size: 0.88rem;
+            color: #555;
+            min-height: 1.15em;
+        }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         .browse-reel-q-input {
             box-sizing: border-box;
             width: 100%;
@@ -400,20 +523,48 @@
             </div>
             <div class="browse-filters__col browse-filters__col--equal browse-filters__col--reelSearch">
                 <label for="browse-reel-q">Číslo saře</label>
-                <input type="text"
-                       name="q"
-                       id="browse-reel-q"
-                       class="browse-reel-q-input"
-                       value="{{ searchQuery|default('')|e('html_attr') }}"
-                       autocomplete="off"
-                       autocapitalize="off"
-                       spellcheck="false"
-                       inputmode="search"
-                       placeholder="např. 450-1470"
-                       aria-describedby="browse-reel-hint">
+                <div class="browse-reel-row">
+                    <input type="text"
+                           name="q"
+                           id="browse-reel-q"
+                           class="browse-reel-q-input"
+                           value="{{ searchQuery|default('')|e('html_attr') }}"
+                           autocomplete="off"
+                           autocapitalize="off"
+                           spellcheck="false"
+                           inputmode="search"
+                           placeholder="např. 450-1470"
+                           aria-describedby="browse-reel-hint">
+                    <button type="button"
+                            id="browse-diary-search-toggle"
+                            class="browse-diary-search-toggle"
+                            aria-expanded="false"
+                            aria-controls="browse-diary-search-panel"
+                            title="Hledat v deníku (zakázka, m čtení, poznámka)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                        <span class="visually-hidden">Hledat v deníku</span>
+                    </button>
+                </div>
             </div>
         </div>
     </form>
+
+    <div id="browse-diary-search-panel" class="browse-diary-search-panel" hidden>
+        <label class="browse-diary-search-panel__label" for="browse-diary-q">Hledat v deníku (zakázka · m čtení · poznámka)</label>
+        <div class="browse-diary-search-row">
+            <input type="search"
+                   id="browse-diary-q"
+                   class="browse-diary-q-input"
+                   value=""
+                   autocomplete="off"
+                   spellcheck="false"
+                   placeholder="např. Tábor, 4520, poznámka…">
+            <button type="button" id="browse-diary-search-go" class="browse-diary-search-go">Hledat</button>
+        </div>
+        <p id="browse-diary-search-hint" class="browse-diary-search-hint" aria-live="polite"></p>
+    </div>
 
     <p id="browse-reel-hint" class="browse-reel-hint" aria-live="polite"></p>
 
@@ -685,9 +836,18 @@
   var browseHint = document.getElementById('browse-reel-hint');
   var browseTableHost = document.getElementById('browse-spool-table-host');
   var browseReelSearchUrl = {{ path('warehouse_browse_reel_search')|json_encode|raw }};
+  var browseDiarySearchUrl = {{ path('warehouse_browse_diary_search')|json_encode|raw }};
   var browseDebounceMs = 380;
   var browseSeq = 0;
   var browseTimer = null;
+  var browseDiaryIds = null;
+  var browseDiaryQ = '';
+  var diaryToggle = document.getElementById('browse-diary-search-toggle');
+  var diaryPanel = document.getElementById('browse-diary-search-panel');
+  var diaryInput = document.getElementById('browse-diary-q');
+  var diaryGo = document.getElementById('browse-diary-search-go');
+  var diaryHint = document.getElementById('browse-diary-search-hint');
+  var diarySeq = 0;
 
   function browseFilterParams() {
     var p = new URLSearchParams();
@@ -712,6 +872,10 @@
     if (kCb && kCb.checked) {
       p.append('needsCorrection', '1');
     }
+    var cardCb = browseForm.querySelector('input.js-browse-without-card');
+    if (cardCb && cardCb.checked) {
+      p.append('withoutWarehouseCard', '1');
+    }
     return p;
   }
 
@@ -720,7 +884,19 @@
     return browseTableHost.querySelectorAll('tr.browse-spool-row:not(.browse-spool-row--empty)');
   }
 
-  function browseApplyRowFilter(spoolIds, q) {
+  function browseIntersectIds(a, b) {
+    if (!a) return b || [];
+    if (!b) return a;
+    var set = {};
+    for (var i = 0; i < b.length; i++) set[String(b[i])] = true;
+    var out = [];
+    for (var j = 0; j < a.length; j++) {
+      if (set[String(a[j])]) out.push(a[j]);
+    }
+    return out;
+  }
+
+  function browseApplyRowFilter(spoolIds, active) {
     var idSet = {};
     if (spoolIds && spoolIds.length) {
       for (var i = 0; i < spoolIds.length; i++) idSet[String(spoolIds[i])] = true;
@@ -730,14 +906,14 @@
     for (var r = 0; r < rows.length; r++) {
       var tr = rows[r];
       var sid = tr.getAttribute('data-spool-id');
-      var show = !q || (sid && idSet[sid]);
+      var show = !active || (sid && idSet[sid]);
       tr.hidden = !show;
       if (show) visible++;
     }
     var emptyRow = browseTableHost && browseTableHost.querySelector('tr.browse-spool-row--empty');
     if (emptyRow) emptyRow.hidden = true;
     var noMatch = browseTableHost && browseTableHost.querySelector('#browse-reel-no-match');
-    if (q && visible === 0) {
+    if (active && visible === 0) {
       if (!noMatch && browseTableHost) {
         noMatch = document.createElement('p');
         noMatch.id = 'browse-reel-no-match';
@@ -746,7 +922,7 @@
       }
       if (noMatch) {
         noMatch.hidden = false;
-        noMatch.innerHTML = '<strong>Žádná shoda</strong> pro «' + String(q).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '» v aktuálním výběru tabulky.';
+        noMatch.innerHTML = '<strong>Žádná shoda</strong> v aktuálním výběru tabulky.';
       }
     } else if (noMatch) {
       noMatch.hidden = true;
@@ -763,11 +939,25 @@
     if (emptyRow) emptyRow.hidden = rows.length > 0;
   }
 
+  function browseApplyCombinedFilter(reelIds, reelQ) {
+    var hasReel = !!(reelQ && String(reelQ).trim());
+    var hasDiary = browseDiaryIds !== null;
+    if (!hasReel && !hasDiary) {
+      browseShowAllRows();
+      return browseTableRows().length;
+    }
+    var ids;
+    if (hasReel && hasDiary) ids = browseIntersectIds(reelIds || [], browseDiaryIds || []);
+    else if (hasReel) ids = reelIds || [];
+    else ids = browseDiaryIds || [];
+    return browseApplyRowFilter(ids, true);
+  }
+
   function browseRunReelSearch(q, force) {
     q = (q || '').trim();
     if (q.length < 1) {
       if (browseHint) browseHint.textContent = '';
-      browseShowAllRows();
+      browseApplyCombinedFilter(null, '');
       if (window.history && window.history.replaceState) {
         var u0 = new URL(window.location.href);
         u0.searchParams.delete('q');
@@ -798,7 +988,7 @@
           if (browseHint) browseHint.textContent = (data && data.message) ? ('Chyba: ' + data.message) : 'Chyba hledání.';
           return;
         }
-        var visible = browseApplyRowFilter(data.spoolIds || [], q);
+        var visible = browseApplyCombinedFilter(data.spoolIds || [], q);
         if (browseHint) {
           if (data.count === 0) browseHint.textContent = 'Žádná shoda v tabulce — zkuste Filtrovat nebo upravte dotaz.';
           else if (visible === 0) browseHint.textContent = 'Nalezeno ' + data.count + ' v evidenci, ale žádná řádka v tabulce — stiskněte Filtrovat.';
@@ -818,12 +1008,96 @@
       });
   }
 
+  function browseRunDiarySearch() {
+    var dq = diaryInput ? String(diaryInput.value || '').trim() : '';
+    browseDiaryQ = dq;
+    if (dq.length < 1) {
+      browseDiaryIds = null;
+      if (diaryHint) diaryHint.textContent = '';
+      var reelNow = browseQ ? String(browseQ.value || '').trim() : '';
+      if (reelNow) browseRunReelSearch(reelNow, true);
+      else browseShowAllRows();
+      return;
+    }
+    var my = ++diarySeq;
+    if (diaryHint) diaryHint.textContent = 'Hledám v deníku…';
+    var u = new URL(browseDiarySearchUrl, window.location.origin);
+    var fp = browseFilterParams();
+    fp.set('dq', dq);
+    u.search = fp.toString();
+    fetch(u.toString(), {
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+      .then(function (res) {
+        var ct = res.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) {
+          return res.text().then(function () { throw new Error('not json'); });
+        }
+        return res.json();
+      })
+      .then(function (data) {
+        if (my !== diarySeq) return;
+        if (!data || data.ok === false) {
+          if (diaryHint) diaryHint.textContent = (data && data.message) ? ('Chyba: ' + data.message) : 'Chyba hledání v deníku.';
+          return;
+        }
+        browseDiaryIds = data.spoolIds || [];
+        var reelNow = browseQ ? String(browseQ.value || '').trim() : '';
+        if (reelNow) {
+          browseRunReelSearch(reelNow, true);
+        } else {
+          var visible = browseApplyCombinedFilter(null, '');
+          if (diaryHint) {
+            if (data.count === 0) diaryHint.textContent = 'Žádná shoda v deníku aktuálního výběru.';
+            else if (visible === 0) diaryHint.textContent = 'Nalezeno ' + data.count + ' cívek, ale žádná není v tabulce — stiskněte Filtrovat.';
+            else if (data.count === 1) diaryHint.textContent = 'Jedna cívka s shodou v deníku.';
+            else diaryHint.textContent = 'Zobrazeno ' + visible + ' cívek s shodou v deníku (' + data.count + ').';
+          }
+        }
+        if (reelNow && diaryHint) {
+          if (data.count === 0) diaryHint.textContent = 'Žádná shoda v deníku aktuálního výběru.';
+          else diaryHint.textContent = 'Deník: ' + data.count + ' cívek · kombinováno s číslem saře.';
+        }
+      })
+      .catch(function () {
+        if (my !== diarySeq) return;
+        if (diaryHint) diaryHint.textContent = 'Hledání v deníku selhalo.';
+      });
+  }
+
   function browseOnReelInput() {
-    var q = browseQ ? String(browseQ.value || '').trim() : '';
     clearTimeout(browseTimer);
     browseTimer = setTimeout(function () {
       browseRunReelSearch(browseQ ? browseQ.value : '', false);
     }, browseDebounceMs);
+  }
+
+  if (diaryToggle && diaryPanel) {
+    diaryToggle.addEventListener('click', function () {
+      var open = diaryPanel.hidden;
+      diaryPanel.hidden = !open;
+      diaryToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open && diaryInput) diaryInput.focus();
+      if (!open) {
+        if (diaryInput) diaryInput.value = '';
+        browseDiaryIds = null;
+        browseDiaryQ = '';
+        if (diaryHint) diaryHint.textContent = '';
+        var reelNow = browseQ ? String(browseQ.value || '').trim() : '';
+        if (reelNow) browseRunReelSearch(reelNow, true);
+        else browseShowAllRows();
+      }
+    });
+  }
+  if (diaryGo) diaryGo.addEventListener('click', browseRunDiarySearch);
+  if (diaryInput) {
+    diaryInput.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        browseRunDiarySearch();
+      }
+    });
   }
 
   if (browseQ) {
