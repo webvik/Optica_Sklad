@@ -3,10 +3,12 @@
 namespace App\Controller\Warehouse;
 
 use App\Entity\CableType;
+use App\Entity\Spool;
 use App\Entity\User;
 use App\Form\CableTypeFormType;
 use App\Repository\CableFamilyRepository;
 use App\Repository\CableTypeRepository;
+use App\Security\WarehouseRole;
 use App\Service\Warehouse\CableTypeOcrMatcher;
 use App\Service\Warehouse\InventuraBriefGroupLabel;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,6 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/sklad/cable-type', name: 'warehouse_cable_type_')]
 final class CableTypeController extends AbstractController
@@ -30,6 +33,7 @@ final class CableTypeController extends AbstractController
     }
 
     #[Route('/new', name: 'new', methods: ['GET', 'POST'])]
+    #[IsGranted(WarehouseRole::EDIT)]
     public function new(
         Request $request,
         EntityManagerInterface $em,
@@ -39,6 +43,15 @@ final class CableTypeController extends AbstractController
     ): Response {
         $c = new CableType();
         $this->consumeOcrPrefillFromSessionIfAny($request, $matcher, $c, $cableFamilyRepository);
+
+        $returnSpoolId = (int) $request->query->get('return_spool', $request->request->getInt('return_spool'));
+        if ($returnSpoolId < 1) {
+            $returnSpoolId = 0;
+        }
+        $prefillCode = \trim((string) $request->query->get('prefill_code', ''));
+        if ('' !== $prefillCode && (null === $c->getCode() || '' === \trim((string) $c->getCode()))) {
+            $c->setCode(\mb_substr($prefillCode, 0, 64));
+        }
 
         $form = $this->createForm(CableTypeFormType::class, $c);
         $form->handleRequest($request);
@@ -53,6 +66,28 @@ final class CableTypeController extends AbstractController
             }
             $em->persist($c);
             $em->flush();
+
+            if ($returnSpoolId > 0) {
+                $spool = $em->find(Spool::class, $returnSpoolId);
+                if ($spool instanceof Spool && null === $spool->getCableType()) {
+                    $spool->setCableType($c);
+                    if ($u instanceof User) {
+                        $spool->setUpdatedBy($u);
+                    }
+                    $em->flush();
+                    $this->addFlash('success', 'Typ kabelu byl vytvořen a přiřazen k cívce.');
+
+                    return $this->redirectToRoute('warehouse_spool_show', [
+                        'id' => $returnSpoolId,
+                        'upravit' => 1,
+                    ]);
+                }
+                $this->addFlash('success', 'Typ kabelu byl uložen.');
+                $this->addFlash('warning', 'Cívku se nepodařilo automaticky doplnit (už má typ, nebo neexistuje).');
+
+                return $this->redirectToRoute('warehouse_spool_show', ['id' => $returnSpoolId, 'upravit' => 1]);
+            }
+
             $this->addFlash('success', 'Typ kabelu byl uložen.');
 
             return $this->redirectToRoute('warehouse_cable_type_index');
@@ -63,6 +98,7 @@ final class CableTypeController extends AbstractController
             'title' => 'Nový typ kabelu',
             'cableListLabelPreview' => InventuraBriefGroupLabel::forCableType($c),
             'codeFieldPlaceholder' => $cableTypeRepository->findExampleStockCode(),
+            'returnSpoolId' => $returnSpoolId > 0 ? $returnSpoolId : null,
         ]);
     }
 

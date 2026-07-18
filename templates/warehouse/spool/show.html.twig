@@ -237,6 +237,36 @@
             .spool-karta-desktop { display: none !important; }
             .spool-karta-mobile.spool-karta-wa-toggle { display: inline-flex; }
         }
+        .assign-cable-type-panel {
+            max-width: 40rem;
+            margin: 0 0 1.25rem;
+            padding: 0.85rem 1rem;
+            border: 1px solid #c9a227;
+            border-radius: 6px;
+            background: #fffbeb;
+            box-sizing: border-box;
+        }
+        .assign-cable-type-panel--compact { margin-bottom: 1rem; }
+        .assign-cable-type-panel__title {
+            margin: 0 0 0.4rem;
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: #5a4a12;
+        }
+        .assign-cable-type-panel__lead {
+            margin: 0 0 0.75rem;
+            font-size: 0.92rem;
+            color: #444;
+            line-height: 1.4;
+        }
+        .assign-cable-type-panel__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            align-items: center;
+            margin-top: 0.75rem;
+        }
+        {% include 'warehouse/_cable_type_picker_core_styles.html.twig' %}
         {% include 'warehouse/_mobile_menu_styles.html.twig' %}
     </style>
 {% endblock %}
@@ -275,99 +305,20 @@
         </form>
     {% endif %}
     {% if is_granted('ROLE_SKLAD_EDIT') and editMode|default(false) and editCoreForm is defined and editCoreForm %}
-        {% include 'warehouse/spool/_spool_edit_core_data.html.twig' %}
+        {% include 'warehouse/spool/_spool_edit_core_data.html.twig' with {
+            spool: spool,
+            editCoreForm: editCoreForm,
+            assignCableForm: assignCableForm|default(null),
+            suggestedStockCode: suggestedStockCode|default(null),
+        } %}
+    {% elseif assignCableForm is defined and assignCableForm %}
+        {% include 'warehouse/spool/_spool_assign_cable_type.html.twig' with {
+            spool: spool,
+            assignCableForm: assignCableForm,
+            suggestedStockCode: suggestedStockCode|default(null),
+        } only %}
     {% endif %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
-    {% if assignCableForm is defined and assignCableForm %}
-        <details class="assign-cable-type-disclosure" id="doplnit-typ">
-            <summary class="assign-cable-type-disclosure__summary">
-                <span>Doplnit typ kabelu</span>
-                <span class="assign-cable-type-disclosure__chev" aria-hidden="true">▼</span>
-            </summary>
-            <div class="assign-cable-type-disclosure__body">
-                <p class="assign-cable-type-disclosure__lead">Typ nebyl při zaevidování uveden; můžete ho vybrat z katalogu.</p>
-                {{ form_start(assignCableForm, {
-                    action: path('warehouse_spool_assign_cable', { id: spool.id }),
-                    method: 'post',
-                    attr: { id: 'spool-assign-cable-form' },
-                }) }}
-                    <div class="assign-cable-type-field-row">
-                        {{ form_label(assignCableForm.cableType) }}
-                        {{ form_errors(assignCableForm.cableType) }}
-                        <div class="assign-cable-type-hscroll">
-                            {{ form_widget(assignCableForm.cableType) }}
-                        </div>
-                        {{ form_help(assignCableForm.cableType) }}
-                    </div>
-                    <p><button type="submit">Uložit typ kabelu</button></p>
-                {{ form_end(assignCableForm) }}
-            </div>
-        </details>
-        <script>
-(function () {
-  var form = document.getElementById('spool-assign-cable-form');
-  if (!form) return;
-  var cableSel = form.querySelector('select.cable-type-list');
-  var scroller = form.querySelector('.assign-cable-type-hscroll');
-  if (!cableSel || !scroller) return;
-  var details = document.getElementById('doplnit-typ');
-  var mobileMq = window.matchMedia('(max-width: 41.99rem)');
-  var sizeListT = null;
-  function sizeCableTypeListbox() {
-    var measure = document.createElement('div');
-    measure.setAttribute('aria-hidden', 'true');
-    measure.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;pointer-events:none;';
-    var cs = window.getComputedStyle(cableSel);
-    measure.style.font = cs.font;
-    measure.style.letterSpacing = cs.letterSpacing;
-    measure.style.textTransform = cs.textTransform;
-    document.body.appendChild(measure);
-    var maxW = 0;
-    var k;
-    for (k = 0; k < cableSel.options.length; k++) {
-      measure.textContent = cableSel.options[k].text || ' ';
-      maxW = Math.max(maxW, measure.offsetWidth);
-    }
-    document.body.removeChild(measure);
-    var pad = mobileMq.matches ? 40 : 36;
-    var cw = scroller.clientWidth;
-    if (cw < 2) {
-      cw = mobileMq.matches ? (window.innerWidth || 400) : 300;
-    }
-    var need = Math.max(cw, maxW + pad);
-    cableSel.style.minWidth = need + 'px';
-    cableSel.style.width = need + 'px';
-  }
-  function scheduleSizeCableTypeListbox() {
-    if (sizeListT) { clearTimeout(sizeListT); }
-    sizeListT = setTimeout(function () {
-      sizeListT = null;
-      sizeCableTypeListbox();
-    }, 50);
-  }
-  function scheduleIfAssignableVisible() {
-    if (details && !details.open) return;
-    scheduleSizeCableTypeListbox();
-  }
-  scheduleIfAssignableVisible();
-  if (mobileMq.addEventListener) mobileMq.addEventListener('change', scheduleIfAssignableVisible);
-  else if (mobileMq.addListener) mobileMq.addListener(scheduleIfAssignableVisible);
-  window.addEventListener('resize', scheduleIfAssignableVisible);
-  window.addEventListener('pageshow', scheduleIfAssignableVisible);
-  if (details) {
-    details.addEventListener('toggle', function () {
-      if (details.open) scheduleSizeCableTypeListbox();
-    });
-    try {
-      if (window.location.hash === '#doplnit-typ') {
-        details.open = true;
-        scheduleSizeCableTypeListbox();
-      }
-    } catch (e) {}
-  }
-})();
-        </script>
-    {% endif %}
     {% if not spool.receivedSealed %}
     <h2>Nová událost</h2>
     {{ form_start(form, { attr: {

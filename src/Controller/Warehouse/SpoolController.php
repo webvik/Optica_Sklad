@@ -17,8 +17,10 @@ use App\Form\SpoolFormType;
 use App\Form\SpoolSealedReceiveFormType;
 use App\Form\SpoolUnpackFormType;
 use App\Repository\CableFamilyRepository;
+use App\Repository\CableTypeRepository;
 use App\Repository\SpoolRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
+use App\Service\Warehouse\DodaciListParser;
 use App\Service\Warehouse\SkladovaKartaExcelExporter;
 use App\Service\Warehouse\SkladovaKartaPdfExporter;
 use App\Service\Warehouse\SkladovaKartaPrintQueue;
@@ -436,6 +438,201 @@ final class SpoolController extends AbstractController
         return $this->render('warehouse/spool/receive_sealed.html.twig', [
             'form' => $form,
             'cable_family_labels_json' => \json_encode($familyLabels, \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    /** Experiment: příjem nerozbalených z OCR dodacího listu. */
+    #[Route('/prijem-nerozbalene/dodaci-list', name: 'receive_sealed_dodaci', methods: ['GET'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function receiveSealedDodaciList(Request $request): Response
+    {
+        $archiveId = $request->query->getInt('archive');
+
+        return $this->render('warehouse/spool/receive_sealed_dodaci.html.twig', [
+            'archiveId' => $archiveId > 0 ? $archiveId : null,
+        ]);
+    }
+
+    #[Route('/prijem-nerozbalene/dodaci-list/parse', name: 'receive_sealed_dodaci_parse', methods: ['POST'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function receiveSealedDodaciParse(
+        Request $request,
+        DodaciListParser $parser,
+        CableTypeRepository $cableTypes,
+        SpoolRepository $spools,
+    ): JsonResponse {
+        $payload = \json_decode((string) $request->getContent(), true);
+        if (!\is_array($payload)) {
+            return $this->json(['ok' => false, 'message' => 'Neplatný JSON.'], 400);
+        }
+        if (!$this->isCsrfTokenValid('spool_dodaci_parse', (string) ($payload['_token'] ?? ''))) {
+            return $this->json(['ok' => false, 'message' => 'Neplatný CSRF token.'], 403);
+        }
+        $text = \trim((string) ($payload['text'] ?? ''));
+        if ('' === $text) {
+            return $this->json(['ok' => false, 'message' => 'Prázdný OCR text.'], 400);
+        }
+
+        $parsed = $parser->parse($text);
+        $rows = [];
+        foreach ($parsed as $p) {
+            $ct = '' !== $p['stockCode'] ? $cableTypes->findOneByCodeIgnoreCase($p['stockCode']) : null;
+            $existing = $spools->findOneByReelNumberExactIgnoreCase($p['reelNumber']);
+            $warnings = [];
+            if (null === $ct) {
+                $warnings[] = '' !== $p['stockCode']
+                    ? 'Typ '.$p['stockCode'].' není v katalogu'
+                    : 'Kód zásoby nerozpoznán';
+            }
+            if (null !== $existing) {
+                $warnings[] = 'Saře už existuje v evidenci (#'.$existing->getId().')';
+            }
+            if (!empty($p['lengthInferred'])) {
+                $warnings[] = 'L odhadnuta z jiných řádků se stejným KO- — ověřte';
+            }
+            if (!empty($p['lengthMissing']) && ($p['lengthM'] ?? 0) < 1) {
+                $warnings[] = 'L z OCR chybí — doplňte ručně';
+            }
+            $rows[] = [
+                'stockCode' => $p['stockCode'],
+                'reelNumber' => $p['reelNumber'],
+                'lengthM' => $p['lengthM'],
+                'cableTypeId' => $ct?->getId(),
+                'cableTypeLabel' => $ct ? ($ct->getCode().' — '.$ct->getName()) : null,
+                'fiberCount' => $ct?->getFiberCount(),
+                'diameterMm' => $ct?->getDiameterMm(),
+                'exists' => null !== $existing,
+                'existingId' => $existing?->getId(),
+                'showUrl' => null !== $existing
+                    ? $this->generateUrl('warehouse_spool_show', ['id' => $existing->getId()])
+                    : null,
+                'warnings' => $warnings,
+                'selected' => null === $existing && ($p['lengthM'] ?? 0) >= 1,
+            ];
+        }
+
+        $meta = $parser->extractDocumentMeta($text);
+
+        return $this->json([
+            'ok' => true,
+            'count' => \count($rows),
+            'rows' => $rows,
+            'documentNumber' => $meta['documentNumber'],
+            'documentDate' => $meta['documentDate'],
+        ]);
+    }
+
+    #[Route('/prijem-nerozbalene/dodaci-list/confirm', name: 'receive_sealed_dodaci_confirm', methods: ['POST'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function receiveSealedDodaciConfirm(
+        Request $request,
+        EntityManagerInterface $em,
+        SpoolMeterService $meter,
+        CableTypeRepository $cableTypes,
+        SpoolRepository $spools,
+    ): JsonResponse {
+        $payload = \json_decode((string) $request->getContent(), true);
+        if (!\is_array($payload)) {
+            return $this->json(['ok' => false, 'message' => 'Neplatný JSON.'], 400);
+        }
+        if (!$this->isCsrfTokenValid('spool_dodaci_confirm', (string) ($payload['_token'] ?? ''))) {
+            return $this->json(['ok' => false, 'message' => 'Neplatný CSRF token.'], 403);
+        }
+        $items = $payload['rows'] ?? null;
+        if (!\is_array($items) || [] === $items) {
+            return $this->json(['ok' => false, 'message' => 'Žádné řádky k uložení.'], 400);
+        }
+
+        $u = $this->getUser() instanceof User ? $this->getUser() : null;
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+        /** @var list<Spool> $createdSpools */
+        $createdSpools = [];
+
+        foreach ($items as $i => $item) {
+            if (!\is_array($item)) {
+                continue;
+            }
+            $reel = \trim((string) ($item['reelNumber'] ?? ''));
+            $lengthM = (int) ($item['lengthM'] ?? 0);
+            if ('' === $reel || $lengthM < 1) {
+                ++$skipped;
+                $errors[] = 'Řádek '.($i + 1).': chybí saře nebo délka.';
+                continue;
+            }
+            $existing = $spools->findOneByReelNumberExactIgnoreCase($reel);
+            if (null !== $existing) {
+                ++$skipped;
+                $errors[] = 'Saře '.$reel.' už existuje — přeskočeno.';
+                continue;
+            }
+            $ct = null;
+            $ctId = (int) ($item['cableTypeId'] ?? 0);
+            if ($ctId > 0) {
+                $ct = $cableTypes->find($ctId);
+            }
+            if (null === $ct) {
+                $code = \trim((string) ($item['stockCode'] ?? ''));
+                if ('' !== $code) {
+                    $ct = $cableTypes->findOneByCodeIgnoreCase($code);
+                }
+            }
+
+            $spool = new Spool();
+            $spool->setStatus(SpoolStatus::ReceivedSealed);
+            $spool->setReelNumber($reel);
+            $spool->setInitialVisibleM(null);
+            $spool->setTotalLengthM($lengthM);
+            $spool->setCableType($ct);
+            if (null === $ct) {
+                $spool->setFamily('');
+            }
+            $note = 'Příjem z dodacího listu (OCR)';
+            $codeForNote = \trim((string) ($item['stockCode'] ?? ''));
+            if ('' !== $codeForNote && null === $ct) {
+                $note .= ' — kód z dokladu: '.$codeForNote;
+            }
+            $spool->setNote($note);
+            $spool->setRegisteredAt(new \DateTimeImmutable('today'));
+            if (null !== $u) {
+                $spool->setCreatedBy($u);
+                $spool->setUpdatedBy($u);
+            }
+            $meter->initNewSpoolState($spool);
+            $em->persist($spool);
+            $createdSpools[] = $spool;
+            ++$created;
+        }
+
+        if ($created > 0) {
+            $em->flush();
+        }
+
+        $createdItems = [];
+        foreach ($createdSpools as $spool) {
+            $id = (int) $spool->getId();
+            $needsCableType = null === $spool->getCableType();
+            $showParams = ['id' => $id];
+            if ($needsCableType) {
+                $showParams['upravit'] = 1;
+            }
+            $createdItems[] = [
+                'id' => $id,
+                'reelNumber' => (string) $spool->getReelNumber(),
+                'needsCableType' => $needsCableType,
+                'showUrl' => $this->generateUrl('warehouse_spool_show', $showParams),
+            ];
+        }
+
+        return $this->json([
+            'ok' => true,
+            'created' => $created,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'createdItems' => $createdItems,
+            'showUrl' => $createdItems[0]['showUrl'] ?? null,
+            'browseUrl' => $this->generateUrl('warehouse_browse_index', ['nerozbaleno' => 1]),
         ]);
     }
 
@@ -948,6 +1145,14 @@ final class SpoolController extends AbstractController
             }
         }
 
+        $suggestedStockCode = null;
+        if (null === $spool->getCableType()) {
+            $note = (string) ($spool->getNote() ?? '');
+            if (\preg_match('/kód z dokladu:\s*(KO-[0-9A-Za-z-]+)/u', $note, $m)) {
+                $suggestedStockCode = \strtoupper($m[1]);
+            }
+        }
+
         return $this->render('warehouse/spool/show.html.twig', [
             'spool' => $spool,
             'form' => $form,
@@ -955,6 +1160,7 @@ final class SpoolController extends AbstractController
             'editCoreForm' => $editCoreForm,
             'unpackForm' => $unpackForm,
             'editMode' => $editMode,
+            'suggestedStockCode' => $suggestedStockCode,
         ]);
     }
 

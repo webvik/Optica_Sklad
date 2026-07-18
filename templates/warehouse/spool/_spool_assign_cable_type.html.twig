@@ -1,0 +1,98 @@
+{# Proměnné: spool, assignCableForm; volitelně compact, suggestedStockCode #}
+{% set compact = compact|default(false) %}
+{% set suggestedStockCode = suggestedStockCode|default(null) %}
+{% set newTypeParams = { return_spool: spool.id } %}
+{% if suggestedStockCode %}
+    {% set newTypeParams = newTypeParams|merge({ prefill_code: suggestedStockCode }) %}
+{% endif %}
+<div class="assign-cable-type-panel{% if compact %} assign-cable-type-panel--compact{% endif %}" id="doplnit-typ">
+    <h2 class="assign-cable-type-panel__title">Typ kabelu nerozpoznán</h2>
+    <p class="assign-cable-type-panel__lead">
+        Vyberte typ z katalogu, nebo založte nový — po uložení se vrátíte na tuto cívku.
+        {% if suggestedStockCode %}
+            <br>Kód z dokladu: <strong>{{ suggestedStockCode }}</strong>
+        {% endif %}
+    </p>
+    {{ form_start(assignCableForm, {
+        action: path('warehouse_spool_assign_cable', { id: spool.id }),
+        method: 'post',
+        attr: { id: 'spool-assign-cable-form', class: 'spool-form spool-form--assign-cable' },
+    }) }}
+        <div class="spool-form__field spool-form__field--cable">
+            {{ form_label(assignCableForm.cableType) }}
+            <div class="spool-form__value spool-form__value--cable">
+                <div class="cable-type-mobile-picker" id="cable-type-mobile-picker-assign">
+                    <button type="button" class="cable-type-mobile-picker__toggle" id="cable-type-mobile-btn-assign" aria-haspopup="listbox" aria-expanded="false" aria-controls="cable-type-mobile-panel-assign">
+                        <span class="cable-type-mobile-picker__text" id="cable-type-mobile-label-assign">— vyberte typ —</span>
+                        <span class="cable-type-mobile-picker__chev" aria-hidden="true">▼</span>
+                    </button>
+                    <div class="cable-type-mobile-picker__backdrop" id="cable-type-mobile-backdrop-assign" hidden></div>
+                    <div class="cable-type-mobile-picker__panel" id="cable-type-mobile-panel-assign" role="dialog" aria-label="Typ kabelu" hidden>
+                        <div class="cable-type-mobile-picker__bar">
+                            <span class="cable-type-mobile-picker__title">Typ kabelu</span>
+                            <button type="button" class="cable-type-mobile-picker__close" id="cable-type-mobile-close-assign" aria-label="Zavřít">×</button>
+                        </div>
+                        <div class="cable-type-mobile-picker__scroller">
+                            {{ form_widget(assignCableForm.cableType, { attr: { 'aria-label': assignCableForm.cableType.vars.label } }) }}
+                        </div>
+                    </div>
+                </div>
+                {{ form_errors(assignCableForm.cableType) }}
+                {{ form_help(assignCableForm.cableType) }}
+            </div>
+        </div>
+        <div class="assign-cable-type-panel__actions">
+            <button type="submit" class="spool-form__btn">Uložit typ kabelu</button>
+            <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new', newTypeParams) }}">Nový typ kabelu</a>
+        </div>
+    {{ form_end(assignCableForm) }}
+</div>
+<script>
+(function () {
+  var root = document.getElementById('cable-type-mobile-picker-assign');
+  if (!root) return;
+  var btn = document.getElementById('cable-type-mobile-btn-assign');
+  var labelEl = document.getElementById('cable-type-mobile-label-assign');
+  var panel = document.getElementById('cable-type-mobile-panel-assign');
+  var backdrop = document.getElementById('cable-type-mobile-backdrop-assign');
+  var closeBtn = document.getElementById('cable-type-mobile-close-assign');
+  var sel = root.querySelector('select.cable-type-list');
+  if (!sel) return;
+  var PLH = '— vyberte typ —';
+  function syncLabel() {
+    if (!labelEl) return;
+    var opt = sel.selectedOptions && sel.selectedOptions[0];
+    if (opt && opt.value !== '') labelEl.textContent = opt.text;
+    else labelEl.textContent = PLH;
+  }
+  function openPanel() {
+    if (!panel) return;
+    if (sel.options.length) {
+      sel.setAttribute('size', String(Math.min(28, Math.max(8, sel.options.length))));
+    }
+    root.classList.add('cable-type-mobile-picker--open');
+    panel.hidden = false;
+    if (backdrop) backdrop.hidden = false;
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('spool-cable-panel-open');
+  }
+  function closePanel() {
+    root.classList.remove('cable-type-mobile-picker--open');
+    if (panel) panel.hidden = true;
+    if (backdrop) backdrop.hidden = true;
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('spool-cable-panel-open');
+  }
+  syncLabel();
+  sel.addEventListener('change', function () {
+    syncLabel();
+    closePanel();
+  });
+  if (btn) btn.addEventListener('click', function () {
+    if (panel && !panel.hidden) closePanel();
+    else openPanel();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', closePanel);
+  if (backdrop) backdrop.addEventListener('click', closePanel);
+})();
+</script>

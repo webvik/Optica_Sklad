@@ -21,6 +21,21 @@ class CableTypeRepository extends ServiceEntityRepository
         return $this->findAllOrderedForCableTypePicker(true);
     }
 
+    public function findOneByCodeIgnoreCase(string $code): ?CableType
+    {
+        $code = \trim($code);
+        if ('' === $code) {
+            return null;
+        }
+
+        return $this->createQueryBuilder('c')
+            ->andWhere('LOWER(c.code) = LOWER(:code)')
+            ->setParameter('code', $code)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /**
      * Pořadí v nabídkách „Typ kabelu“: pole fiber_count z tabulky cable_type (PHP <=> jako celé číslo),
      * pak název — ne jako lexikografické řazení podle řetězce v name („12“ před „2“).

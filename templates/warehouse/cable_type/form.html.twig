@@ -308,6 +308,9 @@
                 </div>
             </div>
         </div>
+        {% if returnSpoolId|default(null) %}
+            <input type="hidden" name="return_spool" value="{{ returnSpoolId }}">
+        {% endif %}
         {{ form_rest(form) }}
     {{ form_end(form, { render_rest: false }) }}
     <div id="cable-type-form-scan-overlay" hidden role="dialog" aria-label="Sken čárového kódu">
@@ -337,10 +340,19 @@
         <button type="button" id="cable-type-label-ocr-cancel" class="spool-form__btn" style="color:#1a1a1a" title="Zavře OCR; již vyplněná pole formuláře zůstanou">Zavřít OCR</button>
     </div>
     <div style="max-width: 40rem; margin: 0 auto; box-sizing: border-box;">
-        <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
-            <a class="warehouse-pill" href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a>
-        </p>
-        <p style="margin: 0; text-align: center;"><a href="{{ path('warehouse_cable_type_index') }}">← zpět na seznam</a></p>
+        {% if returnSpoolId|default(null) %}
+            <p style="margin: 0.85rem 0 0.35rem; text-align: center; color:#444;">
+                Po uložení se typ přiřadí k cívce a vrátíte se na její kartu.
+            </p>
+            <p style="margin: 0; text-align: center;">
+                <a href="{{ path('warehouse_spool_show', { id: returnSpoolId, upravit: 1 }) }}">← zpět na cívku (bez uložení typu)</a>
+            </p>
+        {% else %}
+            <p style="margin: 0.85rem 0 0.35rem; display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: center;">
+                <a class="warehouse-pill" href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a>
+            </p>
+            <p style="margin: 0; text-align: center;"><a href="{{ path('warehouse_cable_type_index') }}">← zpět na seznam</a></p>
+        {% endif %}
     </div>
 {% endblock %}
 {% block javascripts %}

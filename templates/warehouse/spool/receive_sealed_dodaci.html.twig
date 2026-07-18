@@ -1,0 +1,668 @@
+{% extends 'base.html.twig' %}
+{% block title %}Příjem z dodacího listu (OCR) — Optický sklad{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .dodaci { max-width: min(96rem, 100%); }
+        .dodaci__lede { color: #444; font-size: 0.95rem; max-width: 40rem; }
+        .dodaci__badge {
+            display: inline-block; font-size: 0.75rem; font-weight: 600;
+            padding: 0.15rem 0.45rem; border-radius: 3px; background: #e8e0c8; color: #5a4a20;
+            margin-left: 0.35rem; vertical-align: middle;
+        }
+        .dodaci__panel {
+            margin: 1rem 0; padding: 0.85rem 1rem; border: 1px solid #ccc; border-radius: 4px; background: #fafafa;
+        }
+        .dodaci__actions { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; margin-top: 0.75rem; }
+        .dodaci__hint { font-size: 0.85rem; color: #555; margin: 0.5rem 0 0; }
+        .dodaci__status { margin: 0.65rem 0 0; font-size: 0.92rem; min-height: 1.3em; }
+        .dodaci__status--err { color: #a00; }
+        .dodaci__status--ok { color: #1a5c2e; }
+        .dodaci-pages { list-style: none; margin: 0.65rem 0 0; padding: 0; }
+        .dodaci-pages__item {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem 0.65rem;
+            padding: 0.45rem 0.55rem; margin: 0 0 0.4rem; border: 1px solid #d0d0d0;
+            border-radius: 3px; background: #fff;
+        }
+        .dodaci-pages__num {
+            font-weight: 700; font-variant-numeric: tabular-nums; min-width: 4.5rem;
+        }
+        .dodaci-pages__name {
+            flex: 1 1 10rem; font-size: 0.9rem; word-break: break-all;
+        }
+        .dodaci-pages__thumb {
+            width: 3.25rem; height: 3.25rem; object-fit: cover; border: 1px solid #ccc; border-radius: 2px;
+            background: #eee; flex: 0 0 auto;
+        }
+        .dodaci-pages__btns { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+        .dodaci-pages__btns button {
+            font: inherit; font-size: 0.85rem; padding: 0.25rem 0.45rem; cursor: pointer;
+        }
+        .dodaci-pages__add { margin-top: 0.65rem; }
+        .dodaci-pages__add[hidden], #dodaci-file-pick[hidden] { display: none !important; }
+        .dodaci-file-pick-label {
+            display: inline-block; font: inherit; font-size: 0.95rem; padding: 0.4rem 0.75rem;
+            border: 1px solid #888; border-radius: 3px; background: #fff; cursor: pointer;
+        }
+        .dodaci-file-pick-label:hover { background: #f3f3f3; }
+        .dodaci-table-wrap { overflow-x: auto; margin: 1rem 0; }
+        .dodaci-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .dodaci-table th, .dodaci-table td { border: 1px solid #ccc; padding: 0.35rem 0.45rem; text-align: left; vertical-align: top; }
+        .dodaci-table th { background: #f0f0f0; }
+        .dodaci-table tr.dodaci-row--warn td { background: #fff6e0; }
+        .dodaci-table tr.dodaci-row--skip td { background: #f0f0f0; color: #666; }
+        .dodaci-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .dodaci-table .dodaci-row-num {
+            text-align: center; font-weight: 700; font-variant-numeric: tabular-nums;
+            color: #333; min-width: 2rem;
+        }
+        .dodaci-table input[type="text"], .dodaci-table input[type="number"] {
+            width: 100%; box-sizing: border-box; font: inherit;
+            font-variant-numeric: tabular-nums;
+        }
+        .dodaci-table .js-dodaci-reel { min-width: 11rem; max-width: 16rem; }
+        .dodaci-table .js-dodaci-len { min-width: 6.5rem; max-width: 8rem; }
+        .dodaci-table .dodaci-reg-btn {
+            font: inherit; font-size: 0.85rem; padding: 0.25rem 0.5rem; cursor: pointer;
+            white-space: nowrap;
+        }
+        .dodaci-table .dodaci-reg-link { font-size: 0.85rem; white-space: nowrap; }
+        .dodaci-raw details { margin: 0.75rem 0 1rem; }
+        .dodaci-raw textarea {
+            width: 100%; min-height: 8rem; font: 0.8rem/1.35 ui-monospace, monospace;
+            box-sizing: border-box;
+        }
+        #dodaci-preview[hidden], #dodaci-confirm-block[hidden] { display: none !important; }
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
+    </style>
+{% endblock %}
+{% block body %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
+    <div class="dodaci">
+        <h1>Příjem z dodacího listu <span class="dodaci__badge">experiment</span></h1>
+        <p class="dodaci__lede">
+            Nahrajte foto nebo sken dodacího listu (POHODA). Při OCR se skeny uloží do
+            <a href="{{ path('warehouse_dodaci_list_index') }}">archivu dodacích listů</a> (pořadí stránek zachováno).
+            Náhled cívek z OCR — uložení do evidence až po kontrole.
+        </p>
+        <p class="dodaci__hint">
+            <a href="{{ path('warehouse_spool_receive_sealed') }}">← zpět na ruční příjem nerozbalené</a>
+            · <a href="{{ path('warehouse_dodaci_list_index') }}">Archiv dodacích listů</a>
+        </p>
+        <p class="dodaci__hint" id="dodaci-archive-banner" {% if not archiveId|default(null) %}hidden{% endif %}>
+            Archiv #{{ archiveId|default('—') }} — stránky načteny ze serveru.
+        </p>
+
+        <div class="dodaci__panel">
+            <strong>Sken / foto dodacího listu</strong>
+            <p class="dodaci__hint" style="margin-top:0.35rem;">
+                Nejdřív 1. stránku, pak přidejte další v pořadí OCR. Pořadí lze změnit šipkami.
+                Preferujte JPG/PNG. Při „Načíst OCR“ se stránky zároveň uloží do archivu.
+            </p>
+            <div id="dodaci-file-pick" class="dodaci__actions" style="margin-top:0.65rem;">
+                <label class="dodaci-file-pick-label" for="dodaci-file-input">Obzor — 1. stránka</label>
+                <input type="file" id="dodaci-file-input" accept="image/*" hidden>
+            </div>
+            <ol class="dodaci-pages" id="dodaci-pages" hidden></ol>
+            <div class="dodaci-pages__add" id="dodaci-add-wrap" hidden>
+                <label class="dodaci-file-pick-label" for="dodaci-file-input" id="dodaci-add-label">Obzor — další stránka</label>
+            </div>
+            <div class="dodaci__actions">
+                <button type="button" class="spool-form__btn" id="dodaci-run-ocr" disabled>Načíst OCR a sestavit náhled</button>
+            </div>
+            <p class="dodaci__status" id="dodaci-status" aria-live="polite"></p>
+        </div>
+
+        <div class="dodaci-raw">
+            <details id="dodaci-raw-details">
+                <summary>OCR text (jen když potřebujete opravit — náhled vzniká automaticky)</summary>
+                <p class="dodaci__hint">Po OCR se níže sestaví tabulka cívek sama. Čísla ⟦#N⟧ v textu odpovídají sloupci # v tabulce — podle nich rychle najdete řádek k opravě.</p>
+                <textarea id="dodaci-ocr-text" spellcheck="false" placeholder="Sem se doplní text z OCR — můžete opravit a znovu sestavit náhled."></textarea>
+                <div class="dodaci__actions">
+                    <button type="button" class="ui-btn-secondary" id="dodaci-reparse">Znovu sestavit náhled z textu</button>
+                </div>
+            </details>
+        </div>
+
+        <div id="dodaci-preview" hidden>
+            <h2 style="font-size:1.15rem;" id="dodaci-preview-heading">Náhled cívek</h2>
+            <p class="dodaci__hint" id="dodaci-preview-meta"></p>
+            <div class="dodaci-table-wrap">
+                <table class="dodaci-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th class="dodaci-row-num">#</th>
+                            <th>Saře</th>
+                            <th class="num">L (m)</th>
+                            <th>Kód</th>
+                            <th>Typ v katalogu</th>
+                            <th>Pozn.</th>
+                            <th>Registrovat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dodaci-preview-body"></tbody>
+                </table>
+            </div>
+            <div class="dodaci__actions" id="dodaci-confirm-block" hidden>
+                <button type="button" class="spool-form__btn" id="dodaci-confirm">Zaevidovat vybrané jako nerozbalené</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
+    <script crossorigin referrerpolicy="no-referrer" src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script>
+(function () {
+  var parseUrl = {{ path('warehouse_spool_receive_sealed_dodaci_parse')|json_encode|raw }};
+  var confirmUrl = {{ path('warehouse_spool_receive_sealed_dodaci_confirm')|json_encode|raw }};
+  var uploadUrl = {{ path('warehouse_dodaci_list_upload')|json_encode|raw }};
+  var csrfParse = {{ csrf_token('spool_dodaci_parse')|json_encode|raw }};
+  var csrfConfirm = {{ csrf_token('spool_dodaci_confirm')|json_encode|raw }};
+  var csrfUpload = {{ csrf_token('dodaci_list_upload')|json_encode|raw }};
+  var csrfMeta = {{ csrf_token('dodaci_list_meta')|json_encode|raw }};
+  var initialArchiveId = {{ archiveId|default(null)|json_encode|raw }};
+  var pagesJsonTpl = {{ path('warehouse_dodaci_list_pages_json', { id: 0 })|json_encode|raw }};
+  var metaUrlTpl = {{ path('warehouse_dodaci_list_meta', { id: 0 })|json_encode|raw }};
+
+  var fileIn = document.getElementById('dodaci-file-input');
+  var filePick = document.getElementById('dodaci-file-pick');
+  var pagesEl = document.getElementById('dodaci-pages');
+  var addWrap = document.getElementById('dodaci-add-wrap');
+  var addLabel = document.getElementById('dodaci-add-label');
+  var runBtn = document.getElementById('dodaci-run-ocr');
+  var reparseBtn = document.getElementById('dodaci-reparse');
+  var confirmBtn = document.getElementById('dodaci-confirm');
+  var statusEl = document.getElementById('dodaci-status');
+  var textEl = document.getElementById('dodaci-ocr-text');
+  var preview = document.getElementById('dodaci-preview');
+  var previewBody = document.getElementById('dodaci-preview-body');
+  var previewMeta = document.getElementById('dodaci-preview-meta');
+  var confirmBlock = document.getElementById('dodaci-confirm-block');
+  var rawDetails = document.getElementById('dodaci-raw-details');
+  var archiveBanner = document.getElementById('dodaci-archive-banner');
+  var workerPromise = null;
+  var lastRows = [];
+  var pages = [];
+  var archiveId = initialArchiveId;
+  var archiveFromServer = !!initialArchiveId;
+
+  function setStatus(msg, kind) {
+    if (!statusEl) return;
+    statusEl.textContent = msg || '';
+    statusEl.className = 'dodaci__status' + (kind === 'err' ? ' dodaci__status--err' : kind === 'ok' ? ' dodaci__status--ok' : '');
+  }
+
+  function revokeUrl(url) {
+    if (url) {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    }
+  }
+
+  function renderPages() {
+    if (!pagesEl) return;
+    pagesEl.innerHTML = '';
+    if (!pages.length) {
+      pagesEl.hidden = true;
+      if (filePick) filePick.hidden = false;
+      if (addWrap) addWrap.hidden = true;
+      if (runBtn) runBtn.disabled = true;
+      if (addLabel) addLabel.textContent = 'Obzor — další stránka';
+      return;
+    }
+    pagesEl.hidden = false;
+    if (filePick) filePick.hidden = true;
+    if (addWrap) addWrap.hidden = false;
+    if (runBtn) runBtn.disabled = false;
+    if (addLabel) addLabel.textContent = 'Obzor — ' + (pages.length + 1) + '. stránka';
+
+    pages.forEach(function (p, i) {
+      var li = document.createElement('li');
+      li.className = 'dodaci-pages__item';
+      var thumb = '';
+      if (p.url && p.file && String(p.file.type || '').indexOf('image/') === 0) {
+        thumb = '<img class="dodaci-pages__thumb" src="' + esc(p.url) + '" alt="">';
+      }
+      li.innerHTML =
+        thumb +
+        '<span class="dodaci-pages__num">str. ' + (i + 1) + '</span>' +
+        '<span class="dodaci-pages__name">' + esc(p.file.name) + '</span>' +
+        '<span class="dodaci-pages__btns">' +
+          '<button type="button" class="js-page-up" data-i="' + i + '" title="Nahoru"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button type="button" class="js-page-down" data-i="' + i + '" title="Dolů"' + (i === pages.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          '<button type="button" class="js-page-del" data-i="' + i + '" title="Odebrat">×</button>' +
+        '</span>';
+      pagesEl.appendChild(li);
+    });
+  }
+
+  function markPagesLocalEdit() {
+    if (archiveFromServer) {
+      archiveFromServer = false;
+      archiveId = null;
+      if (archiveBanner) archiveBanner.hidden = true;
+    }
+  }
+
+  function addPageFile(file) {
+    if (!file) return;
+    if (String(file.type || '').indexOf('image/') !== 0) {
+      setStatus('Vyberte obrázek (JPG/PNG…).', 'err');
+      return;
+    }
+    markPagesLocalEdit();
+    pages.push({ file: file, url: URL.createObjectURL(file) });
+    renderPages();
+    setStatus('Přidána str. ' + pages.length + ': ' + file.name + '. Můžete přidat další nebo spustit OCR.', 'ok');
+  }
+
+  if (fileIn) {
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0] ? fileIn.files[0] : null;
+      fileIn.value = '';
+      addPageFile(f);
+    });
+  }
+
+  if (pagesEl) {
+    pagesEl.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      var i = parseInt(t.getAttribute('data-i'), 10);
+      if (isNaN(i) || i < 0 || i >= pages.length) return;
+      if (t.classList.contains('js-page-del')) {
+        markPagesLocalEdit();
+        revokeUrl(pages[i].url);
+        pages.splice(i, 1);
+        renderPages();
+        setStatus(pages.length ? ('Stránky: ' + pages.length + '.') : 'Žádná stránka — vyberte 1. foto.', pages.length ? 'ok' : '');
+        return;
+      }
+      if (t.classList.contains('js-page-up') && i > 0) {
+        markPagesLocalEdit();
+        var tmpU = pages[i - 1];
+        pages[i - 1] = pages[i];
+        pages[i] = tmpU;
+        renderPages();
+        return;
+      }
+      if (t.classList.contains('js-page-down') && i < pages.length - 1) {
+        markPagesLocalEdit();
+        var tmpD = pages[i + 1];
+        pages[i + 1] = pages[i];
+        pages[i] = tmpD;
+        renderPages();
+      }
+    });
+  }
+
+  renderPages();
+
+  function ensureWorker() {
+    if (typeof window.Tesseract === 'undefined' || typeof window.Tesseract.createWorker !== 'function') {
+      return Promise.reject(new Error('Tesseract.js není načtený.'));
+    }
+    if (!workerPromise) {
+      // ces+eng lepší na „Šarže“; při selhání CDN/lang fallback eng (parser umí Sarte/Sarde)
+      workerPromise = window.Tesseract.createWorker('ces+eng', 1, { logger: function () {} })
+        .catch(function () {
+          return window.Tesseract.createWorker('eng', 1, { logger: function () {} });
+        });
+    }
+    return workerPromise;
+  }
+
+  function ocrFile(file, worker) {
+    return worker.recognize(file).then(function (r) {
+      return (r && r.data && r.data.text) ? String(r.data.text) : '';
+    });
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function scrollToPreview() {
+    if (!preview || preview.hidden) return;
+    try { preview.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { preview.scrollIntoView(true); }
+  }
+
+  function escapeRe(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /** Do OCR textu vloží ⟦#N⟧ u saře — stejné číslo jako sloupec # v tabulce. */
+  function annotateOcrText(text, rows) {
+    var out = String(text || '').replace(/⟦#\d+⟧\s*/g, '');
+    (rows || []).forEach(function (row, idx) {
+      var n = idx + 1;
+      var reel = String(row.reelNumber || '').trim();
+      if (!reel) return;
+      var re = new RegExp(
+        '((?:Šarže|Sarze|Sarte|Sarde|Šarče)\\s*:?\\s*)' + escapeRe(reel) + '\\b',
+        'i'
+      );
+      var replaced = false;
+      out = out.replace(re, function (m, prefix) {
+        if (replaced) return m;
+        replaced = true;
+        return '⟦#' + n + '⟧ ' + prefix + reel;
+      });
+    });
+    return out;
+  }
+
+  function collectRow(idx) {
+    var base = lastRows[idx];
+    if (!base) return null;
+    var reelIn = previewBody.querySelector('.js-dodaci-reel[data-i="' + idx + '"]');
+    var lenIn = previewBody.querySelector('.js-dodaci-len[data-i="' + idx + '"]');
+    return {
+      reelNumber: reelIn ? reelIn.value.trim() : base.reelNumber,
+      lengthM: lenIn ? parseInt(lenIn.value, 10) : base.lengthM,
+      stockCode: base.stockCode || '',
+      cableTypeId: base.cableTypeId || null
+    };
+  }
+
+  function renderRows(rows) {
+    lastRows = rows || [];
+    previewBody.innerHTML = '';
+    if (!lastRows.length) {
+      preview.hidden = false;
+      confirmBlock.hidden = true;
+      previewMeta.textContent = 'Žádné řádky se saře + metry — otevřete OCR text, opravte (Šarže: / KO- / … m) a klepněte „Znovu sestavit náhled“.';
+      if (rawDetails) rawDetails.open = true;
+      scrollToPreview();
+      return;
+    }
+    preview.hidden = false;
+    confirmBlock.hidden = false;
+    if (rawDetails) rawDetails.open = false;
+    if (textEl) textEl.value = annotateOcrText(textEl.value, lastRows);
+    var selN = 0;
+    lastRows.forEach(function (row, idx) {
+      var tr = document.createElement('tr');
+      var n = idx + 1;
+      var warn = (row.warnings && row.warnings.length) || row.exists;
+      if (row.exists) tr.className = 'dodaci-row--skip';
+      else if (warn) tr.className = 'dodaci-row--warn';
+      if (row.selected) selN++;
+      var regCell;
+      if (row.exists && row.showUrl) {
+        regCell = '<a class="dodaci-reg-link" href="' + esc(row.showUrl) + '">Karta</a>';
+      } else {
+        regCell = '<button type="button" class="dodaci-reg-btn js-dodaci-reg" data-i="' + idx + '">Registrovat</button>';
+      }
+      tr.innerHTML =
+        '<td><input type="checkbox" class="js-dodaci-sel" data-i="' + idx + '"' + (row.selected ? ' checked' : '') + (row.exists ? ' disabled' : '') + '></td>' +
+        '<td class="dodaci-row-num">' + n + '</td>' +
+        '<td><input type="text" class="js-dodaci-reel" data-i="' + idx + '" value="' + esc(row.reelNumber) + '"></td>' +
+        '<td class="num"><input type="number" class="js-dodaci-len" data-i="' + idx + '" value="' + esc(row.lengthM) + '" min="1"></td>' +
+        '<td>' + esc(row.stockCode || '—') + '</td>' +
+        '<td>' + esc(row.cableTypeLabel || '—') + '</td>' +
+        '<td>' + esc((row.warnings || []).join('; ')) + '</td>' +
+        '<td>' + regCell + '</td>';
+      previewBody.appendChild(tr);
+    });
+    previewMeta.textContent = 'Nalezeno ' + lastRows.length + ' cívek, k uložení zaškrtnuto: ' + selN + '. „Registrovat“ = jedna cívka → karta. Hromadně: tlačítko níže.';
+    scrollToPreview();
+  }
+
+  function collectSelected() {
+    var out = [];
+    var cbs = previewBody.querySelectorAll('.js-dodaci-sel:checked');
+    for (var i = 0; i < cbs.length; i++) {
+      var idx = parseInt(cbs[i].getAttribute('data-i'), 10);
+      var row = collectRow(idx);
+      if (row) out.push(row);
+    }
+    return out;
+  }
+
+  function postConfirm(rows) {
+    return fetch(confirmUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ rows: rows, _token: csrfConfirm })
+    }).then(function (r) { return r.json().then(function (j) { return { okHttp: r.ok, j: j }; }); });
+  }
+
+  function setArchiveBanner(id) {
+    archiveId = id || null;
+    if (!archiveBanner) return;
+    if (archiveId) {
+      archiveBanner.hidden = false;
+      archiveBanner.innerHTML = 'Archiv #' + archiveId + ' — skeny uloženy. <a href="{{ path('warehouse_dodaci_list_index') }}">Otevřít archiv</a>';
+    } else {
+      archiveBanner.hidden = true;
+    }
+  }
+
+  function uploadPagesToArchive() {
+    if (archiveFromServer && archiveId) {
+      return Promise.resolve(archiveId);
+    }
+    var fd = new FormData();
+    fd.append('_token', csrfUpload);
+    pages.forEach(function (p, i) {
+      fd.append('pages[' + i + ']', p.file, p.file.name || ('strana-' + (i + 1) + '.jpg'));
+    });
+    setStatus('Ukládám skeny do archivu…');
+    return fetch(uploadUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: fd
+    }).then(function (r) { return r.json().then(function (j) { return { okHttp: r.ok, j: j }; }); })
+      .then(function (x) {
+        if (!x.j || !x.j.ok) {
+          throw new Error((x.j && x.j.message) || 'Upload do archivu selhal.');
+        }
+        archiveFromServer = true;
+        setArchiveBanner(x.j.id);
+        return x.j.id;
+      });
+  }
+
+  function updateArchiveMeta(docNo, docDate) {
+    if (!archiveId) return Promise.resolve();
+    var metaUrl = String(metaUrlTpl).replace(/\/0\/meta$/, '/' + archiveId + '/meta');
+    return fetch(metaUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        documentNumber: docNo || null,
+        documentDate: docDate || null,
+        _token: csrfMeta
+      })
+    }).then(function (r) { return r.json(); }).catch(function () { return null; });
+  }
+
+  function loadArchivePages(id) {
+    var url = String(pagesJsonTpl).replace(/\/0\/pages\.json$/, '/' + id + '/pages.json');
+    setStatus('Načítám stránky z archivu #' + id + '…');
+    return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok || !j.pages || !j.pages.length) {
+          throw new Error((j && j.message) || 'Archiv nemá stránky.');
+        }
+        archiveFromServer = true;
+        setArchiveBanner(j.id);
+        pages.forEach(function (p) { revokeUrl(p.url); });
+        pages = [];
+        var chain = Promise.resolve();
+        j.pages.forEach(function (pg) {
+          chain = chain.then(function () {
+            return fetch(pg.url, { credentials: 'same-origin' })
+              .then(function (r) {
+                if (!r.ok) throw new Error('Nelze stáhnout str. ' + pg.position);
+                return r.blob();
+              })
+              .then(function (blob) {
+                var name = pg.originalFilename || ('strana-' + pg.position + '.jpg');
+                var file = new File([blob], name, { type: blob.type || 'image/jpeg' });
+                pages.push({ file: file, url: URL.createObjectURL(file) });
+              });
+          });
+        });
+        return chain.then(function () {
+          renderPages();
+          setStatus('Archiv #' + id + ': ' + pages.length + ' str. Připraveno k OCR.', 'ok');
+        });
+      });
+  }
+
+  function parseText(text) {
+    setStatus('Parsování a párování s katalogem…');
+    return fetch(parseUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ text: text, _token: csrfParse })
+    }).then(function (r) { return r.json().then(function (j) { return { okHttp: r.ok, j: j }; }); })
+      .then(function (x) {
+        if (!x.j || !x.j.ok) {
+          throw new Error((x.j && x.j.message) || 'Parsování selhalo.');
+        }
+        renderRows(x.j.rows || []);
+        var n = x.j.count || 0;
+        var metaP = Promise.resolve();
+        if (archiveId && (x.j.documentNumber || x.j.documentDate)) {
+          metaP = updateArchiveMeta(x.j.documentNumber, x.j.documentDate);
+        }
+        return metaP.then(function () {
+          setStatus(n
+            ? ('Náhled hotov (' + n + ' řádků)' + (archiveId ? ', archiv #' + archiveId : '') + '. Zkontrolujte tabulku níže.')
+            : 'OCR/parse nenašel cívky — opravte text v panelu výše a sestavte náhled znovu.',
+            n ? 'ok' : 'err');
+        });
+      });
+  }
+
+  if (runBtn) {
+    runBtn.addEventListener('click', function () {
+      if (!pages.length) {
+        setStatus('Vyberte alespoň 1. stránku (foto).', 'err');
+        return;
+      }
+      runBtn.disabled = true;
+      uploadPagesToArchive().then(function () {
+        setStatus('OCR běží (může trvat desítky sekund)…');
+        return ensureWorker().then(function (worker) {
+          var parts = [];
+          var chain = Promise.resolve();
+          pages.forEach(function (p, fi) {
+            chain = chain.then(function () {
+              setStatus('OCR str. ' + (fi + 1) + ' / ' + pages.length + ': ' + p.file.name);
+              return ocrFile(p.file, worker).then(function (t) { parts.push(t); });
+            });
+          });
+          return chain.then(function () {
+            var text = parts.join('\n\n--- stránka ---\n\n');
+            if (textEl) textEl.value = text;
+            return parseText(text);
+          });
+        });
+      }).catch(function (e) {
+        setStatus(e && e.message ? e.message : 'OCR/archiv selhal.', 'err');
+      }).then(function () {
+        runBtn.disabled = !pages.length;
+      });
+    });
+  }
+
+  if (reparseBtn) {
+    reparseBtn.addEventListener('click', function () {
+      var text = textEl ? textEl.value.trim() : '';
+      if (!text) {
+        setStatus('Nejdřív spusťte OCR nebo vložte text.', 'err');
+        return;
+      }
+      reparseBtn.disabled = true;
+      parseText(text).catch(function (e) {
+        setStatus(e && e.message ? e.message : 'Parsování selhalo.', 'err');
+      }).then(function () {
+        reparseBtn.disabled = false;
+      });
+    });
+  }
+
+  if (previewBody) {
+    previewBody.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.classList || !t.classList.contains('js-dodaci-reg')) return;
+      var idx = parseInt(t.getAttribute('data-i'), 10);
+      var row = collectRow(idx);
+      if (!row || !row.reelNumber || !(row.lengthM >= 1)) {
+        setStatus('Řádek #' + (idx + 1) + ': doplňte saře a L (m).', 'err');
+        return;
+      }
+      if (!window.confirm('Registrovat cívku #' + (idx + 1) + ' (saře ' + row.reelNumber + ') a otevřít kartu?')) return;
+      t.disabled = true;
+      setStatus('Registruji #' + (idx + 1) + '…');
+      postConfirm([row]).then(function (x) {
+        if (!x.j || !x.j.ok) {
+          throw new Error((x.j && x.j.message) || 'Registrace selhala.');
+        }
+        if (x.j.created < 1) {
+          var err = (x.j.errors && x.j.errors[0]) || 'Cívka nebyla vytvořena.';
+          throw new Error(err);
+        }
+        var url = x.j.showUrl || (x.j.createdItems && x.j.createdItems[0] && x.j.createdItems[0].showUrl);
+        if (!url) throw new Error('Chybí URL karty.');
+        setStatus('Hotovo — přechod na kartu…', 'ok');
+        window.location.href = url;
+      }).catch(function (e) {
+        setStatus(e && e.message ? e.message : 'Registrace selhala.', 'err');
+        t.disabled = false;
+      });
+    });
+  }
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', function () {
+      var rows = collectSelected();
+      if (!rows.length) {
+        setStatus('Zaškrtněte alespoň jeden řádek.', 'err');
+        return;
+      }
+      if (!window.confirm('Zaevidovat ' + rows.length + ' nerozbalených cívek?')) return;
+      confirmBtn.disabled = true;
+      setStatus('Ukládám…');
+      postConfirm(rows)
+        .then(function (x) {
+          if (!x.j || !x.j.ok) {
+            throw new Error((x.j && x.j.message) || 'Uložení selhalo.');
+          }
+          var msg = 'Uloženo: ' + x.j.created + ' cívek.';
+          if (x.j.skipped) msg += ' Přeskočeno: ' + x.j.skipped + '.';
+          if (x.j.errors && x.j.errors.length) msg += ' ' + x.j.errors.slice(0, 3).join(' ');
+          setStatus(msg, 'ok');
+          if (x.j.created === 1 && x.j.showUrl) {
+            window.setTimeout(function () { window.location.href = x.j.showUrl; }, 600);
+          } else if (x.j.created > 0 && x.j.browseUrl) {
+            window.setTimeout(function () { window.location.href = x.j.browseUrl; }, 900);
+          }
+        })
+        .catch(function (e) {
+          setStatus(e && e.message ? e.message : 'Uložení selhalo.', 'err');
+        })
+        .then(function () { confirmBtn.disabled = false; });
+    });
+  }
+
+  if (initialArchiveId) {
+    loadArchivePages(initialArchiveId).catch(function (e) {
+      setStatus(e && e.message ? e.message : 'Načtení archivu selhalo.', 'err');
+    });
+  }
+})();
+    </script>
+{% endblock %}

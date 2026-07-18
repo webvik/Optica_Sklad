@@ -1,6 +1,14 @@
-{# Proměnné: spool, editCoreForm #}
+{# Proměnné: spool, editCoreForm; volitelně assignCableForm #}
 <div class="spool-edit-core" id="spool-edit-core">
     <h2 style="font-size:1.1rem;margin:0 0 0.65rem;">Upravit údaje cívky</h2>
+    {% if assignCableForm is defined and assignCableForm %}
+        {% include 'warehouse/spool/_spool_assign_cable_type.html.twig' with {
+            spool: spool,
+            assignCableForm: assignCableForm,
+            compact: true,
+            suggestedStockCode: suggestedStockCode|default(null),
+        } only %}
+    {% endif %}
     {{ form_start(editCoreForm, {
         action: path('warehouse_spool_edit_core', { id: spool.id }),
         method: 'post',

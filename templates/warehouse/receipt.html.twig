@@ -36,6 +36,14 @@
             <a class="warehouse-pill" href="{{ path('warehouse_spool_receive_sealed') }}">Příjem nerozbalené</a>
             <p class="receipt-cta__hint">ještě v obalu: typ + L dle dokladu (saře volitelně), PS až po rozbalení.</p>
         </div>
+        <div class="receipt-cta__item">
+            <a class="warehouse-pill" href="{{ path('warehouse_spool_receive_sealed_dodaci') }}">Příjem z dodacího listu</a>
+            <p class="receipt-cta__hint">OCR skenu → náhled nerozbalených (skeny do archivu).</p>
+        </div>
+        <div class="receipt-cta__item">
+            <a class="warehouse-pill" href="{{ path('warehouse_dodaci_list_index') }}">Archiv dodacích listů</a>
+            <p class="receipt-cta__hint">uložené skeny DL — příjem cívek / smazání.</p>
+        </div>
         {% endif %}
         <div class="receipt-cta__item">
             <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a>

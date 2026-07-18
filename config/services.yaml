@@ -37,3 +37,7 @@ services:
     App\Command\PurgeOldUserAuditLogCommand:
         arguments:
             $defaultRetentionDays: '%env(int:USER_AUDIT_LOG_RETENTION_DAYS)%'
+
+    App\Service\Warehouse\DodaciListStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'

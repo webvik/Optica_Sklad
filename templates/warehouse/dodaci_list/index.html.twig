@@ -1,0 +1,73 @@
+{% extends 'base.html.twig' %}
+{% block title %}Archiv dodacích listů — Optický sklad{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .dl-arch { max-width: 56rem; }
+        .dl-arch__lede { color: #444; font-size: 0.95rem; max-width: 42rem; }
+        .dl-arch-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin: 1rem 0; }
+        .dl-arch-table th, .dl-arch-table td {
+            border: 1px solid #ccc; padding: 0.4rem 0.55rem; text-align: left; vertical-align: middle;
+        }
+        .dl-arch-table th { background: #f0f0f0; }
+        .dl-arch-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .dl-arch-table .dl-arch-actions { white-space: nowrap; }
+        .dl-arch-table form { display: inline; margin: 0; }
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
+    </style>
+{% endblock %}
+{% block body %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
+    <div class="dl-arch">
+        <h1>Archiv dodacích listů</h1>
+        <p class="dl-arch__lede">
+            Skeny nahrané při příjmu z dodacího listu (pořadí stránek zachováno).
+            Příjem spustí OCR nad uloženými stránkami; smazání odstraní soubory i záznam.
+        </p>
+        <p style="margin:0.5rem 0 1rem;">
+            <a class="warehouse-pill" href="{{ path('warehouse_spool_receive_sealed_dodaci') }}">Nový příjem (OCR + archiv)</a>
+            <a href="{{ path('warehouse_spool_receive_sealed') }}" style="margin-left:0.65rem;">← ruční příjem nerozbalené</a>
+        </p>
+
+        <div style="overflow-x:auto;">
+            <table class="dl-arch-table">
+                <thead>
+                    <tr>
+                        <th>Dodací list č.</th>
+                        <th>Datum</th>
+                        <th class="num">Str.</th>
+                        <th>Nahráno</th>
+                        <th>Příjem</th>
+                        <th>Smazat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in items %}
+                    <tr>
+                        <td><strong>{{ item.documentNumber ?: ('#' ~ item.id) }}</strong></td>
+                        <td>{{ item.documentDate ? item.documentDate|date('d.m.Y') : '—' }}</td>
+                        <td class="num">{{ item.pageCount }}</td>
+                        <td>{{ item.createdAt|date('d.m.Y H:i') }}</td>
+                        <td class="dl-arch-actions">
+                            <a class="warehouse-pill" href="{{ path('warehouse_spool_receive_sealed_dodaci', { archive: item.id }) }}">Příjem cívek</a>
+                        </td>
+                        <td class="dl-arch-actions">
+                            <form method="post" action="{{ path('warehouse_dodaci_list_delete', { id: item.id }) }}"
+                                  onsubmit="return confirm('Smazat dodací list «{{ item.label|e('js') }}» včetně {{ item.pageCount }} souborů?');">
+                                <input type="hidden" name="_token" value="{{ csrf_token('dodaci_list_delete_' ~ item.id) }}">
+                                <button type="submit" class="spool-form__btn spool-form__btn--danger" style="font-size:0.85rem;padding:0.3rem 0.55rem;">Smazat</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="6">Archiv je prázdný — spusťte příjem z dodacího listu a nahrajte skeny.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
+{% endblock %}

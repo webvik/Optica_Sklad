@@ -54,6 +54,10 @@
         Evidence podle dokladu (typ kabelu + délka L; číslo saře volitelně, pokud je na dokladu).
         Bez PS — doplní se až při rozbalení. Cívka se započítá do <strong>Inventury skladového účtu</strong>.
     </p>
+    <div class="sealed-dl-row" style="display:grid;grid-template-columns:1fr 1fr;gap:0.55rem 0.65rem;max-width:36rem;margin:0 0 1rem;align-items:stretch;">
+        <a class="warehouse-pill" href="{{ path('warehouse_spool_receive_sealed_dodaci') }}" style="width:100%;text-align:center;box-sizing:border-box;">Příjem z dodacího listu</a>
+        <a class="warehouse-pill" href="{{ path('warehouse_dodaci_list_index') }}" style="width:100%;text-align:center;box-sizing:border-box;">Archiv dodacích listů</a>
+    </div>
     <script type="application/json" id="spool-cable-family-labels-json">{{ cable_family_labels_json|default('{}')|raw }}</script>
     {{ form_start(form, { attr: { class: 'spool-form', id: 'spool-receive-sealed-form' } }) }}
         <div class="spool-form__field">
