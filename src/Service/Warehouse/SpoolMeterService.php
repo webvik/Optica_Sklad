@@ -93,9 +93,23 @@ final class SpoolMeterService
      * jen pokud last_visible_m = 0 a poslední záznam v deníku ukazuje nenulové čtení, bere se koncové čtení
      * z deníku (oprava nesouladu cache po přetočení nuly / importu).
      */
+    /** Operativní práce (záfuk / deník) — ne na nerozbalené cívce. */
+    public function assertOperationalForMeterWork(Spool $spool): void
+    {
+        if ($spool->isReceivedSealed()) {
+            throw new RuntimeException('Nerozbalená cívka: nejprve doplňte číslo saře a PS (Rozbalit na kartě).');
+        }
+        if (null === $spool->getInitialVisibleM()) {
+            throw new RuntimeException('U cívky chybí PS (počáteční stav metru).');
+        }
+        if (null === $spool->getReelNumber() || '' === $spool->getReelNumber()) {
+            throw new RuntimeException('U cívky chybí číslo saře.');
+        }
+    }
+
     public function previewPrevVisibleForMeterStep(Spool $spool): int
     {
-        $m0 = $spool->getInitialVisibleM();
+        $m0 = $spool->getInitialVisibleM() ?? 0;
         $nPrev = $this->countVisibleChainEvents($spool);
         if ($nPrev === 0) {
             return $m0;
@@ -127,7 +141,7 @@ final class SpoolMeterService
         if (null === $sign) {
             $last = $spool->getLastVisibleM();
             $m0 = $spool->getInitialVisibleM();
-            if (null !== $last && $last !== $m0) {
+            if (null !== $last && null !== $m0 && $last !== $m0) {
                 $sign = $last > $m0 ? 1 : -1;
             } else {
                 return null;
@@ -177,8 +191,9 @@ final class SpoolMeterService
         if (!self::isVisibleMeterChainEventType($type)) {
             throw new \InvalidArgumentException('Očekáván zafuk (metr) nebo (historicky) úsek/štítek s m.');
         }
+        $this->assertOperationalForMeterWork($spool);
         $occurredAt ??= new \DateTimeImmutable();
-        $m0 = $spool->getInitialVisibleM();
+        $m0 = (int) $spool->getInitialVisibleM();
         $nPrev = $this->countVisibleChainEvents($spool);
         // První záznam v řetězci: referencí je PS; u dalšího kroků musí předchozí m odpovídat řetězci po deníku
         // ({@see previewPrevVisibleForMeterStep}: oprava rozporu cached last_visible = 0 vs poslední záznam v deníku).
@@ -365,6 +380,7 @@ final class SpoolMeterService
         if (SpoolEventType::MeterReading === $type) {
             throw new \InvalidArgumentException();
         }
+        $this->assertOperationalForMeterWork($spool);
         $occurredAt ??= new \DateTimeImmutable();
         $event = new SpoolEvent();
         $event->setSpool($spool);
@@ -406,6 +422,7 @@ final class SpoolMeterService
         ?string $note,
         ?User $user,
     ): SpoolEvent {
+        $this->assertOperationalForMeterWork($spool);
         if ($remainderM < 0) {
             throw new \InvalidArgumentException('Zbytek ke zrušení nemůže být záporný.');
         }
@@ -442,6 +459,26 @@ final class SpoolMeterService
     {
         $spool->setCurrentRemainingM($spool->getTotalLengthM());
         $spool->setLastVisibleM($spool->getInitialVisibleM());
+    }
+
+    /** Po rozbalení: saře + PS už na entitě → operativní sklad. */
+    public function promoteSealedToInStock(Spool $spool): void
+    {
+        if (!$spool->isReceivedSealed()) {
+            throw new RuntimeException('Cívka není ve stavu nerozbaleno.');
+        }
+        if (null === $spool->getReelNumber() || '' === $spool->getReelNumber()) {
+            throw new RuntimeException('Zadejte číslo saře.');
+        }
+        if (null === $spool->getInitialVisibleM()) {
+            throw new RuntimeException('Zadejte PS (počáteční stav metru).');
+        }
+        $spool->setStatus(SpoolStatus::InStock);
+        $spool->setLastVisibleM($spool->getInitialVisibleM());
+        if (null === $spool->getCurrentRemainingM()) {
+            $spool->setCurrentRemainingM($spool->getTotalLengthM());
+        }
+        $this->em->persist($spool);
     }
 
     /**
@@ -850,9 +887,19 @@ final class SpoolMeterService
         if ([] === $readings) {
             return [
                 'remaining' => $spool->getCurrentRemainingM() ?? $total,
-                'lastVisible' => $spool->getLastVisibleM() ?? $m0,
+                'lastVisible' => $spool->getLastVisibleM() ?? $m0 ?? 0,
                 'meterSign' => $spool->getMeterSign(),
                 'warnings' => [],
+                'eventUsedMetersFixed' => 0,
+            ];
+        }
+
+        if (null === $m0) {
+            return [
+                'remaining' => $spool->getCurrentRemainingM() ?? $total,
+                'lastVisible' => $spool->getLastVisibleM() ?? 0,
+                'meterSign' => $spool->getMeterSign(),
+                'warnings' => ['Chybí PS (initial_visible_m) — nelze přepočítat řetězec m.'],
                 'eventUsedMetersFixed' => 0,
             ];
         }

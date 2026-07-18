@@ -16,7 +16,7 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 #[ORM\Table(name: 'cable_spool')]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Index(name: 'idx_spool_reel', columns: ['reel_number'])]
-#[UniqueEntity(fields: ['reelNumber'], message: 'Toto číslo saře má již jiná cívka. Druhou cívku se stejným číslem evidovat nelze.', errorPath: 'reelNumber')]
+#[UniqueEntity(fields: ['reelNumber'], message: 'Toto číslo saře má již jiná cívka. Druhou cívku se stejným číslem evidovat nelze.', errorPath: 'reelNumber', ignoreNull: true)]
 class Spool
 {
     #[ORM\Id]
@@ -28,8 +28,9 @@ class Spool
     #[ORM\JoinColumn(nullable: true)]
     private ?CableType $cableType = null;
 
-    #[ORM\Column(length: 128, unique: true)]
-    private string $reelNumber = '';
+    /** Null u nerozbalené cívky (ještě neznámé číslo saře). */
+    #[ORM\Column(length: 128, unique: true, nullable: true)]
+    private ?string $reelNumber = null;
 
     /** Denormalizace z cable_type.family (rychlé filtry / reporty) */
     #[ORM\Column(length: 32)]
@@ -38,9 +39,9 @@ class Spool
     #[ORM\Column]
     private int $totalLengthM = 0;
 
-    /** m0 — метр на видимом конце при приёмке */
-    #[ORM\Column]
-    private int $initialVisibleM = 0;
+    /** m0 — metr na viditelném konci při příjmu (PS); null u nerozbalené cívky */
+    #[ORM\Column(nullable: true)]
+    private ?int $initialVisibleM = null;
 
     #[ORM\Column(nullable: true)]
     private ?int $currentRemainingM = null;
@@ -139,16 +140,37 @@ class Spool
         return $this;
     }
 
-    public function getReelNumber(): string
+    public function getReelNumber(): ?string
     {
         return $this->reelNumber;
     }
 
-    public function setReelNumber(string $reelNumber): static
+    public function setReelNumber(?string $reelNumber): static
     {
+        if (null !== $reelNumber) {
+            $reelNumber = \trim($reelNumber);
+            if ('' === $reelNumber) {
+                $reelNumber = null;
+            }
+        }
         $this->reelNumber = $reelNumber;
 
         return $this;
+    }
+
+    /** Text do tabulek: saře, nebo #id u nerozbalené. */
+    public function getReelNumberLabel(): string
+    {
+        if (null !== $this->reelNumber && '' !== $this->reelNumber) {
+            return $this->reelNumber;
+        }
+
+        return null !== $this->id ? '#'.$this->id : '—';
+    }
+
+    public function isReceivedSealed(): bool
+    {
+        return SpoolStatus::ReceivedSealed === $this->status;
     }
 
     public function getFamily(): string
@@ -175,12 +197,12 @@ class Spool
         return $this;
     }
 
-    public function getInitialVisibleM(): int
+    public function getInitialVisibleM(): ?int
     {
         return $this->initialVisibleM;
     }
 
-    public function setInitialVisibleM(int $initialVisibleM): static
+    public function setInitialVisibleM(?int $initialVisibleM): static
     {
         $this->initialVisibleM = $initialVisibleM;
 

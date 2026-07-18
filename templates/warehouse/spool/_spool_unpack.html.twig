@@ -1,0 +1,25 @@
+{# Proměnné: spool, unpackForm #}
+<div class="spool-unpack" id="spool-unpack" style="margin:0 0 1.25rem;padding:0.85rem 1rem;border:1px solid #c5c5c5;background:#f3f3f3;border-radius:4px;max-width:36rem;">
+    <h2 style="font-size:1.1rem;margin:0 0 0.5rem;">Rozbalit cívku</h2>
+    <p style="margin:0 0 0.65rem;font-size:0.9rem;color:#444;">
+        Po otevření obalu doplňte{% if spool.reelNumber %} / ověřte číslo saře a zadejte{% else %} číslo saře a{% endif %} PS z kabelu. Cívka přejde do operativního skladu („na skladě“).
+    </p>
+    {{ form_start(unpackForm, {
+        action: path('warehouse_spool_unpack', { id: spool.id }),
+        method: 'post',
+        attr: { class: 'spool-form spool-form--unpack', id: 'spool-unpack-form' },
+    }) }}
+        <input type="hidden" name="_token" value="{{ csrf_token('spool_unpack_' ~ spool.id) }}">
+        <div class="spool-form__field">
+            {{ form_label(unpackForm.reelNumber) }}
+            <div class="spool-form__value">{{ form_widget(unpackForm.reelNumber) }}{{ form_errors(unpackForm.reelNumber) }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(unpackForm.initialVisibleM) }}
+            <div class="spool-form__value">{{ form_widget(unpackForm.initialVisibleM) }}{{ form_errors(unpackForm.initialVisibleM) }}</div>
+        </div>
+        <div class="spool-form__actions" style="margin-top:0.75rem;">
+            <button type="submit" class="spool-form__btn">Uložit a převést na sklad</button>
+        </div>
+    {{ form_end(unpackForm, { render_rest: false }) }}
+</div>

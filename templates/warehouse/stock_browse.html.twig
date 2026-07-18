@@ -396,6 +396,7 @@
         }
         .browse-spool-table--with-transfer-note { table-layout: fixed; width: 100%; }
         .table-scroll--wide > .browse-spool-table--with-transfer-note { min-width: 46rem; }
+        tr.browse-spool-row--sealed { background: #e8e8e8; }
         .browse-spool-table__transfer-note {
             min-width: 11rem;
             width: 22%;
@@ -413,8 +414,14 @@
 {% block body %}
     {% include 'warehouse/_mobile_menu.html.twig' %}
     <h1>Přehled skladu</h1>
-    <p class="browse-inventura-lede">Tlačítko <strong>Inventura</strong> zobrazí přehled všech zásob optických kabelů na skladě seskupených podle skupin (počet vláken · family · průměr).</p>
-    <p class="browse-inventura-btn-line"><a href="{{ path('warehouse_browse_inventura') }}" class="warehouse-pill">Inventura</a></p>
+    <p class="browse-inventura-lede">
+        <strong>Inventura</strong> = operativní sklad (rozbalené cívky na skladě).
+        <strong>Inventura skladový účet</strong> = totéž + nerozbalené (dle dokladu).
+    </p>
+    <p class="browse-inventura-btn-line">
+        <a href="{{ path('warehouse_browse_inventura') }}" class="warehouse-pill">Inventura</a>
+        <a href="{{ path('warehouse_browse_inventura_ucet') }}" class="warehouse-pill">Inventura skladový účet</a>
+    </p>
 
     <form method="get" action="{{ path('warehouse_browse_index') }}" class="browse-filters" style="margin-bottom: 1rem;">
         <div class="browse-filters__row">
@@ -473,7 +480,7 @@
                 <label for="browse-status-btn">Stav cívky</label>
                 <div class="cable-type-mobile-picker" id="browse-status-picker" data-browse-mode="status">
                     <button type="button" class="cable-type-mobile-picker__toggle" id="browse-status-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="browse-status-panel">
-                        <span class="cable-type-mobile-picker__text" id="browse-status-label">{% if filterNeedsCorrection|default(false) and allStatusesSelected|default(false) %}k ke korekci{% elseif filterNeedsCorrection|default(false) %}… · k ke korekci{% elseif allStatusesSelected|default(false) %}Všechny stavy{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'in_stock' %}na skladě{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'transferred' %}předáno{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'written_off' %}vyřazeno{% else %}…{% endif %}</span>
+                        <span class="cable-type-mobile-picker__text" id="browse-status-label">{% if filterNerozbaleno|default(false) %}nerozbaleno{% elseif filterNeedsCorrection|default(false) and allStatusesSelected|default(false) %}k ke korekci{% elseif filterNeedsCorrection|default(false) %}… · k ke korekci{% elseif allStatusesSelected|default(false) %}Všechny stavy{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'in_stock' %}na skladě{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'transferred' %}předáno{% elseif filterStatusValues|length == 1 and filterStatusValues[0] == 'written_off' %}vyřazeno{% else %}…{% endif %}</span>
                         <span class="cable-type-mobile-picker__chev" aria-hidden="true">▼</span>
                     </button>
                     <div class="cable-type-mobile-picker__backdrop" id="browse-status-backdrop" hidden></div>
@@ -503,6 +510,10 @@
                                 <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--correction">
                                     <input type="checkbox" name="needsCorrection" value="1" class="js-browse-needs-correction" data-browse-label="k ke korekci"{% if filterNeedsCorrection|default(false) %} checked{% endif %}>
                                     <span class="browse-filter-checkpanel__text">k ke korekci</span>
+                                </label>
+                                <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--correction">
+                                    <input type="checkbox" name="nerozbaleno" value="1" class="js-browse-nerozbaleno" data-browse-label="nerozbaleno"{% if filterNerozbaleno|default(false) %} checked{% endif %}>
+                                    <span class="browse-filter-checkpanel__text">nerozbaleno</span>
                                 </label>
                                 <label class="browse-filter-checkpanel__row browse-filter-checkpanel__row--correction">
                                     <input type="checkbox" name="withoutWarehouseCard" value="1" class="js-browse-without-card" data-browse-label="bez vytištěné karty"{% if filterWithoutWarehouseCard|default(false) %} checked{% endif %}>
@@ -627,6 +638,8 @@
     return czTypu(picked);
   }
   function summarizeStatus(root) {
+    var neroz = root.querySelector('.js-browse-nerozbaleno');
+    if (neroz && neroz.checked) return 'nerozbaleno';
     var korekce = root.querySelector('.js-browse-needs-correction');
     var kOn = korekce && korekce.checked;
     var cbs = root.querySelectorAll('input.js-browse-status-cb');
@@ -795,17 +808,19 @@
       var vseS = root.querySelector('.js-browse-status-vse');
       var statusCbsOnly = root.querySelectorAll('input.js-browse-status-cb');
       var korekceCb = root.querySelector('input.js-browse-needs-correction');
+      var nerozCb = root.querySelector('input.js-browse-nerozbaleno');
       if (vseS) {
         vseS.addEventListener('change', function () {
           var on2 = vseS.checked;
           for (var c = 0; c < statusCbsOnly.length; c++) statusCbsOnly[c].checked = on2;
-          /* „k ke korekci“ se volí jen ručně — Vše ho nezaškrtává ani neodškrtává */
+          /* korekce / nerozbaleno — jen ručně, Vše je nezaškrtává */
           vseS.indeterminate = false;
           syncLabel();
         });
       }
       for (var d = 0; d < statusCbsOnly.length; d++) statusCbsOnly[d].addEventListener('change', function () { syncLabel(); });
       if (korekceCb) korekceCb.addEventListener('change', function () { syncLabel(); });
+      if (nerozCb) nerozCb.addEventListener('change', function () { syncLabel(); });
     }
     if (mobileMq.addEventListener) {
       mobileMq.addEventListener('change', function () { if (root.classList.contains('cable-type-mobile-picker--open')) { scheduleSize(); } });
@@ -874,6 +889,10 @@
     var kCb = browseForm.querySelector('input.js-browse-needs-correction');
     if (kCb && kCb.checked) {
       p.append('needsCorrection', '1');
+    }
+    var nCb = browseForm.querySelector('input.js-browse-nerozbaleno');
+    if (nCb && nCb.checked) {
+      p.append('nerozbaleno', '1');
     }
     var cardCb = browseForm.querySelector('input.js-browse-without-card');
     if (cardCb && cardCb.checked) {

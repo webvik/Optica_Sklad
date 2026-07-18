@@ -14,6 +14,8 @@ use App\Form\SpoolEditCoreDataFormType;
 use App\Form\SpoolEventEditFormType;
 use App\Form\SpoolEventFormType;
 use App\Form\SpoolFormType;
+use App\Form\SpoolSealedReceiveFormType;
+use App\Form\SpoolUnpackFormType;
 use App\Repository\CableFamilyRepository;
 use App\Repository\SpoolRepository;
 use App\Service\Warehouse\CableTypeOcrMatcher;
@@ -347,6 +349,143 @@ final class SpoolController extends AbstractController
         ]);
     }
 
+    /** Příjem nerozbalené cívky (doklad: typ + L, bez saře / PS). */
+    #[Route('/prijem-nerozbalene', name: 'receive_sealed', methods: ['GET', 'POST'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function receiveSealed(
+        Request $request,
+        EntityManagerInterface $em,
+        SpoolMeterService $meter,
+        CableFamilyRepository $cableFamilyRepository,
+    ): Response {
+        $template = new Spool();
+        $template->setStatus(SpoolStatus::ReceivedSealed);
+        $template->setRegisteredAt(new \DateTimeImmutable('today'));
+
+        $form = $this->createForm(SpoolSealedReceiveFormType::class, $template);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            $qty = (int) $form->get('quantity')->getData();
+            if ($qty < 1) {
+                $qty = 1;
+            }
+            if ($qty > 50) {
+                $qty = 50;
+            }
+            $reelFromDoc = $template->getReelNumber();
+            if (null !== $reelFromDoc && '' !== $reelFromDoc && $qty > 1) {
+                $this->addFlash('error', 'Při zadaném čísle saře lze evidovat jen 1 cívku (ne dávku).');
+                $familyLabels = [];
+                foreach ($cableFamilyRepository->findForPicker() as $f) {
+                    $familyLabels[$f->getCode()] = $f->getLabel();
+                }
+
+                return $this->render('warehouse/spool/receive_sealed.html.twig', [
+                    'form' => $form,
+                    'cable_family_labels_json' => \json_encode($familyLabels, \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
+                ]);
+            }
+            $filterFamily = $form->get('cableFamilyFilter')->getData();
+            $u = $this->getUser() instanceof User ? $this->getUser() : null;
+            $createdIds = [];
+            for ($i = 0; $i < $qty; ++$i) {
+                $spool = new Spool();
+                $spool->setStatus(SpoolStatus::ReceivedSealed);
+                $spool->setReelNumber(1 === $qty ? $reelFromDoc : null);
+                $spool->setInitialVisibleM(null);
+                $spool->setTotalLengthM($template->getTotalLengthM());
+                $spool->setCableType($template->getCableType());
+                if (null === $template->getCableType()) {
+                    $spool->setFamily($filterFamily instanceof CableFamily ? $filterFamily->getCode() : '');
+                }
+                $spool->setFiberCount($template->getFiberCount());
+                $spool->setDiameterMm($template->getDiameterMm());
+                $spool->setNote($template->getNote());
+                $spool->setRegisteredAt($template->getRegisteredAt() ?? new \DateTimeImmutable('today'));
+                if (null !== $u) {
+                    $spool->setCreatedBy($u);
+                    $spool->setUpdatedBy($u);
+                }
+                $meter->initNewSpoolState($spool);
+                $em->persist($spool);
+                $createdIds[] = $spool;
+            }
+            $em->flush();
+            $hasReel = null !== $reelFromDoc && '' !== $reelFromDoc;
+            $this->addFlash(
+                'success',
+                1 === $qty
+                    ? ($hasReel
+                        ? 'Nerozbalená cívka byla zaevidována (saře z dokladu). Po rozbalení doplňte PS na kartě.'
+                        : 'Nerozbalená cívka byla zaevidována (skladový účet). Po rozbalení doplňte saře a PS na kartě.')
+                    : \sprintf('Zaevidováno %d nerozbalených cívek (skladový účet).', $qty)
+            );
+
+            if (1 === \count($createdIds) && null !== $createdIds[0]->getId()) {
+                return $this->redirectToRoute('warehouse_spool_show', ['id' => $createdIds[0]->getId()]);
+            }
+
+            return $this->redirectToRoute('warehouse_receipt_index');
+        }
+
+        $familyLabels = [];
+        foreach ($cableFamilyRepository->findForPicker() as $f) {
+            $familyLabels[$f->getCode()] = $f->getLabel();
+        }
+
+        return $this->render('warehouse/spool/receive_sealed.html.twig', [
+            'form' => $form,
+            'cable_family_labels_json' => \json_encode($familyLabels, \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
+        ]);
+    }
+
+    #[Route('/{id}/rozbalit', name: 'unpack', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function unpack(Request $request, Spool $spool, EntityManagerInterface $em, SpoolMeterService $meter): Response
+    {
+        if (!$spool->isReceivedSealed()) {
+            $this->addFlash('warning', 'Cívka už není ve stavu nerozbaleno.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+        if (!$this->isCsrfTokenValid('spool_unpack_'.$spool->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $form = $this->createForm(SpoolUnpackFormType::class, $spool);
+        $form->handleRequest($request);
+        if ($form->isSubmitted() && $form->isValid()) {
+            try {
+                $meter->promoteSealedToInStock($spool);
+                $u = $this->getUser();
+                if ($u instanceof User) {
+                    $spool->setUpdatedBy($u);
+                }
+                $em->flush();
+                $this->addFlash('success', 'Cívka je rozbalena — teď je v operativním skladu (saře + PS uloženy).');
+            } catch (\Throwable $e) {
+                $this->addFlash('error', $e->getMessage());
+            }
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+        }
+
+        $errMsgs = [];
+        foreach ($form->getErrors(true) as $error) {
+            $errMsgs[] = $error->getMessage();
+        }
+        $this->addFlash(
+            'error',
+            $errMsgs !== []
+                ? 'Rozbalení se nepodařilo: '.\implode(' ', \array_unique($errMsgs))
+                : 'Rozbalení se nepodařilo. Zkontrolujte číslo saře a PS.'
+        );
+
+        return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+    }
+
     /** HTML fragment karty cívky (shrnutí + deník) pro stránku „Práce s optikou“ (AJAX). */
     #[Route('/{id}/karta-embed', name: 'karta_embed', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function kartaEmbed(int $id, SpoolRepository $repo): Response
@@ -391,9 +530,15 @@ final class SpoolController extends AbstractController
     }
 
     #[Route('/{id}/smazat', name: 'delete', methods: ['POST'], requirements: ['id' => '\d+'])]
-    #[IsGranted(WarehouseRole::ADMIN)]
     public function delete(Request $request, Spool $spool, EntityManagerInterface $em): Response
     {
+        // Nerozbalené může smazat provoz (EDIT); běžnou cívku jen správa (ADMIN).
+        if ($spool->isReceivedSealed()) {
+            $this->denyAccessUnlessGranted(WarehouseRole::EDIT);
+        } else {
+            $this->denyAccessUnlessGranted(WarehouseRole::ADMIN);
+        }
+
         $token = (string) $request->request->get('_delete_token', '');
         if (!$this->isCsrfTokenValid('spool_delete', $token)) {
             $this->addFlash('error', 'Neplatný požadavek (CSRF). Obnovte stránku a zkuste znovu.');
@@ -401,13 +546,22 @@ final class SpoolController extends AbstractController
             return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
         }
 
-        $reel = $spool->getReelNumber();
+        $wasSealed = $spool->isReceivedSealed();
+        $reel = $spool->getReelNumberLabel();
         $em->remove($spool);
         $em->flush();
 
-        $this->addFlash('success', sprintf('Cívka %s a všechny záznamy v deníku byly smazány.', $reel));
+        $this->addFlash(
+            'success',
+            $wasSealed
+                ? sprintf('Nerozbalená cívka %s byla smazána.', $reel)
+                : sprintf('Cívka %s a všechny záznamy v deníku byly smazány.', $reel)
+        );
 
-        return $this->redirectToRoute('warehouse_browse_index');
+        return $this->redirectToRoute(
+            'warehouse_browse_index',
+            $wasSealed ? ['nerozbaleno' => 1] : []
+        );
     }
 
     #[Route('/{id}/priznak-korekce', name: 'needs_correction', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -681,9 +835,13 @@ final class SpoolController extends AbstractController
     {
         $assignCableForm = null;
         $editCoreForm = null;
+        $unpackForm = null;
         $editMode = $request->query->getBoolean('upravit');
         if ($editMode && $this->isGranted(WarehouseRole::EDIT)) {
             $editCoreForm = $this->createForm(SpoolEditCoreDataFormType::class, $spool)->createView();
+        }
+        if ($spool->isReceivedSealed() && $this->isGranted(WarehouseRole::EDIT)) {
+            $unpackForm = $this->createForm(SpoolUnpackFormType::class, $spool)->createView();
         }
         if (null === $spool->getCableType()) {
             $assignCableForm = $this->createForm(SpoolAssignCableTypeFormType::class, $spool)->createView();
@@ -695,6 +853,11 @@ final class SpoolController extends AbstractController
         ]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
+            if ($spool->isReceivedSealed()) {
+                $this->addFlash('error', 'Nerozbalená cívka: nejprve doplňte saře a PS (Rozbalit).');
+
+                return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
+            }
             $u = $this->getUser() instanceof User ? $this->getUser() : null;
             // Date-only pole → occurred_at 00:00:00, ve stejném dni se pak seřadí PŘED dřívější záznamy
             // s reálným časem; nový by „zmizel“ dole pod tabulkou. Doplníme čas odeslání.
@@ -790,6 +953,7 @@ final class SpoolController extends AbstractController
             'form' => $form,
             'assignCableForm' => $assignCableForm,
             'editCoreForm' => $editCoreForm,
+            'unpackForm' => $unpackForm,
             'editMode' => $editMode,
         ]);
     }
@@ -868,6 +1032,7 @@ final class SpoolController extends AbstractController
     {
         return match ($s) {
             SpoolStatus::InStock => 'na skladě',
+            SpoolStatus::ReceivedSealed => 'nerozbaleno',
             SpoolStatus::Transferred => 'předáno',
             SpoolStatus::WrittenOff => 'vyřazeno',
         };

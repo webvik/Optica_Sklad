@@ -17,13 +17,13 @@
     </thead>
     <tbody>
     {% for s in spools %}
-        <tr class="browse-spool-row" data-spool-id="{{ s.id }}">
-            <td>{{ s.reelNumber }}</td>
+        <tr class="browse-spool-row{% if s.receivedSealed %} browse-spool-row--sealed{% endif %}" data-spool-id="{{ s.id }}">
+            <td>{% if s.receivedSealed %}<span title="Nerozbaleno">{{ s.reelNumberLabel }}</span>{% else %}{{ s.reelNumberLabel }}{% endif %}</td>
             <td>{{ s.cableType ? s.cableType.code : '—' }}</td>
             <td>{{ s.briefInventuraLabel }}</td>
             <td>{{ s.currentRemainingM ?? '—' }}</td>
             <td>{{ s.totalLengthM }}</td>
-            <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}{% if s.needsCorrection %} <span title="{% if s.correctionNote %}{{ s.correctionNote|e('html_attr') }}{% else %}Čeká na korekci dat{% endif %}" style="color:#a60;font-weight:600;">· korek.</span>{% endif %}</td>
+            <td>{% if s.status.value == 'in_stock' %}na skladě{% elseif s.status.value == 'received_sealed' %}nerozbaleno{% elseif s.status.value == 'transferred' %}předáno{% elseif s.status.value == 'written_off' %}vyřazeno{% else %}{{ s.status.value }}{% endif %}{% if s.needsCorrection %} <span title="{% if s.correctionNote %}{{ s.correctionNote|e('html_attr') }}{% else %}Čeká na korekci dat{% endif %}" style="color:#a60;font-weight:600;">· korek.</span>{% endif %}</td>
             {% if showTransferNoteColumn|default(false) %}
             <td class="browse-spool-table__transfer-note">{% if s.status.value == 'transferred' %}{% set tn = transferNotesBySpoolId[s.id]|default('') %}{{ tn != '' ? tn : '—' }}{% else %}—{% endif %}</td>
             {% endif %}

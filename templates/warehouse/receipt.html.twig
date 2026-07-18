@@ -25,18 +25,24 @@
     {% include '_app_menu_cz.html.twig' %}
     <h1>Příjem kabelu</h1>
     {% include 'warehouse/spool/_skladova_karta_print_queue_banner.html.twig' %}
-    <p class="lede">Zadání <strong>typu kabelu do katalogu</strong> a <strong>nové cívky do evidence</strong> (před první prací s metrem).</p>
+    <p class="lede">Zadání <strong>typu kabelu do katalogu</strong> a <strong>nové cívky do evidence</strong> — rozbalené (saře + PS) i nerozbalené (jen typ + L z dokladu).</p>
     <div class="receipt-cta" role="region" aria-label="Hlavní akce">
         <div class="receipt-cta__item">
             <a class="warehouse-pill" href="{{ path('warehouse_spool_new') }}">Nová cívka do evidence</a>
-            <p class="receipt-cta__hint">fyzicky přijatá špulka s délkou L, m₀ a vazbou na typ.</p>
+            <p class="receipt-cta__hint">rozbalená špulka: číslo saře, délka L, PS (m₀) a typ kabelu.</p>
         </div>
+        {% if is_granted('ROLE_SKLAD_EDIT') %}
+        <div class="receipt-cta__item">
+            <a class="warehouse-pill" href="{{ path('warehouse_spool_receive_sealed') }}">Příjem nerozbalené</a>
+            <p class="receipt-cta__hint">ještě v obalu: typ + L dle dokladu (saře volitelně), PS až po rozbalení.</p>
+        </div>
+        {% endif %}
         <div class="receipt-cta__item">
             <a class="warehouse-pill" href="{{ path('warehouse_cable_type_new') }}">Nový typ kabelu v katalogu</a>
             <p class="receipt-cta__hint">dříve v aplikaci neexistující značka / konstrukce.</p>
         </div>
     </div>
     <p class="receipt-sublinks"><a href="{{ path('warehouse_cable_type_index') }}">Seznam a úprava typů v katalogu</a> — doplňování parametrů u již vytvořených kódů.</p>
-    <p class="receipt-sublinks"><a href="{{ path('warehouse_browse_index') }}">Přehled skladu (filtry)</a></p>
+    <p class="receipt-sublinks"><a href="{{ path('warehouse_browse_index') }}">Přehled skladu (filtry)</a> · <a href="{{ path('warehouse_browse_inventura_ucet') }}">Inventura skladový účet</a></p>
     {% include 'warehouse/spool/_skladova_karta_print_queue_footer.html.twig' %}
 {% endblock %}

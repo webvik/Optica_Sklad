@@ -347,6 +347,44 @@ class SpoolRepository extends ServiceEntityRepository
     }
 
     /**
+     * Inventura skladového účtu: operativní na skladě + nerozbalené.
+     *
+     * @return list<Spool>
+     */
+    public function findForAccountingInventuraSheet(int $limit = 5000): array
+    {
+        return $this->createQueryBuilder('s')
+            ->leftJoin('s.cableType', 'c')
+            ->addSelect('c')
+            ->andWhere('s.status IN (:sts)')
+            ->setParameter('sts', [SpoolStatus::InStock, SpoolStatus::ReceivedSealed])
+            ->orderBy('CASE WHEN s.reelNumber IS NULL THEN 1 ELSE 0 END', 'ASC')
+            ->addOrderBy('s.reelNumber', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function findIdsForAccountingInventuraSheet(int $limit = 5000): array
+    {
+        /** @var list<string|int> $rowIds */
+        $rowIds = $this->createQueryBuilder('s')
+            ->select('s.id')
+            ->andWhere('s.status IN (:sts)')
+            ->setParameter('sts', [SpoolStatus::InStock, SpoolStatus::ReceivedSealed])
+            ->orderBy('s.id', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return \array_values(\array_map(static fn (mixed $v): int => (int) $v, $rowIds));
+    }
+
+    /**
      * Přesná shoda čísla saře, jinak částečné: podřetězec v reel_number, nebo
      * (pokud v dotazu aspoň 3 číslice za sebou) i shoda v „řetězci“ pouze z číslic
      * (tak se najde 450 u záznamu 450-1851 i když píšete 450, nebo 45 u 45x… až 3+ čísel).

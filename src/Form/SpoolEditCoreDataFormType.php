@@ -9,6 +9,8 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Positive;
@@ -40,6 +42,18 @@ final class SpoolEditCoreDataFormType extends AbstractType
                     'placeholder' => 'např. 9,9 nebo 9.9',
                 ],
             ]);
+
+        $builder->addEventListener(FormEvents::PRE_SET_DATA, static function (FormEvent $event): void {
+            $spool = $event->getData();
+            if (!$spool instanceof Spool || !$spool->isReceivedSealed()) {
+                return;
+            }
+            $event->getForm()->add('initialVisibleM', IntegerType::class, [
+                'label' => 'PS (m) — až při rozbalení',
+                'required' => false,
+                'disabled' => true,
+            ]);
+        });
     }
 
     public function configureOptions(OptionsResolver $resolver): void

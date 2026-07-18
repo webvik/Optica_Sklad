@@ -28,8 +28,11 @@ final class InventuraExcelExporter
      *   maxM: int|null
      * }> $groups
      */
-    public function downloadBrief(array $groups, \DateTimeImmutable $generatedAt): Response
-    {
+    public function downloadBrief(
+        array $groups,
+        \DateTimeImmutable $generatedAt,
+        string $filenamePrefix = 'inventura-krata',
+    ): Response {
         $sheet = new Spreadsheet();
         $ws = $sheet->getActiveSheet();
         $ws->setTitle('Krátká inventura');
@@ -60,7 +63,7 @@ final class InventuraExcelExporter
 
         $this->autosizeColumns($ws, \count($headers));
 
-        return $this->stream($sheet, $this->filename('inventura-krata', $generatedAt));
+        return $this->stream($sheet, $this->filename($filenamePrefix, $generatedAt));
     }
 
     /**
@@ -74,8 +77,12 @@ final class InventuraExcelExporter
      *   maxM: int|null
      * }> $groups
      */
-    public function downloadFull(array $groups, \DateTimeImmutable $generatedAt): Response
-    {
+    public function downloadFull(
+        array $groups,
+        \DateTimeImmutable $generatedAt,
+        string $filenamePrefix = 'inventura-plna',
+        bool $highlightSealed = false,
+    ): Response {
         $sheet = new Spreadsheet();
         $ws = $sheet->getActiveSheet();
         $ws->setTitle('Plná inventura');
@@ -98,13 +105,22 @@ final class InventuraExcelExporter
             ++$row;
 
             foreach ($g['rows'] as $s) {
+                $label = $s->getReelNumberLabel();
+                if ($s->isReceivedSealed()) {
+                    $label .= ' (nerozbaleno)';
+                }
                 $ws->fromArray([
-                    $s->getReelNumber(),
+                    $label,
                     $s->getCableType() ? $s->getCableType()->getCode() : '—',
                     $this->spoolDisplayName($s),
                     $s->getCurrentRemainingM(),
                     ($s->getReservedM() ?? 0) > 0 ? $s->getReservedM() : 0,
                 ], null, 'A'.$row);
+                if ($highlightSealed && $s->isReceivedSealed()) {
+                    $ws->getStyle('A'.$row.':E'.$row)->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setARGB('FFC4C4C4');
+                }
                 ++$row;
             }
 
@@ -121,7 +137,7 @@ final class InventuraExcelExporter
 
         $this->autosizeColumns($ws, \count($headers));
 
-        return $this->stream($sheet, $this->filename('inventura-plna', $generatedAt));
+        return $this->stream($sheet, $this->filename($filenamePrefix, $generatedAt));
     }
 
     private function stream(Spreadsheet $spreadsheet, string $filename): StreamedResponse

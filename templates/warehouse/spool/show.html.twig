@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}{{ spool.reelNumber }} — Optický sklad{% endblock %}
+{% block title %}{{ spool.reelNumberLabel }} — Optický sklad{% endblock %}
 {% block stylesheets %}
     {{ parent() }}
     <style>
@@ -242,18 +242,38 @@
 {% endblock %}
 {% block body %}
     {% include 'warehouse/_mobile_menu.html.twig' %}
-    <h1>Cívka {{ spool.reelNumber }}</h1>
+    <h1>{% if spool.receivedSealed %}Nerozbalená cívka {{ spool.reelNumberLabel }}{% else %}Cívka {{ spool.reelNumberLabel }}{% endif %}</h1>
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
+    {% if spool.receivedSealed %}
+        <p style="margin:0 0 0.75rem;padding:0.5rem 0.75rem;background:#ececec;border-left:3px solid #888;max-width:36rem;font-size:0.92rem;">
+            Stav <strong>nerozbaleno</strong> — v evidenci skladového účtu (délka z dokladu), bez saře/PS. Záfuk a deník až po rozbalení.
+        </p>
+    {% endif %}
     <div class="spool-card-edit-bar">
-        {% include 'warehouse/spool/_spool_skladova_karta_actions.html.twig' %}
+        {% if not spool.receivedSealed %}
+            {% include 'warehouse/spool/_spool_skladova_karta_actions.html.twig' %}
+        {% endif %}
         {% if is_granted('ROLE_SKLAD_EDIT') %}
             {% if editMode|default(false) and editCoreForm is defined and editCoreForm %}
             {% else %}
                 <a class="app-menu__nav-link spool-card-edit-link" href="{{ path('warehouse_spool_show', {id: spool.id, upravit: 1}) }}">Upravit údaje cívky</a>
-                <span class="spool-card-edit-bar__hint">— délka L, PS, vlákna, Ø</span>
+                <span class="spool-card-edit-bar__hint">{% if spool.receivedSealed %}— délka L, vlákna, Ø (PS až při rozbalení){% else %}— délka L, PS, vlákna, Ø{% endif %}</span>
             {% endif %}
         {% endif %}
     </div>
+    {% if is_granted('ROLE_SKLAD_EDIT') and unpackForm is defined and unpackForm and spool.receivedSealed %}
+        {% include 'warehouse/spool/_spool_unpack.html.twig' %}
+    {% endif %}
+    {% if spool.receivedSealed and is_granted('ROLE_SKLAD_EDIT') %}
+        <form method="post"
+              action="{{ path('warehouse_spool_delete', { id: spool.id }) }}"
+              class="spool-sealed-delete"
+              style="margin:0 0 1.25rem;max-width:36rem;"
+              onsubmit="return confirm('Opravdu smazat nerozbalenou cívku «{{ spool.reelNumberLabel|e('js') }}»? Tuto akci nelze vrátit.');">
+            <input type="hidden" name="_delete_token" value="{{ csrf_token('spool_delete') }}">
+            <button type="submit" class="spool-form__btn spool-form__btn--danger">Smazat nerozbalenou cívku</button>
+        </form>
+    {% endif %}
     {% if is_granted('ROLE_SKLAD_EDIT') and editMode|default(false) and editCoreForm is defined and editCoreForm %}
         {% include 'warehouse/spool/_spool_edit_core_data.html.twig' %}
     {% endif %}
@@ -348,6 +368,7 @@
 })();
         </script>
     {% endif %}
+    {% if not spool.receivedSealed %}
     <h2>Nová událost</h2>
     {{ form_start(form, { attr: {
         class: 'spool-form spool-form--spool-event',
@@ -413,7 +434,7 @@
                                 class="spool-form__btn spool-form__btn--danger"
                                 formaction="{{ path('warehouse_spool_delete', { id: spool.id }) }}"
                                 formmethod="post"
-                                onclick="return confirm('Opravdu smazat cívku «{{ spool.reelNumber|e('js') }}» včetně celého deníku (odběry, zafuky)? Tuto akci nelze vrátit.');">
+                                onclick="return confirm('Opravdu smazat cívku «{{ spool.reelNumberLabel|e('js') }}» včetně celého deníku (odběry, zafuky)? Tuto akci nelze vrátit.');">
                             Smazat
                         </button>
                     {% endif %}
@@ -448,6 +469,9 @@
   sync();
 })();
     </script>
+    {% else %}
+    <p style="margin:1rem 0;"><a href="{{ path('warehouse_browse_index', {nerozbaleno: 1}) }}">← nerozbalené v přehledu skladu</a></p>
+    {% endif %}
     <p><a href="{{ path('warehouse_spool_index') }}">← zpět na práci s optikou</a></p>
 {% endblock %}
 {% block javascripts %}

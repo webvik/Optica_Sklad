@@ -1,0 +1,341 @@
+{% extends 'base.html.twig' %}
+{% block title %}Příjem nerozbalené cívky — Optický sklad{% endblock %}
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .spool-form { max-width: 40rem; line-height: 1.6; }
+        .spool-form__field {
+            display: grid;
+            grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
+            column-gap: 0.45rem;
+            row-gap: 0.2rem;
+            margin: 0 0 0.75rem;
+            align-items: start;
+        }
+        .spool-form__field > label {
+            font-weight: 600;
+            font-size: 0.84rem;
+            line-height: 1.25;
+            padding-top: 0.28rem;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        .spool-form__value { min-width: 0; text-align: left; }
+        .spool-form__value .form-error, .spool-form__value ul { margin: 0.25rem 0 0; display: block; }
+        .spool-form__value [type="date"], .spool-form__value [type="number"],
+        .spool-form__value [type="text"], .spool-form__value textarea, .spool-form__value select:not(.cable-type-list) {
+            max-width: 100%; box-sizing: border-box;
+        }
+        .spool-form__value input, .spool-form__value select, .spool-form__value textarea { text-align: left; width: 100%; }
+        .spool-form__actions { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 0.65rem; flex-wrap: wrap; width: 100%; margin-top: 1rem; }
+        .spool-form__lede { max-width: 40rem; color: #444; font-size: 0.95rem; }
+        .spool-cable-family-filter[hidden] { display: none !important; }
+        .spool-form__readout { margin: 0; font-size: 0.95rem; }
+        {% include 'warehouse/_cable_type_picker_core_styles.html.twig' %}
+        {% include 'warehouse/_mobile_menu_styles.html.twig' %}
+        @media (min-width: 42rem) {
+            .spool-form__field { grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; margin-bottom: 0.9rem; }
+            .spool-form__field > label { font-size: 1.06rem; line-height: 1.45; padding-top: 0.2rem; }
+            .spool-form__value > input,
+            .spool-form__value > select:not(.cable-type-list),
+            .spool-form__value > textarea { max-width: 24rem; }
+            .spool-form__value--cable .cable-type-mobile-picker {
+                max-width: 24rem;
+            }
+            .spool-form__row--actions { display: grid; grid-template-columns: 12.5rem 1fr; column-gap: 1.5rem; align-items: center; }
+            .spool-form__row--actions .spool-form__actions { max-width: 24rem; }
+        }
+    </style>
+{% endblock %}
+{% block body %}
+    {% include 'warehouse/_mobile_menu.html.twig' %}
+    <h1>Příjem nerozbalené cívky</h1>
+    <p class="spool-form__lede">
+        Evidence podle dokladu (typ kabelu + délka L; číslo saře volitelně, pokud je na dokladu).
+        Bez PS — doplní se až při rozbalení. Cívka se započítá do <strong>Inventury skladového účtu</strong>.
+    </p>
+    <script type="application/json" id="spool-cable-family-labels-json">{{ cable_family_labels_json|default('{}')|raw }}</script>
+    {{ form_start(form, { attr: { class: 'spool-form', id: 'spool-receive-sealed-form' } }) }}
+        <div class="spool-form__field">
+            {{ form_label(form.reelNumber) }}
+            <div class="spool-form__value">{{ form_widget(form.reelNumber) }}{{ form_errors(form.reelNumber) }}</div>
+        </div>
+        <div class="spool-form__field spool-form__field--cable">
+            {{ form_label(form.cableType) }}
+            <div class="spool-form__value spool-form__value--cable">
+                <div class="cable-type-mobile-picker" id="cable-type-mobile-picker">
+                    <button type="button" class="cable-type-mobile-picker__toggle" id="cable-type-mobile-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="cable-type-mobile-panel">
+                        <span class="cable-type-mobile-picker__text" id="cable-type-mobile-label">— vyberte typ —</span>
+                        <span class="cable-type-mobile-picker__chev" aria-hidden="true">▼</span>
+                    </button>
+                    <div class="cable-type-mobile-picker__backdrop" id="cable-type-mobile-backdrop" hidden></div>
+                    <div class="cable-type-mobile-picker__panel" id="cable-type-mobile-panel" role="dialog" aria-label="Typ kabelu" hidden>
+                        <div class="cable-type-mobile-picker__bar">
+                            <span class="cable-type-mobile-picker__title">Typ kabelu</span>
+                            <button type="button" class="cable-type-mobile-picker__close" id="cable-type-mobile-close" aria-label="Zavřít">×</button>
+                        </div>
+                        <div class="cable-type-mobile-picker__scroller">
+                            {{ form_widget(form.cableType, { attr: { 'aria-label': form.cableType.vars.label } }) }}
+                        </div>
+                        <div class="cable-type-mobile-picker__full-desc" id="cable-type-full-desc-in-panel" role="region" aria-label="Plný popis kabelu"></div>
+                    </div>
+                </div>
+                {{ form_errors(form.cableType) }}
+            </div>
+        </div>
+        <div class="spool-form__field" id="spool-kabel-typ-row" aria-live="polite">
+            {{ form_label(form.cableFamilyFilter) }}
+            <div class="spool-form__value">
+                {{ form_widget(form.cableFamilyFilter) }}
+                <p class="spool-form__readout" id="spool-kabel-typ-readout" hidden>—</p>
+                {{ form_errors(form.cableFamilyFilter) }}
+            </div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.totalLengthM) }}
+            <div class="spool-form__value">{{ form_widget(form.totalLengthM) }}{{ form_errors(form.totalLengthM) }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.fiberCount) }}
+            <div class="spool-form__value">{{ form_widget(form.fiberCount) }}{{ form_errors(form.fiberCount) }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.diameterMm) }}
+            <div class="spool-form__value">{{ form_widget(form.diameterMm) }}{{ form_errors(form.diameterMm) }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.quantity) }}
+            <div class="spool-form__value">{{ form_widget(form.quantity) }}{{ form_errors(form.quantity) }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.registeredAt) }}
+            <div class="spool-form__value">{{ form_widget(form.registeredAt) }}{{ form_errors(form.registeredAt) }}</div>
+        </div>
+        <div class="spool-form__field">
+            {{ form_label(form.note) }}
+            <div class="spool-form__value">{{ form_widget(form.note) }}{{ form_errors(form.note) }}</div>
+        </div>
+        <div class="spool-form__field spool-form__row--actions">
+            <span class="spool-form__row--action-spacer" aria-hidden="true"></span>
+            <div class="spool-form__value">
+                <div class="spool-form__actions">
+                    <a class="ui-btn-secondary spool-form__btn" href="{{ path('warehouse_receipt_index') }}">Zpět na Příjem kabelu</a>
+                    <button type="submit" class="spool-form__btn">Zaevidovat</button>
+                </div>
+            </div>
+        </div>
+    {{ form_end(form) }}
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+    {% include 'warehouse/_mobile_menu_js.html.twig' %}
+    <script>
+(function () {
+  var root = document.getElementById('cable-type-mobile-picker');
+  if (!root) return;
+  var btn = document.getElementById('cable-type-mobile-btn');
+  var labelEl = document.getElementById('cable-type-mobile-label');
+  var panel = document.getElementById('cable-type-mobile-panel');
+  var backdrop = document.getElementById('cable-type-mobile-backdrop');
+  var closeBtn = document.getElementById('cable-type-mobile-close');
+  var sel = root.querySelector('select.cable-type-list');
+  if (!sel) return;
+  var PLH = '— vyberte typ —';
+  function syncLabel() {
+    if (!labelEl) return;
+    var opt = sel.selectedOptions && sel.selectedOptions[0];
+    if (opt && opt.value !== '') labelEl.textContent = opt.text;
+    else labelEl.textContent = PLH;
+  }
+  function openPanel() {
+    if (!panel) return;
+    if (sel.options.length) {
+      sel.setAttribute('size', String(Math.min(28, Math.max(8, sel.options.length))));
+    }
+    root.classList.add('cable-type-mobile-picker--open');
+    panel.removeAttribute('hidden');
+    if (backdrop) backdrop.removeAttribute('hidden');
+    document.body.classList.add('spool-cable-panel-open');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (typeof window.spoolSealedSyncKabelBlock === 'function') window.spoolSealedSyncKabelBlock();
+    try { sel.focus(); } catch (e) {}
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        if (typeof window.spoolSealedScheduleListbox === 'function') window.spoolSealedScheduleListbox();
+      });
+    });
+  }
+  function closePanel() {
+    if (!panel) return;
+    root.classList.remove('cable-type-mobile-picker--open');
+    panel.setAttribute('hidden', '');
+    if (backdrop) backdrop.setAttribute('hidden', '');
+    document.body.classList.remove('spool-cable-panel-open');
+    if (btn) { btn.setAttribute('aria-expanded', 'false'); try { btn.focus(); } catch (e) {} }
+  }
+  if (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (panel && panel.hasAttribute('hidden')) openPanel();
+    });
+  }
+  if (closeBtn) closeBtn.addEventListener('click', function () { closePanel(); });
+  if (backdrop) backdrop.addEventListener('click', function () { closePanel(); });
+  sel.addEventListener('change', function () {
+    syncLabel();
+    if (typeof window.spoolSealedOnCablePicked === 'function') window.spoolSealedOnCablePicked();
+    if (!panel.hasAttribute('hidden')) closePanel();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape' || !panel || panel.hasAttribute('hidden')) return;
+    ev.preventDefault();
+    closePanel();
+  });
+  window.addEventListener('pageshow', syncLabel);
+  syncLabel();
+})();
+(function () {
+  var cableSel = document.getElementById({{ form.cableType.vars.id|json_encode|raw }});
+  if (!cableSel) return;
+  var fiberCountIn = document.getElementById({{ form.fiberCount.vars.id|json_encode|raw }});
+  var diameterMmIn = document.getElementById({{ form.diameterMm.vars.id|json_encode|raw }});
+  var famSel = document.getElementById({{ form.cableFamilyFilter.vars.id|json_encode|raw }});
+  var readout = document.getElementById('spool-kabel-typ-readout');
+  var descInPanel = document.getElementById('cable-type-full-desc-in-panel');
+  var labelsEl = document.getElementById('spool-cable-family-labels-json');
+  var familyLabels = {};
+  var scroller = cableSel.closest('.cable-type-mobile-picker__scroller');
+  var mobileMq = window.matchMedia('(max-width: 41.99rem)');
+  var sizeListT = null;
+  try { if (labelsEl && labelsEl.textContent) familyLabels = JSON.parse(labelsEl.textContent); } catch (e) {}
+
+  function sizeCableTypeListbox() {
+    if (!scroller) return;
+    var measure = document.createElement('div');
+    measure.setAttribute('aria-hidden', 'true');
+    measure.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;pointer-events:none;';
+    var cs = window.getComputedStyle(cableSel);
+    measure.style.font = cs.font;
+    document.body.appendChild(measure);
+    var maxW = 0;
+    for (var k = 0; k < cableSel.options.length; k++) {
+      measure.textContent = cableSel.options[k].text || ' ';
+      maxW = Math.max(maxW, measure.offsetWidth);
+    }
+    document.body.removeChild(measure);
+    var cw = scroller.clientWidth;
+    if (cw < 2) cw = mobileMq.matches ? (window.innerWidth || 400) : 300;
+    var need = Math.max(cw, maxW + (mobileMq.matches ? 40 : 36));
+    cableSel.style.minWidth = need + 'px';
+    cableSel.style.width = need + 'px';
+  }
+  function scheduleSizeCableTypeListbox() {
+    if (sizeListT) clearTimeout(sizeListT);
+    sizeListT = setTimeout(function () { sizeListT = null; sizeCableTypeListbox(); }, 50);
+  }
+  window.spoolSealedScheduleListbox = scheduleSizeCableTypeListbox;
+
+  function getCableTypeOption() {
+    var v = String(cableSel.value || '');
+    if (!v) return null;
+    if (cableSel.selectedOptions && cableSel.selectedOptions[0] && String(cableSel.selectedOptions[0].value) === v) {
+      return cableSel.selectedOptions[0];
+    }
+    for (var oi = 0; oi < cableSel.options.length; oi++) {
+      if (String(cableSel.options[oi].value) === v) return cableSel.options[oi];
+    }
+    return null;
+  }
+  function optionFamily(opt) {
+    if (!opt || !opt.value) return '';
+    return opt.getAttribute('data-family') ? String(opt.getAttribute('data-family')) : '';
+  }
+  function b64ToUtf8(b64) {
+    if (!b64) return '';
+    try {
+      b64 = String(b64).replace(/\s/g, '');
+      var bin = atob(b64);
+      if (typeof TextDecoder !== 'undefined') {
+        var a = new Uint8Array(bin.length);
+        for (var u = 0; u < bin.length; u++) a[u] = bin.charCodeAt(u);
+        return new TextDecoder('utf-8').decode(a);
+      }
+      return decodeURIComponent(escape(bin));
+    } catch (e) { return ''; }
+  }
+  function applyFamilyFilter() {
+    if (!famSel || !cableSel) return;
+    var want = famSel.value ? String(famSel.value) : '';
+    var opts = cableSel.querySelectorAll('option');
+    for (var i = 0; i < opts.length; i++) {
+      var o = opts[i];
+      if (!o.value) { o.hidden = false; continue; }
+      o.hidden = (want !== '' && optionFamily(o) !== want);
+    }
+    if (cableSel.value) {
+      var cur = getCableTypeOption();
+      if (cur && cur.hidden) {
+        cableSel.value = '';
+        try { cableSel.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+      }
+    }
+  }
+  function applySpoolFieldsFromCableType() {
+    var opt = getCableTypeOption();
+    if (!opt) return;
+    if (fiberCountIn) {
+      var f = String(opt.getAttribute('data-fiber-count') || '').trim();
+      if (f !== '') fiberCountIn.value = f;
+    }
+    if (diameterMmIn) {
+      var d = String(opt.getAttribute('data-diameter-mm') || '').trim();
+      if (d !== '') diameterMmIn.value = d;
+    }
+  }
+  function setDesc() {
+    if (!descInPanel) return;
+    descInPanel.textContent = '';
+    descInPanel.classList.remove('has-content');
+    var opt = getCableTypeOption();
+    if (!opt || !opt.value) return;
+    var t = b64ToUtf8(opt.getAttribute('data-b64-cable-full')).trim();
+    if (!t.length) {
+      var nm = opt.getAttribute('data-cable-name');
+      if (nm) t = String(nm).trim();
+    }
+    if (!t.length) return;
+    descInPanel.textContent = t;
+    descInPanel.classList.add('has-content');
+  }
+  function syncKabelTyp() {
+    if (!readout) return;
+    if (cableSel.value) {
+      if (famSel) famSel.setAttribute('hidden', '');
+      var opt = getCableTypeOption();
+      var code = optionFamily(opt);
+      readout.textContent = (code && familyLabels[code]) ? familyLabels[code] : (code || '—');
+      readout.removeAttribute('hidden');
+    } else {
+      if (famSel) famSel.removeAttribute('hidden');
+      readout.setAttribute('hidden', '');
+    }
+  }
+  function syncAllBlock() {
+    applyFamilyFilter();
+    syncKabelTyp();
+    setDesc();
+    requestAnimationFrame(function () { sizeCableTypeListbox(); });
+  }
+  window.spoolSealedSyncKabelBlock = syncAllBlock;
+  window.spoolSealedOnCablePicked = function () {
+    applySpoolFieldsFromCableType();
+    syncAllBlock();
+  };
+  if (famSel) famSel.addEventListener('change', syncAllBlock);
+  cableSel.addEventListener('change', window.spoolSealedOnCablePicked);
+  cableSel.addEventListener('input', window.spoolSealedOnCablePicked);
+  window.addEventListener('resize', scheduleSizeCableTypeListbox);
+  syncAllBlock();
+})();
+    </script>
+{% endblock %}

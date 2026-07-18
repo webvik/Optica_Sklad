@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
-{% block title %}Inventura cívek — Přehled kabelových cívek{% endblock %}
+{% set inventuraMode = inventuraMode|default('operativni') %}
+{% block title %}{% if inventuraMode == 'ucet' %}Inventura skladový účet{% else %}Inventura cívek{% endif %} — Přehled kabelových cívek{% endblock %}
 {% block stylesheets %}
     {{ parent() }}
     <style>
@@ -36,6 +37,11 @@
             padding: 0.4rem 0.5rem;
         }
         .inventura-table tr.inventura-group-sum td { background: #f7f7f7; font-weight: 500; }
+        .inventura-table tr.inventura-spool-row--sealed td {
+            background: #c4c4c4;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
         .inventura-name { min-width: 12rem; max-width: 28rem; }
         .inventura-brief { margin: 0; padding: 0; border: 0; background: transparent; }
         .inventura-brief > summary {
@@ -278,7 +284,7 @@
     {% include '_app_menu_cz.html.twig' %}
     <p class="inventura-nav"><a href="{{ path('warehouse_browse_index') }}">← Přehled skladu</a></p>
     <header class="inventura-kopf">
-        <h1>Přehled kabelových cívek — inventura</h1>
+        <h1>{% if inventuraMode == 'ucet' %}Přehled kabelových cívek — inventura skladový účet{% else %}Přehled kabelových cívek — inventura{% endif %}</h1>
     </header>
 
     <div class="inventura-diary-search inventura-no-print">
@@ -348,14 +354,27 @@
                 </tbody>
             </table>
             <p class="inventura-export-line inventura-no-print">
-                <a class="warehouse-pill" href="{{ path('warehouse_browse_inventura_export_brief') }}">Export do Excelu</a>
+                <a class="warehouse-pill" href="{{ inventuraMode == 'ucet' ? path('warehouse_browse_inventura_ucet_export_brief') : path('warehouse_browse_inventura_export_brief') }}">Export do Excelu</a>
             </p>
         </div>
         </details>
-        <p class="inventura-kopf__meta">Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} · pouze cívky <strong>na skladě</strong> · sloupec <em>Stav</em> = zůstatek (m)</p>
+        <p class="inventura-kopf__meta">
+            Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} ·
+            {% if inventuraMode == 'ucet' %}
+                cívky <strong>na skladě</strong> + <strong>nerozbalené</strong>
+                {% if sealedCount|default(0) > 0 %} · z toho nerozbalené: {{ sealedCount }} ks / {{ sealedMeters|number_format(0, ',', ' ') }} m{% endif %}
+            {% else %}
+                pouze cívky <strong>na skladě</strong> (operativní)
+            {% endif %}
+            · sloupec <em>Stav</em> = zůstatek (m)
+        </p>
     </section>
     {% else %}
-        <p class="inventura-kopf__meta">Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} · pouze cívky <strong>na skladě</strong> · sloupec <em>Stav</em> = zůstatek (m)</p>
+        <p class="inventura-kopf__meta">
+            Vygenerováno: {{ generatedAt|date('d.m.Y, H:i') }} ·
+            {% if inventuraMode == 'ucet' %}cívky <strong>na skladě</strong> + <strong>nerozbalené</strong>{% else %}pouze cívky <strong>na skladě</strong>{% endif %}
+            · sloupec <em>Stav</em> = zůstatek (m)
+        </p>
     {% endif %}
 
     <div class="inventura-table-wrap">
@@ -377,8 +396,8 @@
                     <td colspan="6">Skupina: {{ g.groupLabel }}</td>
                 </tr>
                 {% for s in g.rows %}
-                <tr class="inventura-spool-row" data-spool-id="{{ s.id }}" data-inventura-group="{{ gIdx }}">
-                    <td>{{ s.reelNumber }}</td>
+                <tr class="inventura-spool-row{% if s.receivedSealed %} inventura-spool-row--sealed{% endif %}" data-spool-id="{{ s.id }}" data-inventura-group="{{ gIdx }}">
+                    <td>{% if s.receivedSealed %}{{ s.reelNumberLabel }} <span style="color:#666;font-size:0.85em;">(nerozbaleno)</span>{% else %}{{ s.reelNumberLabel }}{% endif %}</td>
                     <td>{% if s.cableType %}{{ s.cableType.code }}{% else %}—{% endif %}</td>
                     <td class="inventura-name">
                         {% if s.cableType %}
@@ -410,7 +429,7 @@
     </div>
     <p id="inventura-diary-no-match" class="inventura-no-print" hidden style="color:#333;margin:.5rem 0 1rem"><strong>Žádná shoda</strong> v deníku inventurního seznamu.</p>
     <p class="inventura-export-line inventura-no-print">
-        <a class="warehouse-pill" href="{{ path('warehouse_browse_inventura_export_full') }}">Export do Excelu</a>
+        <a class="warehouse-pill" href="{{ inventuraMode == 'ucet' ? path('warehouse_browse_inventura_ucet_export_full') : path('warehouse_browse_inventura_export_full') }}">Export do Excelu</a>
     </p>
 <script>
 (function () {
@@ -474,7 +493,7 @@
     if (hint) hint.textContent = 'Hledám v deníku…';
     var u = new URL(searchUrl, window.location.origin);
     u.searchParams.set('dq', dq);
-    u.searchParams.set('scope', 'inventura');
+    u.searchParams.set('scope', {{ inventuraMode == 'ucet' ? 'inventura_ucet'|json_encode|raw : 'inventura'|json_encode|raw }});
     fetch(u.toString(), {
       credentials: 'same-origin',
       headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },

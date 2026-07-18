@@ -50,7 +50,8 @@ final class StockBrowseController extends AbstractController
             $allCableTypeIds,
         );
 
-        $statuses = self::parseStatusList($request);
+        $onlyNerozbaleno = self::parseNerozbalenoFilter($request);
+        $statuses = self::resolveBrowseStatuses($request, $onlyNerozbaleno);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
         $onlyWithoutWarehouseCard = self::parseWithoutWarehouseCardFilter($request);
         $fiberCounts = self::parseFiberCountList($request);
@@ -73,6 +74,8 @@ final class StockBrowseController extends AbstractController
             ))))
             : [];
 
+        $browseableCount = \count(SpoolStatus::browseableCases());
+
         return $this->render('warehouse/stock_browse.html.twig', [
             'spools' => $spoolList,
             'searchQuery' => $reelQ,
@@ -83,12 +86,13 @@ final class StockBrowseController extends AbstractController
                 && ($cableTypeIdsFromForm !== [] || $cableTypeUnsetFromForm),
             'cableTypeFilterIsNone' => $cableTypeIdsFromForm === [] && !$cableTypeUnsetFromForm
                 && !$cableTypeFilter->restrictsCableDimension(),
-            'allStatusesSelected' => \count($statuses) === \count(SpoolStatus::cases()),
+            'allStatusesSelected' => !$onlyNerozbaleno && \count($statuses) === $browseableCount,
             'filterStatusValues' => array_map(
                 static fn (SpoolStatus $s) => $s->value,
-                $statuses,
+                $onlyNerozbaleno ? self::parseStatusList($request) : $statuses,
             ),
             'filterNeedsCorrection' => $onlyNeedsCorrection,
+            'filterNerozbaleno' => $onlyNerozbaleno,
             'filterWithoutWarehouseCard' => $onlyWithoutWarehouseCard,
             'fiberCountChoices' => $spools->findDistinctEffectiveFiberCountsForBrowse(),
             'filterFiberCounts' => $fiberCounts,
@@ -127,7 +131,8 @@ final class StockBrowseController extends AbstractController
             self::parseCableTypeUnset($request),
             $allCableTypeIds,
         );
-        $statuses = self::parseStatusList($request);
+        $onlyNerozbaleno = self::parseNerozbalenoFilter($request);
+        $statuses = self::resolveBrowseStatuses($request, $onlyNerozbaleno);
         $onlyNeedsCorrection = self::parseNeedsCorrectionFilter($request);
         $fiberCounts = self::parseFiberCountList($request);
 
@@ -172,8 +177,11 @@ final class StockBrowseController extends AbstractController
         }
 
         try {
-            if ('inventura' === $request->query->getString('scope')) {
+            $scope = $request->query->getString('scope');
+            if ('inventura' === $scope) {
                 $candidateIds = $spools->findIdsForInventuraSheet();
+            } elseif ('inventura_ucet' === $scope) {
+                $candidateIds = $spools->findIdsForAccountingInventuraSheet();
             } else {
                 $choiceEntities = $cableTypes->findAllOrderedForCableTypePicker(false);
                 $allCableTypeIds = array_values(array_map(
@@ -188,9 +196,10 @@ final class StockBrowseController extends AbstractController
                     self::parseCableTypeUnset($request),
                     $allCableTypeIds,
                 );
+                $onlyNerozbaleno = self::parseNerozbalenoFilter($request);
                 $candidateIds = $spools->findIdsFiltered(
                     $cableTypeFilter,
-                    self::parseStatusList($request),
+                    self::resolveBrowseStatuses($request, $onlyNerozbaleno),
                     500,
                     self::parseNeedsCorrectionFilter($request),
                     self::parseWithoutWarehouseCardFilter($request),
@@ -217,19 +226,24 @@ final class StockBrowseController extends AbstractController
         ]);
     }
 
-    /** Inventurní tabulka (seskupení dle vláken a family; stejná logika jako PDF Přehled kabelových cívek). */
+    /** Inventurní tabulka — operativní sklad (jen rozbalené na skladě). */
     #[Route('/inventura', name: 'inventura', methods: ['GET'])]
     public function inventura(SpoolRepository $spoolRepository): Response
     {
-        $spools = $spoolRepository->findForInventuraSheet();
-        $groups = self::buildInventuryGroups($spools);
+        return $this->renderInventura(
+            $spoolRepository->findForInventuraSheet(),
+            'operativni',
+        );
+    }
 
-        $generatedAt = new \DateTimeImmutable('now');
-
-        return $this->render('warehouse/stock_browse_inventura.html.twig', [
-            'groups' => $groups,
-            'generatedAt' => $generatedAt,
-        ]);
+    /** Inventura skladového účtu — na skladě + nerozbalené. */
+    #[Route('/inventura-skladovy-ucet', name: 'inventura_ucet', methods: ['GET'])]
+    public function inventuraUcet(SpoolRepository $spoolRepository): Response
+    {
+        return $this->renderInventura(
+            $spoolRepository->findForAccountingInventuraSheet(),
+            'ucet',
+        );
     }
 
     #[Route('/inventura/export/krata', name: 'inventura_export_brief', methods: ['GET'])]
@@ -248,6 +262,49 @@ final class StockBrowseController extends AbstractController
         $groups = self::buildInventuryGroups($spoolRepository->findForInventuraSheet());
 
         return $exporter->downloadFull($groups, $generatedAt);
+    }
+
+    #[Route('/inventura-skladovy-ucet/export/krata', name: 'inventura_ucet_export_brief', methods: ['GET'])]
+    public function inventuraUcetExportBrief(SpoolRepository $spoolRepository, InventuraExcelExporter $exporter): Response
+    {
+        $generatedAt = new \DateTimeImmutable('now');
+        $groups = self::buildInventuryGroups($spoolRepository->findForAccountingInventuraSheet());
+
+        return $exporter->downloadBrief($groups, $generatedAt, 'inventura-ucet-krata');
+    }
+
+    #[Route('/inventura-skladovy-ucet/export/plna', name: 'inventura_ucet_export_full', methods: ['GET'])]
+    public function inventuraUcetExportFull(SpoolRepository $spoolRepository, InventuraExcelExporter $exporter): Response
+    {
+        $generatedAt = new \DateTimeImmutable('now');
+        $groups = self::buildInventuryGroups($spoolRepository->findForAccountingInventuraSheet());
+
+        return $exporter->downloadFull($groups, $generatedAt, 'inventura-ucet-plna', true);
+    }
+
+    /**
+     * @param list<\App\Entity\Spool> $spools
+     * @param 'operativni'|'ucet'     $inventuraMode
+     */
+    private function renderInventura(array $spools, string $inventuraMode): Response
+    {
+        $groups = self::buildInventuryGroups($spools);
+        $sealedCount = 0;
+        $sealedM = 0;
+        foreach ($spools as $s) {
+            if ($s->isReceivedSealed()) {
+                ++$sealedCount;
+                $sealedM += (int) ($s->getCurrentRemainingM() ?? $s->getTotalLengthM());
+            }
+        }
+
+        return $this->render('warehouse/stock_browse_inventura.html.twig', [
+            'groups' => $groups,
+            'generatedAt' => new \DateTimeImmutable('now'),
+            'inventuraMode' => $inventuraMode,
+            'sealedCount' => $sealedCount,
+            'sealedMeters' => $sealedM,
+        ]);
     }
 
     /**
@@ -416,6 +473,7 @@ final class StockBrowseController extends AbstractController
 
     /**
      * Při první návštěvě (žádný parametr status v URL) = výchozí „na skladě“.
+     * Nerozbalené (received_sealed) sem nepatří — mají vlastní checkbox.
      *
      * @return list<SpoolStatus>
      */
@@ -434,7 +492,7 @@ final class StockBrowseController extends AbstractController
                 continue;
             }
             $e = SpoolStatus::tryFrom((string) $x);
-            if (null === $e) {
+            if (null === $e || SpoolStatus::ReceivedSealed === $e) {
                 continue;
             }
             $seen[$e->value] = $e;
@@ -444,6 +502,23 @@ final class StockBrowseController extends AbstractController
         }
 
         return array_values($seen);
+    }
+
+    /**
+     * @return list<SpoolStatus>
+     */
+    private static function resolveBrowseStatuses(Request $request, bool $onlyNerozbaleno): array
+    {
+        if ($onlyNerozbaleno) {
+            return [SpoolStatus::ReceivedSealed];
+        }
+
+        return self::parseStatusList($request);
+    }
+
+    private static function parseNerozbalenoFilter(Request $request): bool
+    {
+        return $request->query->getBoolean('nerozbaleno');
     }
 
     private static function parseCableTypeUnset(Request $request): bool

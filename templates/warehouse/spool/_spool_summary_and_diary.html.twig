@@ -86,12 +86,12 @@
     </p>
     <p style="margin: 0 0 0.5rem;">
         <strong>poslední m:</strong> {% if spool.lastVisibleM is not null %}{{ spool.lastVisibleM }} m{% else %}—{% endif %},
-        <strong>PS:</strong> {{ spool.initialVisibleM }},
+        <strong>PS:</strong> {% if spool.initialVisibleM is not null %}{{ spool.initialVisibleM }}{% else %}—{% endif %},
         <strong>Délka:</strong> {{ spool.totalLengthM }} m
     </p>
     <p style="margin: 0 0 0.5rem;">
         <strong>směr čtení metru:</strong> {{ spool.meterSign is null ? '—' : (spool.meterSign == 1 ? 'rostoucí' : 'klesající') }}<br>
-        <strong>Stav:</strong> {% if spool.status.value == 'in_stock' %}na skladě{% elseif spool.status.value == 'transferred' %}předáno{% elseif spool.status.value == 'written_off' %}vyřazeno{% else %}{{ spool.status.value }}{% endif %}
+        <strong>Stav:</strong> {% if spool.status.value == 'in_stock' %}na skladě{% elseif spool.status.value == 'received_sealed' %}nerozbaleno{% elseif spool.status.value == 'transferred' %}předáno{% elseif spool.status.value == 'written_off' %}vyřazeno{% else %}{{ spool.status.value }}{% endif %}
     </p>
     {% if spool.needsCorrection and spool.correctionNote and not is_granted(constant('App\\Security\\WarehouseRole::CORRECTION_FLAG_MANAGER')) %}
         <div class="spool-correction-box" role="note">
