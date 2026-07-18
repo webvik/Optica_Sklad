@@ -793,16 +793,19 @@
       for (var b = 0; b < cL.length; b++) cL[b].addEventListener('change', function () { syncLabel(); });
     } else {
       var vseS = root.querySelector('.js-browse-status-vse');
-      var sL = root.querySelectorAll('input.js-browse-status-cb, input.js-browse-needs-correction');
+      var statusCbsOnly = root.querySelectorAll('input.js-browse-status-cb');
+      var korekceCb = root.querySelector('input.js-browse-needs-correction');
       if (vseS) {
         vseS.addEventListener('change', function () {
           var on2 = vseS.checked;
-          for (var c = 0; c < sL.length; c++) sL[c].checked = on2;
+          for (var c = 0; c < statusCbsOnly.length; c++) statusCbsOnly[c].checked = on2;
+          /* „k ke korekci“ se volí jen ručně — Vše ho nezaškrtává ani neodškrtává */
           vseS.indeterminate = false;
           syncLabel();
         });
       }
-      for (var d = 0; d < sL.length; d++) sL[d].addEventListener('change', function () { syncLabel(); });
+      for (var d = 0; d < statusCbsOnly.length; d++) statusCbsOnly[d].addEventListener('change', function () { syncLabel(); });
+      if (korekceCb) korekceCb.addEventListener('change', function () { syncLabel(); });
     }
     if (mobileMq.addEventListener) {
       mobileMq.addEventListener('change', function () { if (root.classList.contains('cable-type-mobile-picker--open')) { scheduleSize(); } });
