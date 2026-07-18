@@ -128,4 +128,5 @@ Capacitor často doplní sám; bez toho nefunguje sken na **Práce s optikou**.
 
 - Cookies/session: stejné jako Chrome — remember-me 30 dní.
 - Offline: v této verzi ne — vyžaduje síť.
+- **Systémové tlačítko zpět:** pokud má WebView historii (např. filtr → karta cívky), vrátí předchozí stránku; jinak aplikaci odloží na pozadí (jako dřív). Změna je v `native-src/MainActivity.java` — po úpravě `npm run cap:sync` a nový APK.
 - Podrobnosti architektury: `deploy/mobile-android.md`

@@ -1,6 +1,8 @@
 package net.lowpartners.optica;
 
 import android.os.Bundle;
+import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -9,5 +11,26 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(OpticaSharePlugin.class);
         super.onCreate(savedInstanceState);
+
+        /*
+         * Systémová šipka «zpět»: v historii WebView jako v prohlížeči
+         * (filtr → karta cívky → zpět na výsledky filtru). Bez historie = výchozí (app na pozadí).
+         */
+        getOnBackPressedDispatcher().addCallback(
+            this,
+            new OnBackPressedCallback(true) {
+                @Override
+                public void handleOnBackPressed() {
+                    WebView webView = getBridge() != null ? getBridge().getWebView() : null;
+                    if (webView != null && webView.canGoBack()) {
+                        webView.goBack();
+                        return;
+                    }
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                }
+            }
+        );
     }
 }
