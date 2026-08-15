@@ -16,9 +16,21 @@
     {% if mobile_apk_download_enabled() %}
         <nav class="app-menu" aria-label="Stažení APK">
             <ul class="app-menu__list">
-                <li><a class="app-menu__nav-link" href="{{ path('app_mobile_apk_download') }}">Stáhnout Optický sklad (APK)</a></li>
+                <li>
+                    <a class="app-menu__nav-link"
+                       href="{{ path('app_mobile_apk_download_forced') }}"
+                       download="optica-sklad.apk"
+                       type="application/vnd.android.package-archive">
+                        Stáhnout Optický sklad (APK)
+                    </a>
+                </li>
             </ul>
         </nav>
+        <p style="font-size:0.9rem;color:#444;max-width:36rem;">
+            Přímo: <a href="{{ path('app_mobile_apk_download_forced') }}" download="optica-sklad.apk"><code>/mobil/apk</code></a>
+            (~4&nbsp;MB). Jen <strong>Android</strong> (iPhone APK nenainstaluje).
+            V Chrome: Nastavení → Aplikace → Instalovat neznámé aplikace → Chrome → povolit.
+        </p>
 
         <h2>Instalace</h2>
         <ol>

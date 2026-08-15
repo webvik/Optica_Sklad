@@ -25,22 +25,37 @@ final class MobileController extends AbstractController
     }
 
     /**
+     * Stažení přes PHP (Content-Disposition) — spolehlivější na Chrome/Android než holý soubor z Apache.
+     */
+    #[Route('/mobil/apk', name: 'app_mobile_apk_download_forced', methods: ['GET'])]
+    public function apkDownloadForced(): Response
+    {
+        return $this->apkFileResponse();
+    }
+
+    /**
      * Na beta: informační stránka. Na produkci: soubor APK (pokud existuje v public/download/).
      * Přímý soubor v public/ má přednost u web serveru; tato route pokrývá beta bez APK na disku.
      */
     #[Route('/download/optica-sklad.apk', name: 'app_mobile_apk_download', methods: ['GET'])]
     public function apkDownload(): Response
     {
+        return $this->apkFileResponse();
+    }
+
+    private function apkFileResponse(): Response
+    {
         if (!$this->mobileApkSettings->isDownloadEnabled()) {
             return $this->render('mobile/apk_prod_only.html.twig');
         }
 
         $path = $this->projectDir.'/public/download/optica-sklad.apk';
-        if (!is_readable($path)) {
+        if (!\is_readable($path)) {
             throw $this->createNotFoundException('APK soubor na serveru chybí.');
         }
 
         $response = new BinaryFileResponse($path);
+        $response->headers->set('Content-Type', 'application/vnd.android.package-archive');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
             'optica-sklad.apk',

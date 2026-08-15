@@ -1,0 +1,8 @@
+# Chrome/Android: bez attachment často APK „neuloží“ / otevře prázdno.
+<IfModule mod_headers.c>
+    <Files "optica-sklad.apk">
+        Header set Content-Type "application/vnd.android.package-archive"
+        Header set Content-Disposition "attachment; filename=\"optica-sklad.apk\""
+        Header unset Content-Encoding
+    </Files>
+</IfModule>
