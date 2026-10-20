@@ -22,17 +22,23 @@ final class SpoolEventFormType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $spool = $options['spool'] instanceof Spool ? $options['spool'] : null;
+        $sealedTransferOnly = null !== $spool && $spool->isReceivedSealed();
+        $typeChoices = $sealedTransferOnly
+            ? ['Předání' => SpoolEventType::Transfer]
+            : [
+                'Zafuk' => SpoolEventType::MeterReading,
+                'Vyřazení' => SpoolEventType::Writeoff,
+                'Předání' => SpoolEventType::Transfer,
+                'Inventura' => SpoolEventType::Inventory,
+                'Korekce' => SpoolEventType::Correction,
+            ];
+
         $builder
             ->add('type', EnumType::class, [
                 'class' => SpoolEventType::class,
                 'label' => 'Událost',
-                'choices' => [
-                    'Zafuk' => SpoolEventType::MeterReading,
-                    'Vyřazení' => SpoolEventType::Writeoff,
-                    'Předání' => SpoolEventType::Transfer,
-                    'Inventura' => SpoolEventType::Inventory,
-                    'Korekce' => SpoolEventType::Correction,
-                ],
+                'choices' => $typeChoices,
                 'constraints' => [new NotBlank()],
             ])
             ->add('occurredAt', DateType::class, [
@@ -58,8 +64,11 @@ final class SpoolEventFormType extends AbstractType
                 'required' => false,
             ])
             ->add('note', TextareaType::class, [
-                'label' => 'Poznámka (komu předáno, důvod vyřazení, … )',
-                'required' => false,
+                'label' => $sealedTransferOnly
+                    ? 'Poznámka (komu / kam předáno)'
+                    : 'Poznámka (komu předáno, důvod vyřazení, … )',
+                'required' => $sealedTransferOnly,
+                'constraints' => $sealedTransferOnly ? [new NotBlank(message: 'U předání uveďte komu / kam.')] : [],
             ]);
 
         $builder->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $e) use ($options): void {

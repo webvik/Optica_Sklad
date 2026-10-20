@@ -276,7 +276,8 @@
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
     {% if spool.receivedSealed %}
         <p style="margin:0 0 0.75rem;padding:0.5rem 0.75rem;background:#ececec;border-left:3px solid #888;max-width:36rem;font-size:0.92rem;">
-            Stav <strong>nerozbaleno</strong> — v evidenci skladového účtu (délka z dokladu), bez saře/PS. Záfuk a deník až po rozbalení.
+            Stav <strong>nerozbaleno</strong> — v evidenci skladového účtu (délka z dokladu), bez saře/PS.
+            Záfuk až po rozbalení; <strong>předání</strong> jinému útvaru je možné i nerozbalené (bez příjmu na operativní sklad).
         </p>
     {% endif %}
     <div class="spool-card-edit-bar">
@@ -319,12 +320,19 @@
         } only %}
     {% endif %}
     {% include 'warehouse/spool/_spool_summary_and_diary.html.twig' %}
-    {% if not spool.receivedSealed %}
-    <h2>Nová událost</h2>
+    {% if not spool.receivedSealed or is_granted('ROLE_SKLAD_EDIT') %}
+    <h2>{% if spool.receivedSealed %}Předání{% else %}Nová událost{% endif %}</h2>
+    {% if spool.receivedSealed %}
+        <p style="margin:0 0 0.85rem;max-width:36rem;font-size:0.92rem;color:#444;">
+            Předání nerozbalené cívky bez zápisu na operativní sklad — vyplňte <strong>komu / kam</strong>.
+            Po zápisu bude ve stavu <strong>předáno</strong> (filtr Přehled skladu → předáno).
+        </p>
+    {% endif %}
     {{ form_start(form, { attr: {
         class: 'spool-form spool-form--spool-event',
         id: 'spool-event-form',
-        'data-spool-book-m': spool.currentRemainingM is not null ? spool.currentRemainingM : ''
+        'data-spool-book-m': spool.currentRemainingM is not null ? spool.currentRemainingM : '',
+        'data-sealed-transfer-only': spool.receivedSealed ? '1' : '0'
     } }) }}
         <div class="spool-form__field">
             {{ form_label(form.type) }}
@@ -333,12 +341,14 @@
                 {{ form_errors(form.type) }}
             </div>
         </div>
+        {% if not spool.receivedSealed %}
         <div class="spool-form__field spool-form__field--readout">
             <span class="spool-form__static-label">Zůstatek v evidenci (nyní)</span>
             <div class="spool-form__value">
                 <p class="spool-form__readout--balance" id="spool-event-book-remaining">{% if spool.currentRemainingM is not null %}<span class="spool-form__readout--balance-value">{{ spool.currentRemainingM }}</span> m{% include 'warehouse/spool/_spool_cable_end_suffix.html.twig' %}{% else %}— (není doplňován){% endif %}</p>
             </div>
         </div>
+        {% endif %}
         <div class="spool-form__field">
             {{ form_label(form.occurredAt) }}
             <div class="spool-form__value">
@@ -346,7 +356,7 @@
                 {{ form_errors(form.occurredAt) }}
             </div>
         </div>
-        <div class="spool-form__field js-spool-event-row-visiblem">
+        <div class="spool-form__field js-spool-event-row-visiblem"{% if spool.receivedSealed %} style="display: none;"{% endif %}>
             {{ form_label(form.visibleM) }}
             <div class="spool-form__value">
                 {{ form_widget(form.visibleM) }}
@@ -361,7 +371,7 @@
                 {{ form_errors(form.writeoffRemainderM) }}
             </div>
         </div>
-        <div class="spool-form__field js-spool-event-row-project">
+        <div class="spool-form__field js-spool-event-row-project"{% if spool.receivedSealed %} style="display: none;"{% endif %}>
             {{ form_label(form.projectLabel) }}
             <div class="spool-form__value">
                 {{ form_widget(form.projectLabel) }}
@@ -406,8 +416,15 @@
   var rowP = form.querySelector('.js-spool-event-row-project');
   var wIn = form.querySelector('.js-spool-writeoff-remainder');
   var bookM = form.getAttribute('data-spool-book-m');
+  var sealedOnly = form.getAttribute('data-sealed-transfer-only') === '1';
   function isWriteoff() { return typeSelect && typeSelect.value === 'writeoff'; }
   function sync() {
+    if (sealedOnly) {
+      if (rowV) rowV.style.display = 'none';
+      if (rowW) rowW.style.display = 'none';
+      if (rowP) rowP.style.display = 'none';
+      return;
+    }
     var w = isWriteoff();
     if (rowV) rowV.style.display = w ? 'none' : '';
     if (rowW) rowW.style.display = w ? '' : 'none';

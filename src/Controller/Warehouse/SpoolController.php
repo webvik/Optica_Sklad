@@ -1045,13 +1045,16 @@ final class SpoolController extends AbstractController
         }
         $event = new SpoolEvent();
         $event->setSpool($spool);
+        if ($spool->isReceivedSealed()) {
+            $event->setType(SpoolEventType::Transfer);
+        }
         $form = $this->createForm(SpoolEventFormType::class, $event, [
             'spool' => $spool,
         ]);
         $form->handleRequest($request);
         if ($form->isSubmitted() && $form->isValid()) {
-            if ($spool->isReceivedSealed()) {
-                $this->addFlash('error', 'Nerozbalená cívka: nejprve doplňte saře a PS (Rozbalit).');
+            if ($spool->isReceivedSealed() && SpoolEventType::Transfer !== $event->getType()) {
+                $this->addFlash('error', 'Nerozbalená cívka: povolené je jen předání, nebo nejprve Rozbalit (saře + PS).');
 
                 return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId()]);
             }
@@ -1078,6 +1081,9 @@ final class SpoolController extends AbstractController
                             'spool' => $spool,
                             'form' => $form,
                             'assignCableForm' => $assignCableForm,
+                            'unpackForm' => $unpackForm,
+                            'editCoreForm' => $editCoreForm,
+                            'editMode' => $editMode,
                         ]);
                     }
                     $meter->applyMeterReading(
@@ -1120,6 +1126,9 @@ final class SpoolController extends AbstractController
                             'spool' => $spool,
                             'form' => $form,
                             'assignCableForm' => $assignCableForm,
+                            'unpackForm' => $unpackForm,
+                            'editCoreForm' => $editCoreForm,
+                            'editMode' => $editMode,
                         ]);
                     }
                     $meter->recordNonMeterEvent(

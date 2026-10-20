@@ -380,7 +380,13 @@ final class SpoolMeterService
         if (SpoolEventType::MeterReading === $type) {
             throw new \InvalidArgumentException();
         }
-        $this->assertOperationalForMeterWork($spool);
+        // Předání nerozbalené cívky (bez saře/PS) — jinak operativní práce jen po rozbalení.
+        if (!(SpoolEventType::Transfer === $type && $spool->isReceivedSealed())) {
+            $this->assertOperationalForMeterWork($spool);
+        }
+        if (SpoolEventType::Transfer === $type && ('' === \trim((string) ($note ?? '')))) {
+            throw new RuntimeException('U předání vyplňte poznámku (komu předáno).');
+        }
         $occurredAt ??= new \DateTimeImmutable();
         $event = new SpoolEvent();
         $event->setSpool($spool);
