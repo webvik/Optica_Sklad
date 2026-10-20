@@ -6,6 +6,7 @@ use App\Entity\CableFamily;
 use App\Entity\CableType;
 use App\Entity\Spool;
 use App\Entity\SpoolEvent;
+use App\Entity\SpoolPhoto;
 use App\Entity\User;
 use App\Enum\SpoolEventType;
 use App\Enum\SpoolStatus;
@@ -27,14 +28,17 @@ use App\Service\Warehouse\SkladovaKartaPrintQueue;
 use App\Service\Warehouse\SkladovaKartaShareTokenService;
 use App\Service\Warehouse\SpoolEventOrder;
 use App\Service\Warehouse\SpoolMeterService;
+use App\Service\Warehouse\SpoolPhotoStorage;
 use App\Security\Voter\SpoolEventVoter;
 use App\Security\WarehouseRole;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -636,6 +640,103 @@ final class SpoolController extends AbstractController
         ]);
     }
 
+    #[Route('/{id}/foto/{photoId}', name: 'photo', methods: ['GET'], requirements: ['id' => '\d+', 'photoId' => '\d+'])]
+    public function photo(Spool $spool, int $photoId, SpoolPhotoStorage $photos): Response
+    {
+        $photo = $this->findSpoolPhoto($spool, $photoId);
+        $path = $photos->absolutePath($photo);
+        if (!\is_file($path)) {
+            throw $this->createNotFoundException('Soubor fotky chybí.');
+        }
+        $response = new BinaryFileResponse($path);
+        $response->headers->set('Content-Type', $photo->getMimeType() ?: 'image/jpeg');
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            'civka-'.$spool->getReelNumberLabel().'-'.$photoId.'.jpg'
+        );
+        $response->setPrivate();
+        $response->headers->addCacheControlDirective('no-store');
+
+        return $response;
+    }
+
+    #[Route('/{id}/foto', name: 'photo_upload', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function photoUpload(
+        Request $request,
+        Spool $spool,
+        SpoolPhotoStorage $photos,
+        EntityManagerInterface $em,
+    ): Response {
+        if (!$this->isCsrfTokenValid('spool_photo_'.$spool->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId(), 'foto' => 1]);
+        }
+        $file = $request->files->get('photo');
+        if (null === $file) {
+            $this->addFlash('error', 'Vyberte nebo vyfoťte obrázek.');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId(), 'foto' => 1]);
+        }
+        try {
+            $hadMax = $spool->getPhotos()->count() >= SpoolPhotoStorage::MAX_PHOTOS;
+            $photos->store($spool, $file);
+            $u = $this->getUser();
+            if ($u instanceof User) {
+                $spool->setUpdatedBy($u);
+            }
+            $em->flush();
+            $count = $spool->getPhotos()->count();
+            $this->addFlash(
+                'success',
+                $hadMax
+                    ? 'Fotka uložena — nejstarší z '.SpoolPhotoStorage::MAX_PHOTOS.' byla odstraněna (teď '.$count.'/'.SpoolPhotoStorage::MAX_PHOTOS.').'
+                    : 'Fotka cívky byla uložena ('.$count.'/'.SpoolPhotoStorage::MAX_PHOTOS.').'
+            );
+        } catch (\Throwable $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId(), 'foto' => 1]);
+    }
+
+    #[Route('/{id}/foto/{photoId}/smazat', name: 'photo_delete', methods: ['POST'], requirements: ['id' => '\d+', 'photoId' => '\d+'])]
+    #[IsGranted(WarehouseRole::EDIT)]
+    public function photoDelete(
+        Request $request,
+        Spool $spool,
+        int $photoId,
+        SpoolPhotoStorage $photos,
+        EntityManagerInterface $em,
+    ): Response {
+        $photo = $this->findSpoolPhoto($spool, $photoId);
+        if (!$this->isCsrfTokenValid('spool_photo_delete_'.$photo->getId(), (string) $request->request->get('_token'))) {
+            $this->addFlash('error', 'Neplatný formulář (CSRF).');
+
+            return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId(), 'foto' => 1]);
+        }
+        $photos->deleteOne($photo);
+        $u = $this->getUser();
+        if ($u instanceof User) {
+            $spool->setUpdatedBy($u);
+        }
+        $em->flush();
+        $this->addFlash('success', 'Fotka byla smazána.');
+
+        return $this->redirectToRoute('warehouse_spool_show', ['id' => $spool->getId(), 'foto' => 1]);
+    }
+
+    private function findSpoolPhoto(Spool $spool, int $photoId): SpoolPhoto
+    {
+        foreach ($spool->getPhotos() as $photo) {
+            if ($photo->getId() === $photoId) {
+                return $photo;
+            }
+        }
+        throw $this->createNotFoundException('Fotka nenalezena.');
+    }
+
     #[Route('/{id}/rozbalit', name: 'unpack', methods: ['POST'], requirements: ['id' => '\d+'])]
     #[IsGranted(WarehouseRole::EDIT)]
     public function unpack(Request $request, Spool $spool, EntityManagerInterface $em, SpoolMeterService $meter): Response
@@ -727,7 +828,7 @@ final class SpoolController extends AbstractController
     }
 
     #[Route('/{id}/smazat', name: 'delete', methods: ['POST'], requirements: ['id' => '\d+'])]
-    public function delete(Request $request, Spool $spool, EntityManagerInterface $em): Response
+    public function delete(Request $request, Spool $spool, EntityManagerInterface $em, SpoolPhotoStorage $photos): Response
     {
         // Nerozbalené může smazat provoz (EDIT); běžnou cívku jen správa (ADMIN).
         if ($spool->isReceivedSealed()) {
@@ -745,6 +846,7 @@ final class SpoolController extends AbstractController
 
         $wasSealed = $spool->isReceivedSealed();
         $reel = $spool->getReelNumberLabel();
+        $photos->deleteAllForSpool($spool);
         $em->remove($spool);
         $em->flush();
 

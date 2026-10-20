@@ -1,0 +1,255 @@
+{# Foto cívky — až 3 fotky; první = nejnovější; 4. nahrání smaže nejstarší. #}
+{% set fotoOpen = app.request.query.get('foto') == '1' or app.request.query.get('foto') == 1 %}
+{% set spoolPhotos = spool.photos %}
+{% set photoCount = spoolPhotos|length %}
+{% set latestPhoto = spool.latestPhoto %}
+<style>
+    .spool-card-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem 0.75rem;
+        margin: 0 0 0.35rem;
+    }
+    .spool-card-title-row h1 { margin: 0; flex: 1 1 auto; min-width: min(100%, 12rem); }
+    .spool-foto-btn {
+        flex: 0 0 auto;
+        min-height: 2.55rem;
+        padding: 0.4rem 0.85rem;
+        font-weight: 600;
+    }
+    .spool-foto-btn--has {
+        color: #14521f;
+        border-color: #8bc894;
+        background: linear-gradient(180deg, #e9f8ec 0%, #d8f0dd 100%);
+    }
+    .spool-foto-panel {
+        margin: 0 0 1rem;
+        padding: 0.75rem;
+        max-width: 36rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: #f7f7f7;
+    }
+    .spool-foto-panel[hidden] { display: none !important; }
+    .spool-foto-panel__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.65rem;
+    }
+    .spool-foto-panel__title { margin: 0; font-size: 1.05rem; }
+    .spool-foto-panel__meta { margin: 0; font-size: 0.85rem; color: #555; font-weight: 400; }
+    .spool-foto-panel__close {
+        border: 1px solid #bbb;
+        background: #fff;
+        border-radius: 6px;
+        min-width: 2.4rem;
+        min-height: 2.4rem;
+        font-size: 1.25rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .spool-foto-preview {
+        display: block;
+        width: 100%;
+        max-height: min(70vh, 28rem);
+        object-fit: contain;
+        background: #222;
+        border-radius: 6px;
+        margin: 0 0 0.55rem;
+    }
+    .spool-foto-empty {
+        margin: 0 0 0.75rem;
+        padding: 1.25rem 0.75rem;
+        text-align: center;
+        color: #555;
+        background: #eee;
+        border-radius: 6px;
+    }
+    .spool-foto-thumbs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin: 0 0 0.75rem;
+    }
+    .spool-foto-thumb {
+        position: relative;
+        width: 4.5rem;
+        height: 4.5rem;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 2px solid transparent;
+        padding: 0;
+        background: #333;
+        cursor: pointer;
+    }
+    .spool-foto-thumb.is-active { border-color: #1e6bb8; }
+    .spool-foto-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .spool-foto-thumb__del {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        border: none;
+        background: rgba(160,0,0,0.85);
+        color: #fff;
+        border-radius: 4px;
+        width: 1.45rem;
+        height: 1.45rem;
+        font-size: 0.85rem;
+        line-height: 1;
+        padding: 0;
+        cursor: pointer;
+    }
+    .spool-foto-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .spool-foto-actions .warehouse-pill {
+        flex: 1 1 auto;
+        min-width: min(100%, 9rem);
+        text-align: center;
+        justify-content: center;
+        width: 100%;
+    }
+    .spool-foto-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0,0,0,0); }
+</style>
+
+<div class="spool-card-title-row">
+    <h1>{% if spool.receivedSealed %}Nerozbalená cívka {{ spool.reelNumberLabel }}{% else %}Cívka {{ spool.reelNumberLabel }}{% endif %}</h1>
+    <button type="button"
+            id="spool-foto-open"
+            class="warehouse-pill spool-foto-btn{% if photoCount > 0 %} spool-foto-btn--has{% endif %}"
+            aria-expanded="{{ fotoOpen ? 'true' : 'false' }}"
+            aria-controls="spool-foto-panel">
+        Foto{% if photoCount > 0 %} ({{ photoCount }}){% endif %}
+    </button>
+</div>
+
+<div id="spool-foto-panel" class="spool-foto-panel" {% if not fotoOpen %}hidden{% endif %}>
+    <div class="spool-foto-panel__head">
+        <div>
+            <h2 class="spool-foto-panel__title">Fotky cívky</h2>
+            <p class="spool-foto-panel__meta">Max. 3 — zobrazuje se nejnovější; 4. nahrání smaže nejstarší.</p>
+        </div>
+        <button type="button" class="spool-foto-panel__close" id="spool-foto-close" aria-label="Zavřít">×</button>
+    </div>
+
+    {% if latestPhoto %}
+        <img class="spool-foto-preview"
+             id="spool-foto-main"
+             src="{{ path('warehouse_spool_photo', {id: spool.id, photoId: latestPhoto.id}) }}"
+             alt="Fotka cívky {{ spool.reelNumberLabel }}"
+             data-photo-id="{{ latestPhoto.id }}">
+        {% if photoCount > 1 %}
+            <div class="spool-foto-thumbs" id="spool-foto-thumbs">
+                {% for p in spoolPhotos %}
+                    <button type="button"
+                            class="spool-foto-thumb{% if loop.first %} is-active{% endif %}"
+                            data-photo-src="{{ path('warehouse_spool_photo', {id: spool.id, photoId: p.id}) }}"
+                            data-photo-id="{{ p.id }}"
+                            title="{{ p.createdAt|date('d.m.Y H:i') }}">
+                        <img src="{{ path('warehouse_spool_photo', {id: spool.id, photoId: p.id}) }}" alt="">
+                    </button>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if is_granted('ROLE_SKLAD_EDIT') %}
+            <div class="spool-foto-thumbs" style="margin-top:-0.25rem;">
+                {% for p in spoolPhotos %}
+                    <form method="post"
+                          action="{{ path('warehouse_spool_photo_delete', {id: spool.id, photoId: p.id}) }}"
+                          style="margin:0;"
+                          onsubmit="return confirm('Smazat tuto fotku?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('spool_photo_delete_' ~ p.id) }}">
+                        <button type="submit" class="spool-form__btn spool-form__btn--danger" style="min-height:2.2rem;padding:0.3rem 0.55rem;font-size:0.85rem;">
+                            Smazat{% if photoCount > 1 %} #{{ loop.index }}{% endif %}
+                        </button>
+                    </form>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="spool-foto-empty">Zatím žádná fotka — vyfoťte cívku nebo vyberte z galerie.</p>
+    {% endif %}
+
+    {% if is_granted('ROLE_SKLAD_EDIT') %}
+        <div class="spool-foto-actions">
+            <form method="post"
+                  action="{{ path('warehouse_spool_photo_upload', {id: spool.id}) }}"
+                  enctype="multipart/form-data"
+                  id="spool-foto-form-camera"
+                  style="margin:0;flex:1 1 auto;min-width:min(100%,9rem);">
+                <input type="hidden" name="_token" value="{{ csrf_token('spool_photo_' ~ spool.id) }}">
+                <input type="file" name="photo" id="spool-foto-camera" class="spool-foto-file" accept="image/*" capture="environment">
+                <button type="button" class="warehouse-pill" id="spool-foto-pick-camera">Fotoaparát</button>
+            </form>
+            <form method="post"
+                  action="{{ path('warehouse_spool_photo_upload', {id: spool.id}) }}"
+                  enctype="multipart/form-data"
+                  id="spool-foto-form-gallery"
+                  style="margin:0;flex:1 1 auto;min-width:min(100%,9rem);">
+                <input type="hidden" name="_token" value="{{ csrf_token('spool_photo_' ~ spool.id) }}">
+                <input type="file" name="photo" id="spool-foto-gallery" class="spool-foto-file" accept="image/*">
+                <button type="button" class="warehouse-pill" id="spool-foto-pick-gallery">Galerie</button>
+            </form>
+        </div>
+        <p style="margin:0.55rem 0 0;font-size:0.85rem;color:#555;">
+            JPG / PNG / WebP, max. 12&nbsp;MB. Aktuálně {{ photoCount }}/3.
+        </p>
+    {% elseif photoCount == 0 %}
+        <p style="margin:0;font-size:0.9rem;color:#666;">Fotku může nahrát uživatel s právem úprav skladu.</p>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+  var openBtn = document.getElementById('spool-foto-open');
+  var panel = document.getElementById('spool-foto-panel');
+  var closeBtn = document.getElementById('spool-foto-close');
+  if (!openBtn || !panel) return;
+
+  function setOpen(open) {
+    panel.hidden = !open;
+    openBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  openBtn.addEventListener('click', function () { setOpen(panel.hidden); });
+  if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
+
+  var main = document.getElementById('spool-foto-main');
+  var thumbs = document.getElementById('spool-foto-thumbs');
+  if (main && thumbs) {
+    thumbs.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.spool-foto-thumb');
+      if (!btn) return;
+      var src = btn.getAttribute('data-photo-src');
+      if (!src) return;
+      main.src = src;
+      main.setAttribute('data-photo-id', btn.getAttribute('data-photo-id') || '');
+      thumbs.querySelectorAll('.spool-foto-thumb').forEach(function (t) {
+        t.classList.toggle('is-active', t === btn);
+      });
+    });
+  }
+
+  function bindPick(btnId, inputId, formId) {
+    var btn = document.getElementById(btnId);
+    var input = document.getElementById(inputId);
+    var form = document.getElementById(formId);
+    if (!btn || !input || !form) return;
+    btn.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      if (input.files && input.files.length) form.submit();
+    });
+  }
+  bindPick('spool-foto-pick-camera', 'spool-foto-camera', 'spool-foto-form-camera');
+  bindPick('spool-foto-pick-gallery', 'spool-foto-gallery', 'spool-foto-form-gallery');
+})();
+</script>

@@ -110,9 +110,15 @@ class Spool
     #[ORM\OrderBy(['id' => 'ASC'])]
     private Collection $events;
 
+    /** @var Collection<int, SpoolPhoto> nejnovější první */
+    #[ORM\OneToMany(targetEntity: SpoolPhoto::class, mappedBy: 'spool', cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['createdAt' => 'DESC', 'id' => 'DESC'])]
+    private Collection $photos;
+
     public function __construct()
     {
         $this->events = new ArrayCollection();
+        $this->photos = new ArrayCollection();
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
@@ -393,6 +399,45 @@ class Spool
     public function setRegisteredAt(\DateTimeImmutable $registeredAt): static
     {
         $this->registeredAt = $registeredAt;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, SpoolPhoto>
+     */
+    public function getPhotos(): Collection
+    {
+        return $this->photos;
+    }
+
+    public function hasPhoto(): bool
+    {
+        return !$this->photos->isEmpty();
+    }
+
+    public function getLatestPhoto(): ?SpoolPhoto
+    {
+        foreach ($this->photos as $photo) {
+            return $photo;
+        }
+
+        return null;
+    }
+
+    public function addPhoto(SpoolPhoto $photo): static
+    {
+        if (!$this->photos->contains($photo)) {
+            $this->photos->add($photo);
+            $photo->setSpool($this);
+        }
+
+        return $this;
+    }
+
+    public function removePhoto(SpoolPhoto $photo): static
+    {
+        $this->photos->removeElement($photo);
 
         return $this;
     }

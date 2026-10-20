@@ -41,3 +41,7 @@ services:
     App\Service\Warehouse\DodaciListStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
+
+    App\Service\Warehouse\SpoolPhotoStorage:
+        arguments:
+            $projectDir: '%kernel.project_dir%'

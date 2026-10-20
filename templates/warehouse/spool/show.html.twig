@@ -272,7 +272,7 @@
 {% endblock %}
 {% block body %}
     {% include 'warehouse/_mobile_menu.html.twig' %}
-    <h1>{% if spool.receivedSealed %}Nerozbalená cívka {{ spool.reelNumberLabel }}{% else %}Cívka {{ spool.reelNumberLabel }}{% endif %}</h1>
+    {% include 'warehouse/spool/_spool_photo.html.twig' %}
     {% include 'warehouse/spool/_spool_typ_under_title.html.twig' %}
     {% if spool.receivedSealed %}
         <p style="margin:0 0 0.75rem;padding:0.5rem 0.75rem;background:#ececec;border-left:3px solid #888;max-width:36rem;font-size:0.92rem;">
