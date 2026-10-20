@@ -346,9 +346,9 @@ final class StockBrowseController extends AbstractController
 
     private static function parseProjectUsageSort(Request $request): string
     {
-        $sort = (string) $request->query->get('sort', 'name');
+        $sort = (string) $request->query->get('sort', 'date');
 
-        return \in_array($sort, ['name', 'date'], true) ? $sort : 'name';
+        return \in_array($sort, ['name', 'date'], true) ? $sort : 'date';
     }
 
     /**
@@ -596,7 +596,7 @@ final class StockBrowseController extends AbstractController
      *   }>
      * }>
      */
-    private static function buildProjectUsageGroupsInventuraStyle(array $events, string $sort = 'name'): array
+    private static function buildProjectUsageGroupsInventuraStyle(array $events, string $sort = 'date'): array
     {
         /** @var array<string, array<string, array{groupLabel: string, meters: int, details: list<array{reelNumber: string, spoolId: int, occurredAt: \DateTimeImmutable, usedMeters: int, author: string}>}>> $nested */
         $nested = [];
